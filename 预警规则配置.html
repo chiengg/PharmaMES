@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MES 精细化工 - 预警规则配置</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary-50: #E6F1FB; --primary-200: #B5D4F4; --primary-400: #378ADD;
+    --primary-600: #185FA5; --primary-800: #0C447C; --primary-900: #042C53;
+    --normal: #1D9E75; --normal-bg: #E1F5EE;
+    --info: #EF9F27; --info-bg: #FAEEDA;
+    --warning: #D85A30; --warning-bg: #FAECE7;
+    --block: #E24B4A; --block-bg: #FCEBEB;
+    --white: #FFFFFF; --page: #F1EFE8; --border: #D3D1C7;
+    --text-sec: #888780; --text-sub: #5F5E5A; --text: #2C2C2A;
+  }
+  body { font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif; background: var(--page); color: var(--text); font-size: 14px; line-height: 1.6; overflow: hidden; height: 100vh; }
+  .app { display: flex; height: 100vh; }
+
+  /* 侧边栏 */
+  .sidebar { width: 200px; min-width: 200px; background: var(--primary-800); color: #85B7EB; display: flex; flex-direction: column; overflow-y: auto; }
+  .sidebar-logo { padding: 14px 16px; border-bottom: 1px solid var(--primary-600); display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .sidebar-nav { padding: 8px 0; flex: 1; }
+  .nav-item { padding: 8px 16px 8px 36px; font-size: 12.5px; color: #85B7EB; cursor: pointer; position: relative; transition: all 0.15s; display: flex; align-items: center; gap: 7px; }
+  .nav-item:hover { background: var(--primary-900); color: #B5D4F4; }
+  .nav-item.active { background: var(--primary-600); color: #FFF; font-weight: 500; }
+  .nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--primary-400); }
+  .nav-section-title { padding: 16px 20px 6px; font-size: 11px; color: #378ADD; text-transform: uppercase; letter-spacing: 0.5px; }
+  .sidebar-footer { padding: 12px 20px; border-top: 1px solid var(--primary-600); font-size: 12px; color: #5DCAA5; display: flex; align-items: center; gap: 6px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--normal); }
+
+  /* 主区域 */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { height: 52px; min-height: 52px; background: var(--white); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+  .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-sec); }
+  .breadcrumb .current { color: var(--text); font-weight: 500; }
+  .topbar-right { display: flex; align-items: center; gap: 20px; }
+  .user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+  .user-info:hover { background: var(--page); }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-600); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }
+  .user-name { font-size: 13px; color: var(--text); }
+  .user-role { font-size: 11px; color: var(--text-sec); }
+
+  .content { flex: 1; overflow-y: auto; padding: 14px 28px; }
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; gap: 12px; flex-wrap: wrap; }
+  .page-title { font-size: 22px; font-weight: 500; color: var(--text); }
+  .page-subtitle { font-size: 13px; color: var(--text-sec); margin-top: 2px; }
+  .header-actions { display: flex; gap: 10px; align-items: center; }
+  .btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+  .btn-primary { background: var(--primary-600); color: #fff; }
+  .btn-primary:hover { background: var(--primary-800); }
+  .btn-secondary { background: var(--white); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--primary-400); color: var(--primary-600); }
+  .btn-ghost { background: transparent; color: var(--primary-600); border: 1px solid var(--primary-400); }
+  .btn-ghost:hover { background: var(--primary-50); }
+  .back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--primary-600); cursor: pointer; text-decoration: none; margin-right: 14px; }
+  .back-link:hover { text-decoration: underline; }
+
+  .card { background: var(--white); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+  .card-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .card-title { font-size: 15px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .card-title .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  .metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+  .metric-card { background: var(--white); border-radius: 10px; padding: 14px 16px; border: 1px solid var(--border); }
+  .metric-card::before { content: ''; display: block; width: 100%; height: 3px; border-radius: 3px; margin-bottom: 10px; }
+  .metric-card.block::before { background: var(--block); }
+  .metric-card.warning::before { background: var(--warning); }
+  .metric-card.info::before { background: var(--info); }
+  .metric-card.normal::before { background: var(--normal); }
+  .metric-label { font-size: 11px; color: var(--text-sec); margin-bottom: 6px; }
+  .metric-value { font-family: "DIN Alternate", "Roboto", monospace; font-size: 24px; font-weight: 500; line-height: 1.1; }
+  .metric-card.block .metric-value { color: var(--block); }
+  .metric-card.warning .metric-value { color: var(--warning); }
+  .metric-card.info .metric-value { color: var(--info); }
+  .metric-card.normal .metric-value { color: var(--normal); }
+
+  .status-tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 14px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+  .status-tag .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .status-tag.normal { background: var(--normal-bg); color: #085041; } .status-tag.normal .dot { background: var(--normal); }
+  .status-tag.info { background: var(--info-bg); color: #633806; } .status-tag.info .dot { background: var(--info); }
+  .status-tag.warning { background: var(--warning-bg); color: #712B13; } .status-tag.warning .dot { background: var(--warning); }
+  .status-tag.block { background: var(--block-bg); color: #501313; } .status-tag.block .dot { background: var(--block); }
+
+  .cfg-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .cfg-table th { text-align: left; padding: 11px 16px; background: var(--page); color: var(--text-sec); font-weight: 500; font-size: 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .cfg-table td { padding: 12px 16px; border-bottom: 1px solid var(--page); color: var(--text); vertical-align: middle; }
+  .cfg-table tbody tr:hover { background: var(--primary-50); }
+  .link-btn { color: var(--primary-600); cursor: pointer; font-size: 12px; margin-right: 10px; }
+  .link-btn:hover { text-decoration: underline; }
+  .link-del { color: var(--block); cursor: pointer; font-size: 12px; }
+  .link-del:hover { text-decoration: underline; }
+
+  .switch { position: relative; display: inline-block; width: 40px; height: 22px; vertical-align: middle; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch .slider { position: absolute; cursor: pointer; inset: 0; background: var(--border); border-radius: 22px; transition: .2s; }
+  .switch .slider:before { content: ''; position: absolute; height: 16px; width: 16px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: .2s; }
+  .switch input:checked + .slider { background: var(--normal); }
+  .switch input:checked + .slider:before { transform: translateX(18px); }
+  .switch-label { font-size: 12px; color: var(--text-sec); margin-left: 8px; }
+  .switch-label.on { color: var(--normal); }
+  .switch-label.off { color: var(--text-sec); }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-sec); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .pulse { animation: pulse 1.5s ease-in-out infinite; }
+
+  /* 抽屉（新增/编辑规则） */
+  .kdt-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.3); z-index: 9998; display: none; }
+  .kdt-mask.open { display: block; }
+  .kdt-drawer { position: fixed; top: 0; right: 0; width: 460px; height: 100vh; background: #fff; box-shadow: -4px 0 24px rgba(0,0,0,.1); z-index: 9999; transform: translateX(100%); transition: transform .3s; overflow-y: auto; }
+  .kdt-drawer.open { transform: translateX(0); }
+  .kdt-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .kdt-badge { font-size: 14px; font-weight: 600; color: var(--primary-600); }
+  .kdt-close { background: none; border: none; font-size: 20px; color: var(--text-sec); cursor: pointer; }
+  .kdt-body { padding: 20px; }
+  .form-row { margin-bottom: 14px; }
+  .form-label { display: block; font-size: 12px; color: var(--text-sec); margin-bottom: 6px; }
+  .form-input, .form-select { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; color: var(--text); background: #fff; font-family: inherit; outline: none; }
+  .form-input:focus, .form-select:focus { border-color: var(--primary-400); }
+  .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+  /* === 侧边栏 v2：分组折叠 + 窄宽 + 新LOGO === */
+  .logo-text { line-height: 1.25; min-width: 0; }
+  .logo-name { font-size: 15px; font-weight: 500; color: #FFFFFF; letter-spacing: 0.3px; }
+  .logo-slogan { font-size: 10.5px; color: #93B5D9; margin-top: 1px; }
+  .nav-group-head { padding: 14px 16px 5px; font-size: 11px; color: #6FA9DA; letter-spacing: 0.6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; transition: color 0.15s; }
+  .nav-group-head:hover { color: #B5D4F4; }
+  .nav-group-head > span:first-child { font-weight: 500; }
+  .nav-caret { font-size: 10px; opacity: 0.75; transition: transform 0.18s; display: inline-block; }
+  .nav-group-items { overflow: hidden; }
+  .nav-group.collapsed .nav-caret { transform: rotate(-90deg); }
+  .nav-group.collapsed .nav-group-items { display: none; }
+  .sidebar-collapse { padding: 10px 16px; font-size: 12px; color: #85B7EB; cursor: pointer; display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--primary-600); transition: all 0.15s; }
+  .sidebar-collapse:hover { background: var(--primary-900); color: #B5D4F4; }
+  .collapse-caret { display: inline-block; transition: transform 0.2s; font-size: 14px; line-height: 1; }
+  .sidebar.collapsed .collapse-caret { transform: rotate(180deg); }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="appSidebar"></aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="breadcrumb">
+        <span>安质环管控</span><span>›</span>
+        <span>动作监控预警</span><span>›</span>
+        <span class="current">预警规则配置</span>
+      </div>
+      <div class="topbar-right">
+        <div id="plantSwitch"></div>
+        <div id="roleSwitch"></div>
+      <div class="user-info">
+          <div class="avatar">张</div>
+          <div><div class="user-name">张明</div><div class="user-role">车间主管</div></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="tabbar" id="tabBar"></div>
+      <div class="content">
+    
+      <div class="page-header">
+        <div>
+          <div class="page-title">
+            <a class="back-link" onclick="window.location.href='实时预警.html'">← 返回预警中心</a>预警规则配置
+          </div>
+          <div class="page-subtitle">定义各监测对象的触发条件、阈值与预警级别，规则命中后自动生成预警事件并通知责任人</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-primary" onclick="Rule.open()">＋ 新增规则</button>
+        </div>
+      </div>
+
+      <div class="metrics-row">
+        <div class="metric-card block"><div class="metric-label">阻断级规则</div><div class="metric-value" id="mBlock">2</div></div>
+        <div class="metric-card warning"><div class="metric-label">警告级规则</div><div class="metric-value" id="mWarn">2</div></div>
+        <div class="metric-card info"><div class="metric-label">提示级规则</div><div class="metric-value" id="mInfo">2</div></div>
+        <div class="metric-card normal"><div class="metric-label">已启用</div><div class="metric-value" id="mOn">5</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><span class="dot" style="background: var(--primary-400);"></span>预警规则列表</div>
+          <span style="font-size: 12px; color: var(--text-sec);" id="ruleTotal">共 6 条规则</span>
+        </div>
+        <div style="overflow-x: auto;">
+          <table class="cfg-table">
+            <thead>
+              <tr>
+                <th>规则名称</th>
+                <th>监测对象</th>
+                <th>触发条件</th>
+                <th>阈值</th>
+                <th>预警级别</th>
+                <th>通知方式</th>
+                <th>状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="ruleBody">
+              <tr data-id="rule-1" data-level="block">
+                <td>反应釜温度上限</td>
+                <td>反应釜温度 TT-205</td>
+                <td>高于上限</td>
+                <td class="num">＞ 80.0°C</td>
+                <td><span class="status-tag block"><span class="dot"></span>阻断</span></td>
+                <td>操作员 / 主管 / QA</td>
+                <td><label class="switch"><input type="checkbox" checked onchange="Rule.toggle(this,'rule-1')"><span class="slider"></span></label><span class="switch-label on">启用</span></td>
+                <td><span class="link-btn" onclick="Rule.open('rule-1')">编辑</span><span class="link-del" onclick="Rule.del('rule-1')">删除</span></td>
+              </tr>
+              <tr data-id="rule-2" data-level="warning">
+                <td>反应釜压力上限</td>
+                <td>反应釜压力 PT-208</td>
+                <td>高于上限</td>
+                <td class="num">＞ 2.0 MPa</td>
+                <td><span class="status-tag warning"><span class="dot"></span>警告</span></td>
+                <td>操作员 / 主管</td>
+                <td><label class="switch"><input type="checkbox" checked onchange="Rule.toggle(this,'rule-2')"><span class="slider"></span></label><span class="switch-label on">启用</span></td>
+                <td><span class="link-btn" onclick="Rule.open('rule-2')">编辑</span><span class="link-del" onclick="Rule.del('rule-2')">删除</span></td>
+              </tr>
+              <tr data-id="rule-3" data-level="warning">
+                <td>投料量偏差</td>
+                <td>称重模块</td>
+                <td>超出允差</td>
+                <td class="num">＞ ±1.0 kg</td>
+                <td><span class="status-tag warning"><span class="dot"></span>警告</span></td>
+                <td>操作员 / QA</td>
+                <td><label class="switch"><input type="checkbox" checked onchange="Rule.toggle(this,'rule-3')"><span class="slider"></span></label><span class="switch-label on">启用</span></td>
+                <td><span class="link-btn" onclick="Rule.open('rule-3')">编辑</span><span class="link-del" onclick="Rule.del('rule-3')">删除</span></td>
+              </tr>
+              <tr data-id="rule-4" data-level="block">
+                <td>阀门开启顺序</td>
+                <td>顺序控制器</td>
+                <td>顺序错误</td>
+                <td class="num">顺序错误</td>
+                <td><span class="status-tag block"><span class="dot"></span>阻断</span></td>
+                <td>操作员 / 主管</td>
+                <td><label class="switch"><input type="checkbox" checked onchange="Rule.toggle(this,'rule-4')"><span class="slider"></span></label><span class="switch-label on">启用</span></td>
+                <td><span class="link-btn" onclick="Rule.open('rule-4')">编辑</span><span class="link-del" onclick="Rule.del('rule-4')">删除</span></td>
+              </tr>
+              <tr data-id="rule-5" data-level="info">
+                <td>搅拌器振动</td>
+                <td>振动传感器</td>
+                <td>高于阈值</td>
+                <td class="num">＞ 2.0 mm/s</td>
+                <td><span class="status-tag info"><span class="dot"></span>提示</span></td>
+                <td>设备管理员</td>
+                <td><label class="switch"><input type="checkbox" onchange="Rule.toggle(this,'rule-5')"><span class="slider"></span></label><span class="switch-label off">停用</span></td>
+                <td><span class="link-btn" onclick="Rule.open('rule-5')">编辑</span><span class="link-del" onclick="Rule.del('rule-5')">删除</span></td>
+              </tr>
+              <tr data-id="rule-6" data-level="info">
+                <td>干燥温度波动</td>
+                <td>温度模块</td>
+                <td>波动超限</td>
+                <td class="num">＞ ±2.0°C/min</td>
+                <td><span class="status-tag info"><span class="dot"></span>提示</span></td>
+                <td>操作员</td>
+                <td><label class="switch"><input type="checkbox" checked onchange="Rule.toggle(this,'rule-6')"><span class="slider"></span></label><span class="switch-label on">启用</span></td>
+                <td><span class="link-btn" onclick="Rule.open('rule-6')">编辑</span><span class="link-del" onclick="Rule.del('rule-6')">删除</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    
+    </div></div>
+  </div>
+
+
+<!-- 新增/编辑规则抽屉 -->
+<div class="kdt-mask" id="ruleMask" onclick="Rule.close()"></div>
+<div class="kdt-drawer" id="ruleDrawer">
+  <div class="kdt-head">
+    <span class="kdt-badge" id="ruleDrawerTitle">新增规则</span>
+    <button class="kdt-close" onclick="Rule.close()">×</button>
+  </div>
+  <div class="kdt-body">
+    <div class="form-row">
+      <label class="form-label">规则名称</label>
+      <input class="form-input" id="fName" placeholder="如：反应釜温度上限">
+    </div>
+    <div class="form-row">
+      <label class="form-label">监测对象</label>
+      <select class="form-select" id="fObj">
+        <option>反应釜温度 TT</option>
+        <option>反应釜压力 PT</option>
+        <option>称重模块</option>
+        <option>顺序控制器</option>
+        <option>振动传感器</option>
+        <option>温度模块</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">触发条件</label>
+      <select class="form-select" id="fCond">
+        <option>高于上限</option>
+        <option>低于下限</option>
+        <option>偏差超限</option>
+        <option>顺序错误</option>
+        <option>波动超限</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">阈值</label>
+      <input class="form-input" id="fThr" placeholder="如：＞ 80.0°C">
+    </div>
+    <div class="form-row">
+      <label class="form-label">预警级别</label>
+      <select class="form-select" id="fLevel">
+        <option value="block">阻断</option>
+        <option value="warning">警告</option>
+        <option value="info">提示</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">通知方式</label>
+      <input class="form-input" id="fNotify" placeholder="如：操作员 / 主管 / QA">
+    </div>
+    <div class="form-row">
+      <label class="form-label">启用状态</label>
+      <label class="switch"><input type="checkbox" id="fOn" checked><span class="slider"></span></label>
+      <span class="switch-label on" id="fOnLabel">启用</span>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-secondary" onclick="Rule.close()">取消</button>
+      <button class="btn btn-primary" onclick="Rule.save()">保存</button>
+    </div>
+  </div>
+</div>
+
+  <script src="sidebar.js"></script>
+<script>
+  var Rule = (function () {
+    var editId = null;
+    function levelTag(v) {
+      if (v === 'block') return '<span class="status-tag block"><span class="dot"></span>阻断</span>';
+      if (v === 'warning') return '<span class="status-tag warning"><span class="dot"></span>警告</span>';
+      return '<span class="status-tag info"><span class="dot"></span>提示</span>';
+    }
+    function open(id) {
+      editId = id || null;
+      document.getElementById('ruleDrawerTitle').textContent = id ? '编辑规则' : '新增规则';
+      var f = function (k, v) { var e = document.getElementById(k); if (e) e.value = v || ''; };
+      if (id) {
+        var tr = document.querySelector('tr[data-id="' + id + '"]');
+        var td = tr.children;
+        f('fName', td[0].textContent);
+        f('fObj', td[1].textContent);
+        f('fCond', td[2].textContent);
+        f('fThr', td[3].textContent);
+        var lv = tr.getAttribute('data-level');
+        document.getElementById('fLevel').value = lv;
+        f('fNotify', td[5].textContent);
+        var on = tr.querySelector('.switch input').checked;
+        document.getElementById('fOn').checked = on;
+        setOnLabel(on);
+      } else {
+        f('fName', ''); f('fObj', '反应釜温度 TT'); f('fCond', '高于上限'); f('fThr', ''); f('fNotify', '');
+        document.getElementById('fLevel').value = 'warning';
+        document.getElementById('fOn').checked = true; setOnLabel(true);
+      }
+      document.getElementById('ruleMask').classList.add('open');
+      document.getElementById('ruleDrawer').classList.add('open');
+    }
+    function setOnLabel(on) {
+      var l = document.getElementById('fOnLabel');
+      l.textContent = on ? '启用' : '停用';
+      l.className = 'switch-label ' + (on ? 'on' : 'off');
+    }
+    function save() {
+      var name = document.getElementById('fName').value.trim();
+      if (!name) { alert('请填写规则名称'); return; }
+      var obj = document.getElementById('fObj').value;
+      var cond = document.getElementById('fCond').value;
+      var thr = document.getElementById('fThr').value.trim();
+      var lv = document.getElementById('fLevel').value;
+      var notify = document.getElementById('fNotify').value.trim() || '操作员';
+      var on = document.getElementById('fOn').checked;
+      var rowHtml = '<td>' + name + '</td><td>' + obj + '</td><td>' + cond + '</td><td class="num">' + (thr || '—') + '</td>'
+        + '<td>' + levelTag(lv) + '</td><td>' + notify + '</td>'
+        + '<td><label class="switch"><input type="checkbox" ' + (on ? 'checked' : '') + ' onchange="Rule.toggle(this,\'' + (editId || 'NEW') + '\')"><span class="slider"></span></label><span class="switch-label ' + (on ? 'on' : 'off') + '">' + (on ? '启用' : '停用') + '</span></td>'
+        + '<td><span class="link-btn" onclick="Rule.open(\'' + (editId || 'NEW') + '\')">编辑</span><span class="link-del" onclick="Rule.del(\'' + (editId || 'NEW') + '\')">删除</span></td>';
+      if (editId) {
+        var tr = document.querySelector('tr[data-id="' + editId + '"]');
+        tr.setAttribute('data-level', lv);
+        tr.innerHTML = rowHtml;
+      } else {
+        var nid = 'rule-' + (Date.now());
+        var ntr = document.createElement('tr');
+        ntr.setAttribute('data-id', nid);
+        ntr.setAttribute('data-level', lv);
+        ntr.innerHTML = rowHtml.replace(/'NEW'/g, "'" + nid + "'").replace(/"NEW"/g, '"' + nid + '"');
+        ntr.querySelectorAll('.link-btn,.link-del').forEach(function (el) {
+          el.setAttribute('onclick', el.getAttribute('onclick').replace(/NEW/g, nid));
+        });
+        document.getElementById('ruleBody').appendChild(ntr);
+      }
+      refresh();
+      close();
+    }
+    function toggle(box, id) {
+      var label = box.parentNode.nextElementSibling;
+      label.textContent = box.checked ? '启用' : '停用';
+      label.className = 'switch-label ' + (box.checked ? 'on' : 'off');
+      refresh();
+    }
+    function del(id) {
+      if (!confirm('确认删除该规则？')) return;
+      var tr = document.querySelector('tr[data-id="' + id + '"]');
+      if (tr) tr.parentNode.removeChild(tr);
+      refresh();
+    }
+    function close() {
+      document.getElementById('ruleMask').classList.remove('open');
+      document.getElementById('ruleDrawer').classList.remove('open');
+    }
+    function refresh() {
+      var rows = document.querySelectorAll('#ruleBody tr');
+      var b = 0, w = 0, i = 0, on = 0;
+      rows.forEach(function (r) {
+        var lv = r.getAttribute('data-level');
+        if (lv === 'block') b++; else if (lv === 'warning') w++; else i++;
+        if (r.querySelector('.switch input').checked) on++;
+      });
+      var set = function (id, v) { var e = document.getElementById(id); if (e) e.textContent = v; };
+      set('mBlock', b); set('mWarn', w); set('mInfo', i); set('mOn', on);
+      set('ruleTotal', '共 ' + rows.length + ' 条规则');
+    }
+    document.getElementById('fOn').addEventListener('change', function () { setOnLabel(this.checked); });
+    refresh();
+    return { open: open, save: save, toggle: toggle, del: del, close: close };
+  })();
+</script>
+  <script src="plant.js"></script>
+<script src="role.js"></script>
+</body>
+</html>
