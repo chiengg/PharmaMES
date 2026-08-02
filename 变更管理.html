@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MES 精细化工 - 变更管理</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary-50: #E6F1FB; --primary-200: #B5D4F4; --primary-400: #378ADD;
+    --primary-600: #185FA5; --primary-800: #0C447C; --primary-900: #042C53;
+    --normal: #1D9E75; --normal-bg: #E1F5EE;
+    --info: #EF9F27; --info-bg: #FAEEDA;
+    --warning: #D85A30; --warning-bg: #FAECE7;
+    --block: #E24B4A; --block-bg: #FCEBEB;
+    --white: #FFFFFF; --page: #F1EFE8; --border: #D3D1C7;
+    --text-sec: #888780; --text-sub: #5F5E5A; --text: #2C2C2A;
+  }
+  body { font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif; background: var(--page); color: var(--text); font-size: 14px; line-height: 1.6; overflow: hidden; height: 100vh; }
+  .app { display: flex; height: 100vh; }
+
+  /* === 侧边栏 === */
+  .sidebar { width: 200px; min-width: 200px; background: var(--primary-800); color: #85B7EB; display: flex; flex-direction: column; overflow-y: auto; }
+  .sidebar-logo { padding: 14px 16px; border-bottom: 1px solid var(--primary-600); display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .sidebar-nav { padding: 8px 0; flex: 1; }
+  .nav-item { padding: 8px 16px 8px 36px; font-size: 12.5px; color: #85B7EB; cursor: pointer; position: relative; transition: all 0.15s; display: flex; align-items: center; gap: 7px; }
+  .nav-item:hover { background: var(--primary-900); color: #B5D4F4; }
+  .nav-item.active { background: var(--primary-600); color: #FFF; font-weight: 500; }
+  .nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--primary-400); }
+  .nav-section-title { padding: 16px 20px 6px; font-size: 11px; color: #378ADD; letter-spacing: 0.5px; }
+  .sidebar-footer { padding: 12px 20px; border-top: 1px solid var(--primary-600); font-size: 12px; color: #5DCAA5; display: flex; align-items: center; gap: 6px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--normal); }
+
+  /* === 主区域 === */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { height: 52px; min-height: 52px; background: var(--white); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+  .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-sec); }
+  .breadcrumb .current { color: var(--text); font-weight: 500; }
+  .breadcrumb a { color: var(--text-sec); text-decoration: none; cursor: pointer; }
+  .breadcrumb a:hover { color: var(--primary-600); }
+  .topbar-right { display: flex; align-items: center; gap: 18px; }
+  .notify-btn { position: relative; cursor: pointer; padding: 6px; border-radius: 8px; }
+  .notify-btn:hover { background: var(--page); }
+  .notify-badge { position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; background: var(--block); color: #fff; border-radius: 50%; font-size: 10px; display: flex; align-items: center; justify-content: center; font-weight: 500; }
+  .user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+  .user-info:hover { background: var(--page); }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-600); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }
+  .user-name { font-size: 13px; color: var(--text); }
+  .user-role { font-size: 11px; color: var(--text-sec); }
+
+  /* === 内容区 === */
+  .content { flex: 1; overflow-y: auto; padding: 14px 28px; }
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .page-title { font-size: 22px; font-weight: 500; color: var(--text); }
+  .page-subtitle { font-size: 13px; color: var(--text-sec); margin-top: 2px; }
+  .header-actions { display: flex; gap: 10px; align-items: center; }
+  .btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+  .btn-primary { background: var(--primary-600); color: #fff; }
+  .btn-primary:hover { background: var(--primary-800); }
+  .btn-secondary { background: var(--white); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--primary-400); color: var(--primary-600); }
+
+  /* === 指标卡片 === */
+  .metrics-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 16px; }
+  .metric-card { background: var(--white); border-radius: 10px; padding: 14px 16px; border: 1px solid var(--border); position: relative; overflow: hidden; cursor: pointer; transition: all 0.15s; }
+  .metric-card:hover { border-color: var(--primary-400); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .metric-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .metric-card.block::before { background: var(--block); }
+  .metric-card.warning::before { background: var(--warning); }
+  .metric-card.info::before { background: var(--info); }
+  .metric-card.normal::before { background: var(--normal); }
+  .metric-card.blue::before { background: var(--primary-400); }
+  .metric-label { font-size: 11px; color: var(--text-sec); margin-bottom: 6px; }
+  .metric-value { font-family: "DIN Alternate", "Roboto", monospace; font-size: 26px; font-weight: 500; line-height: 1.1; }
+  .metric-card.block .metric-value { color: var(--block); }
+  .metric-card.warning .metric-value { color: var(--warning); }
+  .metric-card.info .metric-value { color: var(--info); }
+  .metric-card.normal .metric-value { color: var(--normal); }
+  .metric-card.blue .metric-value { color: var(--primary-600); }
+  .metric-unit { font-size: 12px; color: var(--text-sec); font-family: inherit; }
+  .metric-detail { font-size: 10px; color: var(--text-sec); margin-top: 4px; }
+
+  /* === 主布局 === */
+  .main-grid { display: grid; grid-template-columns: 1fr 340px; gap: 16px; align-items: start; }
+
+  /* === 卡片 === */
+  .card { background: var(--white); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+  .card-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .card-title { font-size: 15px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .card-title .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .card-body { padding: 0; }
+  .card-body.pad { padding: 14px 20px; }
+
+  /* === 筛选栏 === */
+  .filter-bar { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--page); flex-wrap: wrap; }
+  .filter-group { display: flex; align-items: center; gap: 6px; }
+  .filter-label { font-size: 12px; color: var(--text-sec); }
+  .filter-select { padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--text); background: var(--white); cursor: pointer; font-family: inherit; outline: none; }
+  .filter-select:focus { border-color: var(--primary-400); }
+  .filter-tabs { display: flex; gap: 4px; background: var(--page); border-radius: 8px; padding: 3px; }
+  .filter-tab { padding: 4px 12px; font-size: 12px; color: var(--text-sec); cursor: pointer; border-radius: 6px; border: none; background: none; font-family: inherit; transition: all 0.15s; }
+  .filter-tab.active { background: var(--white); color: var(--primary-600); font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+  .filter-tab .count { font-family: "DIN", monospace; font-size: 11px; margin-left: 3px; opacity: 0.7; }
+  .search-box { padding: 5px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; width: 200px; font-family: inherit; outline: none; }
+  .search-box:focus { border-color: var(--primary-400); }
+
+  /* === 变更台账表格 === */
+  .chg-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .chg-table th { text-align: left; padding: 10px 14px; background: var(--page); color: var(--text-sec); font-weight: 500; font-size: 12px; border-bottom: 1px solid var(--border); white-space: nowrap; position: sticky; top: 0; }
+  .chg-table td { padding: 12px 14px; border-bottom: 1px solid var(--page); color: var(--text); vertical-align: middle; }
+  .chg-table tbody tr { cursor: pointer; transition: background 0.12s; }
+  .chg-table tbody tr:hover { background: var(--primary-50); }
+  .chg-table .num { font-family: "DIN Alternate", "Roboto", monospace; }
+  .chg-id { font-family: "DIN Alternate", "Roboto", monospace; font-weight: 500; color: var(--primary-600); }
+  .table-scroll { max-height: 460px; overflow-y: auto; }
+  .empty-row td { text-align: center; color: var(--text-sec); padding: 36px 0; }
+
+  /* === 状态/类型标签 === */
+  .status-tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 14px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+  .status-tag .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .status-tag.normal { background: var(--normal-bg); color: #085041; } .status-tag.normal .dot { background: var(--normal); }
+  .status-tag.info { background: var(--info-bg); color: #633806; } .status-tag.info .dot { background: var(--info); }
+  .status-tag.warning { background: var(--warning-bg); color: #712B13; } .status-tag.warning .dot { background: var(--warning); }
+  .status-tag.block { background: var(--block-bg); color: #501313; } .status-tag.block .dot { background: var(--block); }
+  .status-tag.done { background: var(--page); color: var(--text-sub); } .status-tag.done .dot { background: var(--text-sec); }
+  .status-tag.pending { background: var(--primary-50); color: var(--primary-800); } .status-tag.pending .dot { background: var(--primary-400); }
+  .type-tag { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 400; white-space: nowrap; }
+  .type-tag.craft { background: var(--primary-50); color: var(--primary-800); }
+  .type-tag.bom { background: var(--warning-bg); color: #712B13; }
+  .type-tag.equip { background: #E8E6DF; color: var(--text-sub); }
+  .type-tag.material { background: var(--info-bg); color: #633806; }
+  .type-tag.sop { background: var(--primary-50); color: var(--primary-600); }
+  .type-tag.supplier { background: var(--page); color: var(--text-sec); border: 1px solid var(--border); }
+  .risk-tag { font-size: 11px; padding: 2px 9px; border-radius: 4px; font-weight: 500; }
+  .risk-tag.high { background: var(--block-bg); color: #501313; }
+  .risk-tag.mid { background: var(--warning-bg); color: #712B13; }
+  .risk-tag.low { background: var(--normal-bg); color: #085041; }
+
+  /* === 右侧面板 === */
+  .right-panel { display: flex; flex-direction: column; gap: 16px; }
+  .flow-mini { padding: 14px 20px; }
+  .flow-node { display: flex; align-items: center; gap: 10px; padding: 7px 0; position: relative; }
+  .flow-node:not(:last-child)::after { content: ''; position: absolute; left: 9px; top: 26px; width: 2px; height: 14px; background: var(--border); }
+  .flow-dot { width: 18px; height: 18px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; }
+  .flow-dot.c1 { background: var(--primary-600); }
+  .flow-dot.c2 { background: var(--warning); }
+  .flow-dot.c3 { background: var(--info); }
+  .flow-dot.c4 { background: #378ADD; }
+  .flow-dot.c5 { background: var(--normal); }
+  .flow-txt { font-size: 12.5px; color: var(--text-sub); }
+  .flow-node:last-child .flow-txt { color: var(--text); font-weight: 500; }
+
+  .todo-list { padding: 6px 8px; }
+  .todo-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer; transition: background 0.12s; }
+  .todo-item:hover { background: var(--primary-50); }
+  .todo-icon { width: 30px; height: 30px; border-radius: 8px; background: var(--block-bg); color: var(--block); display: flex; align-items: center; justify-content: center; font-size: 14px; flex: none; }
+  .todo-main { flex: 1; min-width: 0; }
+  .todo-title { font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .todo-sub { font-size: 11px; color: var(--text-sec); }
+  .todo-arrow { color: var(--text-sec); font-size: 12px; }
+  .empty-hint { padding: 22px; text-align: center; color: var(--text-sec); font-size: 12.5px; }
+
+  .impact-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 14px 20px; }
+  .impact-cell { background: var(--page); border-radius: 8px; padding: 12px; text-align: center; }
+  .impact-num { font-family: "DIN Alternate", monospace; font-size: 22px; font-weight: 500; color: var(--primary-600); }
+  .impact-lab { font-size: 11px; color: var(--text-sec); margin-top: 2px; }
+
+  /* === 抽屉 === */
+  .cm-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.3); z-index: 9998; display: none; }
+  .cm-mask.open { display: block; }
+  .cm-drawer { position: fixed; top: 0; right: 0; width: 480px; height: 100vh; background: #fff; box-shadow: -4px 0 24px rgba(0,0,0,.1); z-index: 9999; transform: translateX(100%); transition: transform .3s; overflow-y: auto; }
+  .cm-drawer.open { transform: translateX(0); }
+  .cm-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: #fff; z-index: 2; }
+  .cm-head-l { display: flex; flex-direction: column; gap: 4px; }
+  .cm-badge { font-size: 16px; font-weight: 600; color: var(--primary-800); }
+  .cm-badge .chg-id { font-size: 16px; }
+  .cm-close { background: none; border: none; font-size: 22px; color: var(--text-sec); cursor: pointer; line-height: 1; }
+  .cm-body { padding: 20px; }
+  .cm-meta { font-size: 12px; color: var(--text-sec); line-height: 1.9; background: var(--page); border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; }
+  .cm-meta b { color: var(--text); }
+  .cm-sec-title { font-size: 13px; font-weight: 600; color: var(--text); margin: 18px 0 10px; display: flex; align-items: center; gap: 6px; }
+  .cm-sec-title::before { content: ''; width: 3px; height: 13px; background: var(--primary-400); border-radius: 2px; }
+  .cm-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .cm-chip { font-size: 11.5px; padding: 3px 10px; border-radius: 6px; background: var(--primary-50); color: var(--primary-800); }
+  .cm-chip.warn { background: var(--warning-bg); color: #712B13; }
+  .cm-chip.block { background: var(--block-bg); color: #501313; }
+  .cm-desc { font-size: 12.5px; color: var(--text-sub); line-height: 1.8; background: var(--page); border-radius: 8px; padding: 12px 14px; }
+
+  .cm-steps { margin: 4px 0 8px; }
+  .cm-step { display: flex; align-items: flex-start; gap: 12px; padding: 11px 0; position: relative; }
+  .cm-step:not(:last-child)::after { content: ''; position: absolute; left: 15px; top: 38px; width: 2px; height: calc(100% - 26px); background: var(--border); }
+  .cm-step.done:not(:last-child)::after { background: var(--normal); }
+  .cm-step .cm-dot { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex: none; z-index: 1; }
+  .cm-step.done .cm-dot { background: var(--normal); color: #fff; }
+  .cm-step.cur .cm-dot { background: var(--block); color: #fff; box-shadow: 0 0 0 4px rgba(226,75,74,.15); }
+  .cm-step.todo .cm-dot { background: #fff; border: 1.5px solid var(--border); color: var(--text-sec); }
+  .cm-step.rej .cm-dot { background: var(--block); color: #fff; }
+  .cm-step .cm-info b { font-size: 13px; font-weight: 600; color: var(--text); }
+  .cm-step .cm-info span { display: block; font-size: 12px; color: var(--text-sec); margin-top: 3px; line-height: 1.6; }
+  .cm-step.cur .cm-info b { color: var(--block); }
+
+  .cm-act-area { background: var(--page); border-radius: 10px; padding: 14px; margin-top: 8px; }
+  .cm-sign { margin-bottom: 12px; }
+  .cm-sign label { font-size: 11.5px; color: var(--text-sec); display: block; margin-bottom: 4px; }
+  .cm-sign input { width: 100%; padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12.5px; font-family: inherit; outline: none; margin-bottom: 8px; }
+  .cm-sign input:focus { border-color: var(--primary-400); }
+  .cm-act { width: 100%; background: var(--primary-600); color: #fff; border: none; border-radius: 8px; padding: 11px; font-size: 13.5px; font-weight: 600; cursor: pointer; font-family: inherit; margin-top: 8px; }
+  .cm-act:hover { background: var(--primary-800); }
+  .cm-act.reject { background: var(--white); color: var(--block); border: 1px solid var(--block); }
+  .cm-act.reject:hover { background: var(--block-bg); }
+  .cm-closed { font-size: 15px; font-weight: 600; color: var(--normal); line-height: 1.7; text-align: center; padding: 16px 0; }
+  .cm-closed.block { color: var(--block); }
+  .cm-closed span { display: block; font-size: 12.5px; font-weight: 400; color: var(--text-sec); margin-top: 6px; }
+
+  .cm-audit { font-size: 12px; color: var(--text-sec); line-height: 1.9; }
+  .cm-audit .au-item { display: flex; gap: 8px; padding: 5px 0; border-bottom: 1px dashed var(--border); }
+  .cm-audit .au-item:last-child { border-bottom: none; }
+  .cm-audit .au-time { font-family: "DIN", monospace; color: var(--text-sub); flex: none; }
+
+  /* === 新增变更表单 === */
+  .cm-form { padding: 4px 0; }
+  .cm-field { margin-bottom: 14px; }
+  .cm-field label { font-size: 12px; color: var(--text-sub); display: block; margin-bottom: 5px; font-weight: 500; }
+  .cm-field label .req { color: var(--block); }
+  .cm-input, .cm-textarea, .cm-select { width: 100%; padding: 8px 11px; border: 1px solid var(--border); border-radius: 7px; font-size: 13px; font-family: inherit; outline: none; color: var(--text); background: #fff; }
+  .cm-input:focus, .cm-textarea:focus, .cm-select:focus { border-color: var(--primary-400); }
+  .cm-textarea { resize: vertical; min-height: 70px; line-height: 1.6; }
+  .cm-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .cm-checks { display: flex; flex-wrap: wrap; gap: 14px; padding: 4px 0; }
+  .cm-check { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-sub); cursor: pointer; }
+  .cm-check input { width: 15px; height: 15px; accent-color: var(--primary-600); }
+  .cm-foot { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+
+  /* === 审批流配置 === */
+  .cfg-node { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; background: var(--white); }
+  .cfg-idx { width: 26px; height: 26px; border-radius: 50%; background: var(--primary-50); color: var(--primary-800); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex: none; }
+  .cfg-main { flex: 1; }
+  .cfg-name { font-size: 13px; font-weight: 500; color: var(--text); }
+  .cfg-sub { font-size: 11px; color: var(--text-sec); margin-top: 2px; }
+  .cfg-approver { padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; font-family: inherit; outline: none; max-width: 120px; }
+  .cfg-cosign { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--text-sec); cursor: pointer; }
+  .cfg-cosign input { width: 14px; height: 14px; accent-color: var(--primary-600); }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-sec); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .pulse { animation: pulse 1.5s ease-in-out infinite; }
+
+  /* === 侧边栏 v2：分组折叠 + 窄宽 + 新LOGO === */
+  .logo-text { line-height: 1.25; min-width: 0; }
+  .logo-name { font-size: 15px; font-weight: 500; color: #FFFFFF; letter-spacing: 0.3px; }
+  .logo-slogan { font-size: 10.5px; color: #93B5D9; margin-top: 1px; }
+  .nav-group-head { padding: 14px 16px 5px; font-size: 11px; color: #6FA9DA; letter-spacing: 0.6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; transition: color 0.15s; }
+  .nav-group-head:hover { color: #B5D4F4; }
+  .nav-group-head > span:first-child { font-weight: 500; }
+  .nav-caret { font-size: 10px; opacity: 0.75; transition: transform 0.18s; display: inline-block; }
+  .nav-group-items { overflow: hidden; }
+  .nav-group.collapsed .nav-caret { transform: rotate(-90deg); }
+  .nav-group.collapsed .nav-group-items { display: none; }
+  .sidebar-collapse { padding: 10px 16px; font-size: 12px; color: #85B7EB; cursor: pointer; display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--primary-600); transition: all 0.15s; }
+  .sidebar-collapse:hover { background: var(--primary-900); color: #B5D4F4; }
+  .collapse-caret { display: inline-block; transition: transform 0.2s; font-size: 14px; line-height: 1; }
+  .sidebar.collapsed .collapse-caret { transform: rotate(180deg); }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- 侧边栏 -->
+  <aside class="sidebar" id="appSidebar"></aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="breadcrumb">
+        <a onclick="window.location.href='生产监控大屏.html'">首页</a>
+        <span>›</span>
+        <a>生产管理</a>
+        <span>›</span>
+        <span class="current">变更管理</span>
+      </div>
+      <div class="topbar-right">
+        <div class="notify-btn" title="预警">
+          <span style="font-size:16px;">🔔</span>
+          <span class="notify-badge">5</span>
+        </div>
+        <div id="plantSwitch"></div>
+        <div id="roleSwitch"></div>
+      <div class="user-info">
+          <div class="avatar">张</div>
+          <div><div class="user-name">张明</div><div class="user-role">车间主管</div></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="tabbar" id="tabBar"></div>
+      <div class="content">
+    
+      <div class="page-header">
+        <div>
+          <div class="page-title">变更管理</div>
+          <div class="page-subtitle">BOM / 工艺 / 设备 / 物料变更的全流程闭环管控（含影响范围分析与电子签名）</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" data-role-min="2" onclick="CM.openCfg()">⚙ 审批流配置</button>
+          <button class="btn btn-secondary" onclick="CM.exportList()">📥 导出</button>
+          <button class="btn btn-primary" data-role-min="1" onclick="CM.openNew()">＋ 新增变更</button>
+        </div>
+      </div>
+
+      <!-- 指标卡片 -->
+      <div class="metrics-row">
+        <div class="metric-card blue" data-tab="all"><div class="metric-label">本月变更</div><div class="metric-value" id="mTotal">0</div><div class="metric-detail">较上月 +12%</div></div>
+        <div class="metric-card pending" data-tab="pending"><div class="metric-label">待审批</div><div class="metric-value" id="mPending" style="color:var(--primary-600);">0</div><div class="metric-detail">待部门 / QA 审核</div></div>
+        <div class="metric-card warning" data-tab="reviewing"><div class="metric-label">审批中</div><div class="metric-value" id="mReviewing" style="color:var(--warning);">0</div><div class="metric-detail">多级审批流转</div></div>
+        <div class="metric-card info" data-tab="implementing"><div class="metric-label">实施中</div><div class="metric-value" id="mImpl" style="color:var(--info);">0</div><div class="metric-detail">现场实施与验证</div></div>
+        <div class="metric-card normal" data-tab="effective"><div class="metric-label">已生效</div><div class="metric-value" id="mEff" style="color:var(--normal);">0</div><div class="metric-detail">本月已闭环生效</div></div>
+      </div>
+
+      <div class="main-grid">
+        <!-- 左侧：变更台账 -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="dot" style="background: var(--primary-600);"></span>变更台账</div>
+            <span style="font-size:12px;color:var(--text-sec);" id="chgCount">共 0 条</span>
+          </div>
+          <div class="filter-bar">
+            <div class="filter-tabs" id="chgTabs">
+              <button class="filter-tab active" data-k="all">全部<span class="count" id="cAll">0</span></button>
+              <button class="filter-tab" data-k="pending">待审批<span class="count" id="cPending">0</span></button>
+              <button class="filter-tab" data-k="reviewing">审批中<span class="count" id="cReviewing">0</span></button>
+              <button class="filter-tab" data-k="implementing">实施中<span class="count" id="cImpl">0</span></button>
+              <button class="filter-tab" data-k="effective">已生效<span class="count" id="cEff">0</span></button>
+              <button class="filter-tab" data-k="rejected">已驳回<span class="count" id="cRej">0</span></button>
+            </div>
+          </div>
+          <div class="filter-bar" style="border-bottom:1px solid var(--border);">
+            <div class="filter-group">
+              <span class="filter-label">类型：</span>
+              <select class="filter-select" id="fType"><option value="">全部类型</option><option>工艺变更</option><option>BOM变更</option><option>设备变更</option><option>物料变更</option><option>SOP变更</option><option>供应商变更</option></select>
+            </div>
+            <div class="filter-group">
+              <span class="filter-label">部门：</span>
+              <select class="filter-select" id="fDept"><option value="">全部部门</option><option>一车间</option><option>二车间</option><option>三车间</option><option>设备部</option><option>采购部</option><option>质量部</option></select>
+            </div>
+            <div class="filter-group">
+              <span class="filter-label">风险：</span>
+              <select class="filter-select" id="fRisk"><option value="">全部等级</option><option value="高">高</option><option value="中">中</option><option value="低">低</option></select>
+            </div>
+            <div class="filter-group" style="margin-left:auto;">
+              <input class="search-box" id="fSearch" placeholder="搜索变更编号 / 标题">
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table class="chg-table">
+              <thead>
+                <tr>
+                  <th>变更编号</th>
+                  <th>变更标题</th>
+                  <th>类型</th>
+                  <th>申请部门 / 人</th>
+                  <th>风险</th>
+                  <th>当前节点</th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="chgBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 右侧栏 -->
+        <div class="right-panel">
+          <div class="card">
+            <div class="card-header"><div class="card-title"><span class="dot" style="background:var(--primary-600);"></span>变更闭环流程</div></div>
+            <div class="flow-mini">
+              <div class="flow-node"><span class="flow-dot c1">1</span><span class="flow-txt">变更申请提交</span></div>
+              <div class="flow-node"><span class="flow-dot c2">2</span><span class="flow-txt">部门审核（车间 / 工艺）</span></div>
+              <div class="flow-node"><span class="flow-dot c3">3</span><span class="flow-txt">质量审核（QA）</span></div>
+              <div class="flow-node"><span class="flow-dot c4">4</span><span class="flow-txt">实施与验证</span></div>
+              <div class="flow-node"><span class="flow-dot c5">5</span><span class="flow-txt">生效确认（电子签名）</span></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><div class="card-title"><span class="dot pulse" style="background:var(--block);"></span>待我审批 <span class="status-tag pending" id="todoCount" style="margin-left:4px;">0</span></div></div>
+            <div class="todo-list" id="todoList"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><div class="card-title"><span class="dot" style="background:var(--info);"></span>影响范围总览</div><span style="font-size:11px;color:var(--text-sec);">在途变更</span></div>
+            <div class="impact-grid">
+              <div class="impact-cell"><div class="impact-num" id="impBatch">0</div><div class="impact-lab">在制釜次</div></div>
+              <div class="impact-cell"><div class="impact-num" id="impMat">0</div><div class="impact-lab">在库物料</div></div>
+              <div class="impact-cell"><div class="impact-num" id="impAct">0</div><div class="impact-lab">关联动作</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    
+    </div></div>
+  </div>
+
+
+<!-- 变更详情 / 处理抽屉 -->
+<div class="cm-mask" id="cmMask"></div>
+<div class="cm-drawer" id="cmDrawer"></div>
+
+<!-- 新增变更抽屉 -->
+<div class="cm-mask" id="cmNewMask"></div>
+<div class="cm-drawer" id="cmNewDrawer"></div>
+
+<!-- 审批流配置抽屉 -->
+<div class="cm-mask" id="cmCfgMask"></div>
+<div class="cm-drawer" id="cmCfgDrawer"></div>
+
+<script>
+  // ===== 变更管理数据模型 =====
+  var FLOW = ['变更申请提交', '部门审核（车间/工艺）', '质量审核（QA）', '实施与验证', '生效确认（电子签名）'];
+
+  var CHANGES = [
+    { id: 'CHG-2608-001', title: '反应釜温度上限调整（80→82℃）', type: '工艺变更', dept: '一车间', applicant: '王磊', date: '2026-07-29', risk: '高',
+      step: 2, closed: false, rejected: false, cancelled: false,
+      impact: { batches: ['RC-0731-003', 'RC-0731-005'], materials: ['催化剂A', '溶剂B'], actions: ['ACT-201', 'ACT-205'] },
+      desc: '为满足夏季工况散热需求，将投料反应温度上限由 80℃ 上调至 82℃，需重新验证产品含量与杂质分布，确认对收率无负面影响。' },
+    { id: 'CHG-2608-002', title: '投料 BOM 中催化剂A 配比上调 0.5%', type: 'BOM变更', dept: '二车间', applicant: '李娜', date: '2026-07-28', risk: '中',
+      step: 3, closed: false, rejected: false, cancelled: false,
+      impact: { batches: ['RC-0731-006'], materials: ['催化剂A'], actions: ['ACT-201'] },
+      desc: '基于小试数据，催化剂A 配比由 2.0% 上调至 2.5%，提升反应速率，需确认后处理工序负荷在允许范围。' },
+    { id: 'CHG-2608-003', title: 'R-203 反应釜机械密封更换为双端面', type: '设备变更', dept: '设备部', applicant: '赵强', date: '2026-07-30', risk: '高',
+      step: 1, closed: false, rejected: false, cancelled: false,
+      impact: { batches: ['RC-0731-008'], materials: [], actions: ['ACT-301'] },
+      desc: '为降低 VOC 泄漏风险，R-203 机械密封更换为双端面密封并配套封液系统，需评估与现有管路接口兼容性。' },
+    { id: 'CHG-2608-004', title: '乙醇供应商由 A 切换至 B（同一规格）', type: '供应商变更', dept: '采购部', applicant: '孙丽', date: '2026-07-10', risk: '低',
+      step: 5, closed: true, rejected: false, cancelled: false,
+      impact: { batches: [], materials: ['乙醇（药用）'], actions: [] },
+      desc: 'B 供应商通过同等质量审计，乙醇规格一致，切换用于降低采购成本，已完成三批验证并生效。' },
+    { id: 'CHG-2608-005', title: '干燥工序 SOP 增加在线水分复核节点', type: 'SOP变更', dept: '一车间', applicant: '王磊', date: '2026-07-27', risk: '中',
+      step: 2, closed: false, rejected: false, cancelled: false,
+      impact: { batches: ['RC-0731-004'], materials: [], actions: ['ACT-402'] },
+      desc: '为防水分超标，干燥工序新增在线水分仪复核节点，异常自动停线并报警，需更新 SOP 与岗位培训。' },
+    { id: 'CHG-2608-006', title: '原辅料 B 提前投料顺序调整', type: '物料变更', dept: '采购部', applicant: '孙丽', date: '2026-07-22', risk: '中',
+      step: 2, closed: false, rejected: true, cancelled: false,
+      impact: { batches: ['RC-0731-006'], materials: ['辅料B'], actions: ['ACT-101'] },
+      desc: '拟将辅料B 投料顺序提前至溶媒之前，QA 审核认为可能影响溶解均匀性，已驳回退回申请部门复核。' },
+    { id: 'CHG-2608-007', title: '三车间 R-305 搅拌转速下限放宽', type: '工艺变更', dept: '三车间', applicant: '周杰', date: '2026-07-31', risk: '低',
+      step: -1, closed: false, rejected: false, cancelled: false,
+      impact: { batches: [], materials: [], actions: ['ACT-301'] },
+      desc: '高粘度批次搅拌电流偏高，拟将转速下限由 60rpm 放宽至 45rpm，草稿待补充验证方案后提交。' },
+    { id: 'CHG-2608-008', title: 'R-208 夹套冷却水阀门连锁逻辑优化', type: '设备变更', dept: '设备部', applicant: '赵强', date: '2026-07-20', risk: '高',
+      step: 4, closed: false, rejected: false, cancelled: false,
+      impact: { batches: ['RC-0731-008'], materials: [], actions: ['ACT-301'] },
+      desc: '冷却水阀门增加温度连锁，超温自动开大，已完成现场实施与功能验证，待变更委员会生效确认。' },
+    { id: 'CHG-2608-009', title: '二车间 BOM 中溶剂B 批次管控字段新增', type: 'BOM变更', dept: '二车间', applicant: '李娜', date: '2026-07-30', risk: '中',
+      step: 1, closed: false, rejected: false, cancelled: false,
+      impact: { batches: ['RC-0731-006'], materials: ['溶剂B'], actions: ['ACT-201'] },
+      desc: '为强化追溯，BOM 中溶剂B 增加批次必填管控字段，需部门审核后纳入 ERP 同步规则。' },
+    { id: 'CHG-2608-010', title: '粉碎 SOP 收尘系统开机顺序标准化', type: 'SOP变更', dept: '三车间', applicant: '周杰', date: '2026-07-05', risk: '低',
+      step: 5, closed: true, rejected: false, cancelled: false,
+      impact: { batches: [], materials: [], actions: ['ACT-501'] },
+      desc: '收尘系统先于主机开机，避免粉尘积聚，已形成标准作业并生效。' }
+  ];
+
+  // 审批流配置（默认）
+  var CFG = [
+    { name: '变更申请提交', role: '申请部门', cosign: false },
+    { name: '部门审核', role: '车间主任/工艺', cosign: false },
+    { name: '质量审核（QA）', role: '质量保证部', cosign: true },
+    { name: '实施与验证', role: '现场/工艺', cosign: false },
+    { name: '生效确认', role: '变更委员会(CCB)', cosign: true }
+  ];
+
+  function getChange(id) { for (var i = 0; i < CHANGES.length; i++) if (CHANGES[i].id === id) return CHANGES[i]; return null; }
+  function chgStatus(c) {
+    if (c.cancelled) return '已作废';
+    if (c.rejected) return '已驳回';
+    if (c.closed) return '已生效';
+    if (c.step < 0) return '草稿';
+    if (c.step === 1) return '待审批';
+    if (c.step === 2) return '审批中';
+    return '实施中';
+  }
+  function statusTab(s) {
+    if (s === '待审批') return 'pending';
+    if (s === '审批中') return 'reviewing';
+    if (s === '实施中') return 'implementing';
+    if (s === '已生效') return 'effective';
+    if (s === '已驳回' || s === '已作废') return 'rejected';
+    return 'all';
+  }
+  function statusClass(s) {
+    if (s === '待审批') return 'pending';
+    if (s === '审批中') return 'warning';
+    if (s === '实施中') return 'info';
+    if (s === '已生效') return 'normal';
+    if (s === '已驳回' || s === '已作废') return 'block';
+    return 'done';
+  }
+  function riskClass(r) { return r === '高' ? 'high' : (r === '中' ? 'mid' : 'low'); }
+  function typeClass(t) {
+    if (t === '工艺变更') return 'craft';
+    if (t === 'BOM变更') return 'bom';
+    if (t === '设备变更') return 'equip';
+    if (t === '物料变更') return 'material';
+    if (t === 'SOP变更') return 'sop';
+    return 'supplier';
+  }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (m) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[m]; }); }
+
+  // ===== 渲染台账 =====
+  var curTab = 'all';
+  function render() {
+    var type = document.getElementById('fType').value;
+    var dept = document.getElementById('fDept').value;
+    var risk = document.getElementById('fRisk').value;
+    var kw = document.getElementById('fSearch').value.trim().toLowerCase();
+
+    var rows = CHANGES.filter(function (c) {
+      var s = chgStatus(c);
+      if (curTab !== 'all' && statusTab(s) !== curTab) return false;
+      if (type && c.type !== type) return false;
+      if (dept && c.dept !== dept) return false;
+      if (risk && c.risk !== risk) return false;
+      if (kw && (c.id.toLowerCase().indexOf(kw) < 0 && c.title.toLowerCase().indexOf(kw) < 0)) return false;
+      return true;
+    });
+
+    var body = document.getElementById('chgBody');
+    if (rows.length === 0) {
+      body.innerHTML = '<tr class="empty-row"><td colspan="8">当前筛选条件下暂无变更记录</td></tr>';
+    } else {
+      body.innerHTML = rows.map(function (c) {
+        var s = chgStatus(c);
+        var curNode = c.step < 0 ? '待提交' : (c.closed ? '已生效' : FLOW[Math.min(c.step, 4)]);
+        var op = (s === '草稿')
+          ? '<span class="warn-handle-btn" style="background:var(--text-sec);" onclick="event.stopPropagation();CM.openNew(\'' + c.id + '\')">编辑</span>'
+          : (s === '待审批' || s === '审批中' || s === '实施中')
+            ? '<span class="warn-handle-btn" onclick="event.stopPropagation();CM.open(\'' + c.id + '\')">处理 →</span>'
+            : '<span style="font-size:12px;color:var(--primary-600);cursor:pointer;" onclick="event.stopPropagation();CM.open(\'' + c.id + '\')">查看 →</span>';
+        return '<tr data-id="' + c.id + '">'
+          + '<td><span class="chg-id">' + c.id + '</span></td>'
+          + '<td style="max-width:220px;">' + esc(c.title) + '</td>'
+          + '<td><span class="type-tag ' + typeClass(c.type) + '">' + c.type + '</span></td>'
+          + '<td>' + c.dept + ' / ' + c.applicant + '</td>'
+          + '<td><span class="risk-tag ' + riskClass(c.risk) + '">' + c.risk + '</span></td>'
+          + '<td style="font-size:12px;color:var(--text-sub);">' + curNode + '</td>'
+          + '<td><span class="status-tag ' + statusClass(s) + '">' + (s === '待审批' || s === '审批中' || s === '实施中' ? '<span class="dot pulse"></span>' : '<span class="dot"></span>') + s + '</span></td>'
+          + '<td>' + op + '</td>'
+          + '</tr>';
+      }).join('');
+    }
+
+    // 计数
+    document.getElementById('chgCount').textContent = '共 ' + rows.length + ' 条';
+    var cnt = { all: CHANGES.length, pending: 0, reviewing: 0, implementing: 0, effective: 0, rejected: 0 };
+    CHANGES.forEach(function (c) { cnt[statusTab(chgStatus(c))]++; });
+    document.getElementById('cAll').textContent = cnt.all;
+    document.getElementById('cPending').textContent = cnt.pending;
+    document.getElementById('cReviewing').textContent = cnt.reviewing;
+    document.getElementById('cImpl').textContent = cnt.implementing;
+    document.getElementById('cEff').textContent = cnt.effective;
+    document.getElementById('cRej').textContent = cnt.rejected;
+    document.getElementById('mTotal').textContent = cnt.all;
+    document.getElementById('mPending').textContent = cnt.pending;
+    document.getElementById('mReviewing').textContent = cnt.reviewing;
+    document.getElementById('mImpl').textContent = cnt.implementing;
+    document.getElementById('mEff').textContent = cnt.effective;
+
+    // 待我审批（当前用户=车间主管，关注部门审核节点 step1）
+    var todo = CHANGES.filter(function (c) { return !c.closed && !c.rejected && !c.cancelled && c.step === 1; });
+    document.getElementById('todoCount').textContent = todo.length;
+    var tl = document.getElementById('todoList');
+    if (todo.length === 0) {
+      tl.innerHTML = '<div class="empty-hint">暂无待我审批的变更 ✓</div>';
+    } else {
+      tl.innerHTML = todo.map(function (c) {
+        return '<div class="todo-item" onclick="CM.open(\'' + c.id + '\')">'
+          + '<div class="todo-icon">↻</div>'
+          + '<div class="todo-main"><div class="todo-title">' + c.id + '</div><div class="todo-sub">' + esc(c.title) + ' · ' + c.type + '</div></div>'
+          + '<div class="todo-arrow">→</div></div>';
+      }).join('');
+    }
+
+    // 影响范围总览（在途变更：未生效未作废）
+    var ib = {}, im = {}, ia = {};
+    CHANGES.forEach(function (c) {
+      if (c.closed || c.cancelled) return;
+      c.impact.batches.forEach(function (x) { ib[x] = 1; });
+      c.impact.materials.forEach(function (x) { im[x] = 1; });
+      c.impact.actions.forEach(function (x) { ia[x] = 1; });
+    });
+    document.getElementById('impBatch').textContent = Object.keys(ib).length;
+    document.getElementById('impMat').textContent = Object.keys(im).length;
+    document.getElementById('impAct').textContent = Object.keys(ia).length;
+  }
+
+  // ===== 变更详情 / 处理抽屉 =====
+  function nodeState(i, c) {
+    if (c.cancelled) return i === 0 ? 'done' : 'todo';
+    if (c.rejected) return i < c.step ? 'done' : (i === c.step ? 'rej' : 'todo');
+    if (c.closed) return 'done';
+    if (c.step < 0) return i === 0 ? 'cur' : 'todo';
+    return i < c.step ? 'done' : (i === c.step ? 'cur' : 'todo');
+  }
+
+  var CM = {
+    open: function (id) {
+      var c = getChange(id); if (!c) return;
+      var s = chgStatus(c);
+      var stepsHtml = FLOW.map(function (name, i) {
+        var st = nodeState(i, c);
+        var icon = st === 'done' ? '✓' : (st === 'cur' ? (i + 1) : (st === 'rej' ? '✕' : (i + 1)));
+        var detail = '';
+        if (i === 0) detail = '申请人 ' + c.applicant + ' · ' + c.date;
+        else if (i === 1) detail = '车间主任 / 工艺审核';
+        else if (i === 2) detail = '质量保证部审核（会签）';
+        else if (i === 3) detail = '现场实施并验证有效性';
+        else detail = '变更委员会生效确认（电子签名）';
+        return '<div class="cm-step ' + st + '"><div class="cm-dot">' + icon + '</div>'
+          + '<div class="cm-info"><b>' + name + '</b><span>' + detail + '</span></div></div>';
+      }).join('');
+
+      var impChips = '';
+      if (c.impact.batches.length) impChips += c.impact.batches.map(function (x) { return '<span class="cm-chip block">' + x + '</span>'; }).join('');
+      if (c.impact.materials.length) impChips += c.impact.materials.map(function (x) { return '<span class="cm-chip warn">' + x + '</span>'; }).join('');
+      if (c.impact.actions.length) impChips += c.impact.actions.map(function (x) { return '<span class="cm-chip">' + x + '</span>'; }).join('');
+      if (!impChips) impChips = '<span style="font-size:12px;color:var(--text-sec);">无关联影响范围</span>';
+
+      // 操作区
+      var actHtml = '';
+      if (c.cancelled) {
+        actHtml = '<div class="cm-closed block">该变更已作废，流程终止</div>';
+      } else if (c.rejected) {
+        actHtml = '<div class="cm-closed block">该变更已被驳回，退回申请部门<br><span>驳回节点：' + FLOW[Math.min(c.step, 4)] + '</span></div>';
+      } else if (c.closed) {
+        actHtml = '<div class="cm-closed">✓ 变更已生效并闭环<br><span>全流程已留痕，满足 GMP / 数据完整性要求</span></div>';
+      } else if (c.step < 0) {
+        actHtml = '<button class="cm-act" data-role-act-min="1" onclick="CM.act(\'' + c.id + '\',\'submit\')">提交申请</button>';
+      } else {
+        var needSign = (c.step === 1 || c.step === 2 || c.step === 4);
+        var signHtml = '';
+        if (needSign) {
+          signHtml = '<div class="cm-sign"><label>电子签名 · 签署人</label><input id="cmSignName" placeholder="请输入您的姓名">'
+            + '<label>电子签名 · 签名口令</label><input id="cmSignPwd" type="password" placeholder="请输入签名口令 / 令牌"></div>';
+        }
+        var label = c.step === 3 ? '完成实施验证' : (c.step === 4 ? '生效确认（电子签名）' : '通过该节点审核');
+        actHtml = signHtml
+          + '<button class="cm-act" onclick="CM.act(\'' + c.id + '\',\'advance\')">' + label + '</button>'
+          + '<button class="cm-act reject" data-role-act-min="1" onclick="CM.act(\'' + c.id + '\',\'reject\')">驳回变更</button>';
+      }
+
+      // 审计记录
+      var audit = '';
+      if (c.step > 0 || c.closed) {
+        var times = ['08:42', '09:15', '14:30', '16:05', '17:20'];
+        audit = '<div class="cm-audit">';
+        for (var i = 0; i <= Math.min(c.step - 1, 4); i++) {
+          audit += '<div class="au-item"><span class="au-time">' + c.date + ' ' + times[i] + '</span><span>' + FLOW[i] + ' 完成</span></div>';
+        }
+        if (c.closed) audit += '<div class="au-item"><span class="au-time">' + c.date + ' ' + times[4] + '</span><span>变更生效，版本已切换</span></div>';
+        if (c.rejected) audit += '<div class="au-item"><span class="au-time">' + c.date + ' 15:10</span><span style="color:var(--block);">节点驳回：' + FLOW[Math.min(c.step, 4)] + '</span></div>';
+        audit += '</div>';
+      } else {
+        audit = '<div style="font-size:12px;color:var(--text-sec);">尚未产生审批记录</div>';
+      }
+
+      var html = ''
+        + '<div class="cm-head"><div class="cm-head-l"><span class="cm-badge"><span class="chg-id">' + c.id + '</span></span>'
+        + '<span class="status-tag ' + statusClass(s) + '" style="align-self:flex-start;">' + s + '</span></div>'
+        + '<button class="cm-close" onclick="CM.close()">×</button></div>'
+        + '<div class="cm-body">'
+        + '<div class="cm-meta"><b>变更标题：</b>' + esc(c.title) + '<br><b>类型：</b>' + c.type + ' &nbsp;·&nbsp; <b>风险等级：</b>' + c.risk + '<br><b>申请部门：</b>' + c.dept + ' &nbsp;·&nbsp; <b>申请人：</b>' + c.applicant + ' &nbsp;·&nbsp; <b>申请日期：</b>' + c.date + '</div>'
+        + '<div class="cm-sec-title">影响范围分析</div>'
+        + '<div class="cm-chips">' + impChips + '</div>'
+        + '<div class="cm-sec-title">变更说明</div>'
+        + '<div class="cm-desc">' + esc(c.desc) + '</div>'
+        + '<div class="cm-sec-title">变更闭环流程</div>'
+        + '<div class="cm-steps">' + stepsHtml + '</div>'
+        + '<div class="cm-act-area" data-role-min="1">' + actHtml + '</div>'
+        + '<div class="cm-sec-title">全流程记录</div>'
+        + audit
+        + '</div>';
+      var d = document.getElementById('cmDrawer');
+      d.innerHTML = html;
+      document.getElementById('cmMask').classList.add('open');
+      d.classList.add('open');
+      if (window.ROLE) ROLE.refresh();
+      if (window.ROLE) ROLE.refresh();
+    },
+    act: function (id, action) {
+      var c = getChange(id); if (!c) return;
+      if (action === 'advance') {
+        var needSign = (c.step === 1 || c.step === 2 || c.step === 4);
+        if (needSign) {
+          var nm = document.getElementById('cmSignName');
+          var pw = document.getElementById('cmSignPwd');
+          if (!nm || !nm.value.trim() || !pw || !pw.value.trim()) { alert('请先完成电子签名（签署人 + 签名口令）后再进行操作'); return; }
+        }
+        c.step++;
+        if (c.step >= 5) { c.step = 5; c.closed = true; }
+        c.rejected = false;
+      } else if (action === 'submit') {
+        c.step = 1;
+      } else if (action === 'reject') {
+        c.rejected = true;
+      }
+      try { localStorage.setItem('mes_chg_state', JSON.stringify(CHANGES.map(function (x) { return { id: x.id, step: x.step, closed: x.closed, rejected: x.rejected, cancelled: x.cancelled }; }))); } catch (e) {}
+      render();
+      CM.open(id);
+    },
+    close: function () {
+      document.getElementById('cmMask').classList.remove('open');
+      document.getElementById('cmDrawer').classList.remove('open');
+    },
+    openNew: function (id) {
+      var editing = id ? getChange(id) : null;
+      var html = ''
+        + '<div class="cm-head"><div class="cm-head-l"><span class="cm-badge">' + (editing ? '编辑变更草稿' : '新增变更申请') + '</span>'
+        + '<span style="font-size:12px;color:var(--text-sec);">' + (editing ? editing.id : '系统将自动生成编号') + '</span></div>'
+        + '<button class="cm-close" onclick="CM.closeNew()">×</button></div>'
+        + '<div class="cm-body"><div class="cm-form">'
+        + '<div class="cm-field"><label>变更标题 <span class="req">*</span></label><input class="cm-input" id="nfTitle" value="' + (editing ? esc(editing.title) : '') + '" placeholder="如：反应釜温度上限调整"></div>'
+        + '<div class="cm-row2">'
+        + '<div class="cm-field"><label>变更类型 <span class="req">*</span></label><select class="cm-select" id="nfType"><option>工艺变更</option><option>BOM变更</option><option>设备变更</option><option>物料变更</option><option>SOP变更</option><option>供应商变更</option></select></div>'
+        + '<div class="cm-field"><label>申请部门 <span class="req">*</span></label><select class="cm-select" id="nfDept"><option>一车间</option><option>二车间</option><option>三车间</option><option>设备部</option><option>采购部</option><option>质量部</option></select></div>'
+        + '</div>'
+        + '<div class="cm-row2">'
+        + '<div class="cm-field"><label>风险等级 <span class="req">*</span></label><select class="cm-select" id="nfRisk"><option>高</option><option>中</option><option>低</option></select></div>'
+        + '<div class="cm-field"><label>申请人</label><input class="cm-input" id="nfApplicant" value="张明"></div>'
+        + '</div>'
+        + '<div class="cm-field"><label>影响范围（勾选后系统自动归集在制釜次 / 在库物料 / 关联动作）</label>'
+        + '<div class="cm-checks">'
+        + '<label class="cm-check"><input type="checkbox" id="nfB" checked> 在制釜次</label>'
+        + '<label class="cm-check"><input type="checkbox" id="nfM" checked> 在库物料</label>'
+        + '<label class="cm-check"><input type="checkbox" id="nfA" checked> 关联标准动作</label>'
+        + '</div></div>'
+        + '<div class="cm-field"><label>变更说明 <span class="req">*</span></label><textarea class="cm-textarea" id="nfDesc" placeholder="描述变更内容、原因与预期影响">' + (editing ? esc(editing.desc) : '') + '</textarea></div>'
+        + '<div class="cm-foot">'
+        + '<button class="btn btn-secondary" onclick="CM.closeNew()">取消</button>'
+        + '<button class="btn btn-secondary" onclick="CM.saveDraft()">保存草稿</button>'
+        + '<button class="btn btn-primary" onclick="CM.submitNew()">提交申请</button>'
+        + '</div>'
+        + '</div></div>';
+      var d = document.getElementById('cmNewDrawer');
+      d.innerHTML = html;
+      if (editing) {
+        document.getElementById('nfType').value = editing.type;
+        document.getElementById('nfDept').value = editing.dept;
+        document.getElementById('nfRisk').value = editing.risk;
+        document.getElementById('nfApplicant').value = editing.applicant;
+      }
+      document.getElementById('cmNewMask').classList.add('open');
+      d.classList.add('open');
+    },
+    saveDraft: function () {
+      var title = document.getElementById('nfTitle').value.trim();
+      var desc = document.getElementById('nfDesc').value.trim();
+      if (!title) { alert('请填写变更标题'); return; }
+      if (!desc) { alert('请填写变更说明'); return; }
+      var maxSeq = 0;
+      CHANGES.forEach(function (c) { var m = /CHG-2608-(\d+)/.exec(c.id); if (m) maxSeq = Math.max(maxSeq, parseInt(m[1], 10)); });
+      var id = 'CHG-2608-' + ('00' + (maxSeq + 1)).slice(-3);
+      CHANGES.unshift({
+        id: id, title: title, type: document.getElementById('nfType').value, dept: document.getElementById('nfDept').value,
+        applicant: document.getElementById('nfApplicant').value, date: '2026-07-31', risk: document.getElementById('nfRisk').value,
+        step: -1, closed: false, rejected: false, cancelled: false,
+        impact: { batches: document.getElementById('nfB').checked ? ['RC-0731-009'] : [], materials: document.getElementById('nfM').checked ? ['新增物料X'] : [], actions: document.getElementById('nfA').checked ? ['ACT-601'] : [] },
+        desc: desc
+      });
+      render();
+      CM.closeNew();
+      alert('已保存为草稿：' + id);
+    },
+    submitNew: function () {
+      var title = document.getElementById('nfTitle').value.trim();
+      var desc = document.getElementById('nfDesc').value.trim();
+      if (!title || !desc) { alert('请完整填写变更标题与变更说明'); return; }
+      var maxSeq = 0;
+      CHANGES.forEach(function (c) { var m = /CHG-2608-(\d+)/.exec(c.id); if (m) maxSeq = Math.max(maxSeq, parseInt(m[1], 10)); });
+      var id = 'CHG-2608-' + ('00' + (maxSeq + 1)).slice(-3);
+      CHANGES.unshift({
+        id: id, title: title, type: document.getElementById('nfType').value, dept: document.getElementById('nfDept').value,
+        applicant: document.getElementById('nfApplicant').value, date: '2026-07-31', risk: document.getElementById('nfRisk').value,
+        step: 1, closed: false, rejected: false, cancelled: false,
+        impact: { batches: document.getElementById('nfB').checked ? ['RC-0731-009'] : [], materials: document.getElementById('nfM').checked ? ['新增物料X'] : [], actions: document.getElementById('nfA').checked ? ['ACT-601'] : [] },
+        desc: desc
+      });
+      render();
+      CM.closeNew();
+      CM.open(id);
+    },
+    closeNew: function () {
+      document.getElementById('cmNewMask').classList.remove('open');
+      document.getElementById('cmNewDrawer').classList.remove('open');
+    },
+    openCfg: function () {
+      var html = ''
+        + '<div class="cm-head"><div class="cm-head-l"><span class="cm-badge">审批流配置</span><span style="font-size:12px;color:var(--text-sec);">变更委员会（CCB）会签规则</span></div>'
+        + '<button class="cm-close" onclick="CM.closeCfg()">×</button></div>'
+        + '<div class="cm-body"><div class="cm-form">';
+      CFG.forEach(function (n, i) {
+        html += '<div class="cfg-node"><div class="cfg-idx">' + (i + 1) + '</div>'
+          + '<div class="cfg-main"><div class="cfg-name">' + n.name + '</div><div class="cfg-sub">审批角色</div></div>'
+          + '<input class="cfg-approver" value="' + n.role + '">'
+          + '<label class="cfg-cosign"><input type="checkbox" ' + (n.cosign ? 'checked' : '') + ' onchange="CFG[' + i + '].cosign=this.checked"> 会签</label></div>';
+      });
+      html += '<div class="cm-foot"><button class="btn btn-secondary" onclick="CM.closeCfg()">取消</button>'
+        + '<button class="btn btn-primary" onclick="CM.saveCfg()">保存配置</button></div>'
+        + '</div></div>';
+      var d = document.getElementById('cmCfgDrawer');
+      d.innerHTML = html;
+      document.getElementById('cmCfgMask').classList.add('open');
+      d.classList.add('open');
+    },
+    saveCfg: function () {
+      var inputs = document.querySelectorAll('#cmCfgDrawer .cfg-approver');
+      inputs.forEach(function (el, i) { if (CFG[i]) CFG[i].role = el.value; });
+      CM.closeCfg();
+      alert('审批流配置已保存（含会签规则）');
+    },
+    closeCfg: function () {
+      document.getElementById('cmCfgMask').classList.remove('open');
+      document.getElementById('cmCfgDrawer').classList.remove('open');
+    },
+    exportList: function () { alert('变更台账已导出（原型演示）'); }
+  };
+
+  // ===== 事件绑定 =====
+  document.getElementById('chgTabs').querySelectorAll('.filter-tab').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.getElementById('chgTabs').querySelectorAll('.filter-tab').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      curTab = btn.getAttribute('data-k');
+      render();
+    });
+  });
+  ['fType', 'fDept', 'fRisk'].forEach(function (id) {
+    document.getElementById(id).addEventListener('change', render);
+  });
+  document.getElementById('fSearch').addEventListener('input', render);
+  document.querySelectorAll('.metric-card').forEach(function (card) {
+    card.addEventListener('click', function () {
+      var t = card.getAttribute('data-tab');
+      curTab = t;
+      document.getElementById('chgTabs').querySelectorAll('.filter-tab').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-k') === t); });
+      render();
+    });
+  });
+  document.getElementById('chgBody').addEventListener('click', function (e) {
+    if (e.target.closest('span') && (e.target.closest('span').onclick || e.target.closest('.warn-handle-btn'))) return;
+    var tr = e.target.closest('tr[data-id]');
+    if (tr) CM.open(tr.getAttribute('data-id'));
+  });
+  document.getElementById('cmMask').addEventListener('click', CM.close);
+  document.getElementById('cmNewMask').addEventListener('click', CM.closeNew);
+  document.getElementById('cmCfgMask').addEventListener('click', CM.closeCfg);
+
+  // 读取外部同步状态（如来自其他模块）
+  try {
+    var saved = localStorage.getItem('mes_chg_state');
+    if (saved) {
+      var arr = JSON.parse(saved);
+      arr.forEach(function (s) { var c = getChange(s.id); if (c) { c.step = s.step; c.closed = s.closed; c.rejected = s.rejected; c.cancelled = s.cancelled; } });
+    }
+  } catch (e) {}
+
+  render();
+</script>
+  <script src="sidebar.js"></script>
+  <script src="plant.js"></script>
+<script src="role.js"></script>
+</body>
+</html>
