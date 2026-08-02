@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MES 精细化工 - 清场放行</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary-50: #E6F1FB; --primary-200: #B5D4F4; --primary-400: #378ADD;
+    --primary-600: #185FA5; --primary-800: #0C447C; --primary-900: #042C53;
+    --normal: #1D9E75; --normal-bg: #E1F5EE;
+    --info: #EF9F27; --info-bg: #FAEEDA;
+    --warning: #D85A30; --warning-bg: #FAECE7;
+    --block: #E24B4A; --block-bg: #FCEBEB;
+    --white: #FFFFFF; --page: #F1EFE8; --border: #D3D1C7;
+    --text-sec: #888780; --text-sub: #5F5E5A; --text: #2C2C2A;
+  }
+  body { font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif; background: var(--page); color: var(--text); font-size: 14px; line-height: 1.6; overflow: hidden; height: 100vh; }
+  .app { display: flex; height: 100vh; }
+  .sidebar { width: 200px; min-width: 200px; background: var(--primary-800); color: #85B7EB; display: flex; flex-direction: column; overflow-y: auto; }
+  .sidebar-logo { padding: 14px 16px; border-bottom: 1px solid var(--primary-600); display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .sidebar-nav { padding: 8px 0; flex: 1; }
+  .nav-item { padding: 8px 16px 8px 36px; font-size: 12.5px; color: #85B7EB; cursor: pointer; position: relative; transition: all 0.15s; display: flex; align-items: center; gap: 7px; }
+  .nav-item:hover { background: var(--primary-900); color: #B5D4F4; }
+  .nav-item.active { background: var(--primary-600); color: #FFF; font-weight: 500; }
+  .nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--primary-400); }
+  .nav-section-title { padding: 16px 20px 6px; font-size: 11px; color: #378ADD; text-transform: uppercase; letter-spacing: 0.5px; }
+  .sidebar-footer { padding: 12px 20px; border-top: 1px solid var(--primary-600); font-size: 12px; color: #5DCAA5; display: flex; align-items: center; gap: 6px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--normal); }
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { height: 52px; min-height: 52px; background: var(--white); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+  .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-sec); }
+  .breadcrumb .current { color: var(--text); font-weight: 500; }
+  .breadcrumb a { color: var(--text-sec); text-decoration: none; cursor: pointer; } .breadcrumb a:hover { color: var(--primary-600); }
+  .topbar-right { display: flex; align-items: center; gap: 20px; }
+  .user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 8px; border-radius: 8px; } .user-info:hover { background: var(--page); }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-600); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }
+  .user-name { font-size: 13px; color: var(--text); } .user-role { font-size: 11px; color: var(--text-sec); }
+  .content { flex: 1; overflow-y: auto; padding: 14px 28px; }
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+  .page-title { font-size: 22px; font-weight: 500; color: var(--text); }
+  .page-subtitle { font-size: 13px; color: var(--text-sec); margin-top: 2px; }
+  .header-actions { display: flex; gap: 10px; }
+  .btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+  .btn-primary { background: var(--primary-600); color: #fff; } .btn-primary:hover { background: var(--primary-800); }
+  .btn-secondary { background: var(--white); color: var(--text); border: 1px solid var(--border); } .btn-secondary:hover { border-color: var(--primary-400); color: var(--primary-600); }
+  .btn-ghost { background: var(--page); color: var(--text-sub); border: 1px solid var(--border); } .btn-ghost:hover { color: var(--primary-600); border-color: var(--primary-400); }
+  .metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+  .metric-card { background: var(--white); border-radius: 10px; padding: 14px 16px; border: 1px solid var(--border); position: relative; overflow: hidden; }
+  .metric-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .metric-card.blue::before { background: var(--primary-400); } .metric-card.green::before { background: var(--normal); }
+  .metric-card.amber::before { background: var(--info); } .metric-card.red::before { background: var(--block); }
+  .metric-label { font-size: 11px; color: var(--text-sec); margin-bottom: 6px; }
+  .metric-value { font-family: "DIN Alternate", "Roboto", monospace; font-size: 26px; font-weight: 500; line-height: 1.1; }
+  .metric-card.blue .metric-value { color: var(--primary-600); } .metric-card.green .metric-value { color: var(--normal); }
+  .metric-card.amber .metric-value { color: var(--info); } .metric-card.red .metric-value { color: var(--block); }
+  .metric-detail { font-size: 10px; color: var(--text-sec); margin-top: 4px; }
+  .main-grid { display: grid; grid-template-columns: 1fr 320px; gap: 16px; margin-bottom: 16px; }
+  .card { background: var(--white); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+  .card-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .card-title { font-size: 15px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .card-title .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .card-body { padding: 0; }
+  .filter-bar { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--page); flex-wrap: wrap; }
+  .filter-group { display: flex; align-items: center; gap: 6px; }
+  .filter-label { font-size: 12px; color: var(--text-sec); }
+  .filter-select { padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--text); background: var(--white); cursor: pointer; font-family: inherit; outline: none; }
+  .filter-search { flex: 1; min-width: 160px; max-width: 260px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--text); background: var(--white); font-family: inherit; outline: none; }
+  .filter-tabs { display: flex; gap: 4px; background: var(--page); border-radius: 8px; padding: 3px; }
+  .filter-tab { padding: 4px 9px; font-size: 12px; color: var(--text-sec); cursor: pointer; border-radius: 6px; border: none; background: none; font-family: inherit; transition: all 0.15s; }
+  .filter-tab.active { background: var(--white); color: var(--primary-600); font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+  .filter-tab .count { font-family: "DIN", monospace; font-size: 11px; margin-left: 3px; opacity: 0.7; }
+  .exec-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .exec-table th { text-align: left; padding: 10px 16px; background: var(--page); color: var(--text-sec); font-weight: 500; font-size: 12px; border-bottom: 1px solid var(--border); white-space: nowrap; position: sticky; top: 0; }
+  .exec-table td { padding: 12px 16px; border-bottom: 1px solid var(--page); color: var(--text); vertical-align: middle; }
+  .exec-table tbody tr { cursor: pointer; transition: background 0.12s; }
+  .exec-table tbody tr:hover { background: var(--primary-50); }
+  .exec-table .num { font-family: "DIN Alternate", "Roboto", monospace; }
+  .exec-table tbody td.num:first-child { color: var(--primary-600); cursor: pointer; font-weight: 500; }
+  .exec-table tbody td.num:first-child:hover { text-decoration: underline; }
+  .status-tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 14px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+  .status-tag .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .status-tag.normal { background: var(--normal-bg); color: #085041; } .status-tag.normal .dot { background: var(--normal); }
+  .status-tag.info { background: var(--info-bg); color: #633806; } .status-tag.info .dot { background: var(--info); }
+  .status-tag.warning { background: var(--warning-bg); color: #712B13; } .status-tag.warning .dot { background: var(--warning); }
+  .status-tag.review { background: var(--primary-50); color: var(--primary-800); } .status-tag.review .dot { background: var(--primary-400); }
+  .status-tag.draft { background: var(--page); color: var(--text-sub); } .status-tag.draft .dot { background: var(--text-sec); }
+  .status-tag.block { background: var(--block-bg); color: #7A1C1B; } .status-tag.block .dot { background: var(--block); }
+  .op-link { font-size: 12px; color: var(--primary-600); cursor: pointer; margin-right: 10px; } .op-link:hover { text-decoration: underline; }
+  .right-panel { display: flex; flex-direction: column; gap: 16px; }
+  .mini-list { padding: 6px 0; }
+  .mini-item { display: flex; align-items: center; justify-content: space-between; padding: 9px 20px; border-bottom: 1px solid var(--page); font-size: 12px; }
+  .mini-item:last-child { border-bottom: none; }
+  .mini-name { font-weight: 500; color: var(--text); } .mini-meta { font-size: 11px; color: var(--text-sec); margin-top: 2px; }
+  .mini-go { font-size: 12px; color: var(--primary-600); cursor: pointer; } .mini-go:hover { text-decoration: underline; }
+  .drawer-mask { position: fixed; inset: 0; background: rgba(15,23,42,0.45); display: none; z-index: 50; }
+  .drawer-mask.show { display: block; }
+  .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 480px; max-width: 94vw; background: var(--white); box-shadow: -8px 0 24px rgba(0,0,0,0.16); transform: translateX(100%); transition: transform 0.25s ease; z-index: 51; display: flex; flex-direction: column; }
+  .drawer-mask.show .drawer { transform: none; }
+  .drawer-head { padding: 18px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .drawer-title { font-size: 16px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .drawer-close { cursor: pointer; color: var(--text-sec); font-size: 18px; line-height: 1; padding: 2px 6px; border-radius: 6px; } .drawer-close:hover { background: var(--page); color: var(--text); }
+  .drawer-body { flex: 1; overflow-y: auto; padding: 20px 24px; }
+  .drawer-foot { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+  .field { margin-bottom: 16px; }
+  .field-label { font-size: 12px; color: var(--text-sub); margin-bottom: 6px; display: flex; align-items: center; gap: 4px; }
+  .field-req { color: var(--block); }
+  .field-input, .field-area, .field-select { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text); background: var(--white); font-family: inherit; outline: none; }
+  .field-input:focus, .field-area:focus, .field-select:focus { border-color: var(--primary-400); }
+  .field-area { resize: vertical; min-height: 70px; line-height: 1.6; }
+  .info-banner-mini { background: var(--page); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
+  .ibm-item { display: flex; flex-direction: column; gap: 2px; } .ibm-label { font-size: 11px; color: var(--text-sec); } .ibm-value { font-size: 13px; color: var(--text); font-weight: 500; }
+  .sign-note { font-size: 11px; color: var(--text-sec); background: var(--info-bg); border: 1px solid #F0D9B0; border-radius: 8px; padding: 8px 12px; line-height: 1.6; }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+  .detail-item { display: flex; flex-direction: column; gap: 3px; } .detail-label { font-size: 11px; color: var(--text-sec); } .detail-value { font-size: 13px; color: var(--text); }
+  .check-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; }
+  .check-name { font-size: 13px; color: var(--text); font-weight: 500; } .check-desc { font-size: 11px; color: var(--text-sec); margin-top: 2px; }
+  .m1e-tag { font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 500; } .m1e-tag.ok { background: var(--normal-bg); color: #085041; } .m1e-tag.wait { background: var(--info-bg); color: #633806; }
+  .log-row { display: flex; gap: 8px; padding: 6px 0; font-size: 11px; border-bottom: 1px solid var(--page); font-family: "DIN", monospace; }
+  .log-time { color: var(--text-sec); width: 58px; flex: none; } .log-msg { color: var(--text-sub); }
+  .radio-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; cursor: pointer; }
+  .radio-row.active { border-color: var(--primary-400); background: var(--primary-50); }
+  .radio-dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--border); margin-top: 2px; flex: none; } .radio-row.active .radio-dot { border-color: var(--primary-600); background: var(--primary-400); }
+  .radio-title { font-size: 13px; font-weight: 500; color: var(--text); } .radio-desc { font-size: 11px; color: var(--text-sec); margin-top: 2px; }
+  .toast { position: fixed; top: 18px; left: 50%; transform: translateX(-50%) translateY(-12px); background: var(--text); color: #fff; padding: 10px 20px; border-radius: 10px; font-size: 13px; z-index: 80; opacity: 0; transition: all 0.25s ease; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  ::-webkit-scrollbar { width: 6px; height: 6px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; } ::-webkit-scrollbar-thumb:hover { background: var(--text-sec); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } } .pulse { animation: pulse 1.5s ease-in-out infinite; }
+
+  /* === 侧边栏 v2：分组折叠 + 窄宽 + 新LOGO === */
+  .logo-text { line-height: 1.25; min-width: 0; }
+  .logo-name { font-size: 15px; font-weight: 500; color: #FFFFFF; letter-spacing: 0.3px; }
+  .logo-slogan { font-size: 10.5px; color: #93B5D9; margin-top: 1px; }
+  .nav-group-head { padding: 14px 16px 5px; font-size: 11px; color: #6FA9DA; letter-spacing: 0.6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; transition: color 0.15s; }
+  .nav-group-head:hover { color: #B5D4F4; }
+  .nav-group-head > span:first-child { font-weight: 500; }
+  .nav-caret { font-size: 10px; opacity: 0.75; transition: transform 0.18s; display: inline-block; }
+  .nav-group-items { overflow: hidden; }
+  .nav-group.collapsed .nav-caret { transform: rotate(-90deg); }
+  .nav-group.collapsed .nav-group-items { display: none; }
+  .sidebar-collapse { padding: 10px 16px; font-size: 12px; color: #85B7EB; cursor: pointer; display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--primary-600); transition: all 0.15s; }
+  .sidebar-collapse:hover { background: var(--primary-900); color: #B5D4F4; }
+  .collapse-caret { display: inline-block; transition: transform 0.2s; font-size: 14px; line-height: 1; }
+  .sidebar.collapsed .collapse-caret { transform: rotate(180deg); }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="appSidebar"></aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="breadcrumb"><a onclick="window.location.href='变更管理.html'">安质环管控</a><span>›</span><span class="current">清场放行</span></div>
+      <div class="topbar-right"><div id="plantSwitch"></div>
+        <div id="roleSwitch"></div>
+      <div class="user-info"><div class="avatar">王</div><div><div class="user-name">王受权</div><div class="user-role">质量受权人</div></div></div></div>
+    </header>
+
+    <div class="tabbar" id="tabBar"></div>
+      <div class="content">
+    
+      <div class="page-header">
+        <div>
+          <div class="page-title">清场放行</div>
+          <div class="page-subtitle">阶段06 清场清洁 · EBR 审核 · QA 放行决策（合格 / 有条件 / 拒收） · 入库与隔离 · GMP</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary">📋 放行 checklist</button>
+          <button class="btn btn-primary" onclick="RE.act()">＋ 新建放行申请</button>
+        </div>
+      </div>
+
+      <div class="metrics-row">
+        <div class="metric-card blue"><div class="metric-label">待清场</div><div class="metric-value" id="mClear">2</div><div class="metric-detail">清场进行中</div></div>
+        <div class="metric-card amber"><div class="metric-label">待放行审核</div><div class="metric-value" id="mReview">3</div><div class="metric-detail">QA 待决策</div></div>
+        <div class="metric-card green"><div class="metric-label">本月已放行</div><div class="metric-value" id="mReleased">4</div><div class="metric-detail">合格入库</div></div>
+        <div class="metric-card red"><div class="metric-label">拒收</div><div class="metric-value" id="mReject">1</div><div class="metric-detail">隔离销毁</div></div>
+      </div>
+
+      <div class="main-grid">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="dot" style="background: var(--primary-400);"></span>放行台账</div>
+            <div class="filter-tabs" id="reTabs">
+              <button class="filter-tab active" data-restatus="全部">全部<span class="count" id="cAll">8</span></button>
+              <button class="filter-tab" data-restatus="待审核">待审核<span class="count" id="cReview">3</span></button>
+              <button class="filter-tab" data-restatus="合格放行">合格放行<span class="count" id="cPass">2</span></button>
+              <button class="filter-tab" data-restatus="有条件放行">有条件<span class="count" id="cCond">1</span></button>
+              <button class="filter-tab" data-restatus="拒收">拒收<span class="count" id="cReject">1</span></button>
+              <button class="filter-tab" data-restatus="已入库">已入库<span class="count" id="cStock">1</span></button>
+            </div>
+          </div>
+          <div class="filter-bar">
+            <div class="filter-group"><span class="filter-label">产品：</span><select class="filter-select" id="fProduct"><option>全部产品</option><option>对乙酰氨基酚</option><option>阿莫西林</option><option>阿司匹林肠溶片</option><option>布洛芬</option><option>头孢氨苄</option></select></div>
+            <div class="filter-group" style="margin-left:auto;"><input class="filter-search" id="fSearch" placeholder="搜索批次 / 放行单号…"></div>
+          </div>
+          <div style="overflow-x: auto;">
+            <table class="exec-table" id="reTable">
+              <thead><tr><th>放行单号</th><th>批次</th><th>产品</th><th>清场状态</th><th>EBR 审核</th><th>放行决策</th><th>质量受权人</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr class="re-row" data-code="RE-2608-001" data-rc="RC-2608-002" data-product="布洛芬" data-owner="王受权" data-restatus="合格放行">
+                  <td class="num">RE-2608-001</td><td><span class="op-link op-rc" data-rc="RC-2608-002">RC-2608-002</span></td><td>布洛芬</td>
+                  <td><span class="m1e-tag ok">已清场</span></td><td><span class="m1e-tag ok">已审核</span>
+                  <td><span class="status-tag normal"><span class="dot"></span>合格放行</span></td><td>王受权</td>
+                  <td><span class="op-link op-view" data-code="RE-2608-001">查看</span><span class="op-link op-archive" data-code="RE-2608-001">归档追溯</span></td>
+                </tr>
+                <tr class="re-row" data-code="RE-2608-002" data-rc="RC-2608-006" data-product="对乙酰氨基酚" data-owner="—" data-restatus="待审核">
+                  <td class="num">RE-2608-002</td><td><span class="op-link op-rc" data-rc="RC-2608-006">RC-2608-006</span></td><td>对乙酰氨基酚</td>
+                  <td><span class="m1e-tag ok">已清场</span></td><td><span class="m1e-tag ok">已审核</span>
+                  <td><span class="status-tag info"><span class="dot"></span>待审核</span></td><td>—</td>
+                  <td><span class="op-link op-view" data-code="RE-2608-002">查看</span><span class="op-link op-decide" data-code="RE-2608-002">放行决策</span></td>
+                </tr>
+                <tr class="re-row" data-code="RE-2608-003" data-rc="RC-2608-004" data-product="阿司匹林肠溶片" data-owner="—" data-restatus="待审核">
+                  <td class="num">RE-2608-003</td><td><span class="op-link op-rc" data-rc="RC-2608-004">RC-2608-004</span></td><td>阿司匹林肠溶片</td>
+                  <td><span class="m1e-tag wait">清场中</span></td><td><span class="m1e-tag wait">审核中</span>
+                  <td><span class="status-tag info"><span class="dot"></span>待审核</span></td><td>—</td>
+                  <td><span class="op-link op-view" data-code="RE-2608-003">查看</span><span class="op-link op-decide" data-code="RE-2608-003">放行决策</span></td>
+                </tr>
+                <tr class="re-row" data-code="RE-2608-004" data-rc="RC-2608-001" data-product="阿莫西林" data-owner="QA总监" data-restatus="有条件放行">
+                  <td class="num">RE-2608-004</td><td><span class="op-link op-rc" data-rc="RC-2608-001">RC-2608-001</span></td><td>阿莫西林</td>
+                  <td><span class="m1e-tag ok">已清场</span></td><td><span class="m1e-tag ok">已审核</span>
+                  <td><span class="status-tag warning"><span class="dot"></span>有条件放行</span></td><td>QA 总监</td>
+                  <td><span class="op-link op-view" data-code="RE-2608-004">查看</span></td>
+                </tr>
+                <tr class="re-row" data-code="RE-2608-005" data-rc="RC-2608-005" data-product="头孢氨苄" data-owner="王受权" data-restatus="拒收">
+                  <td class="num">RE-2608-005</td><td><span class="op-link op-rc" data-rc="RC-2608-005">RC-2608-005</span></td><td>头孢氨苄</td>
+                  <td><span class="m1e-tag ok">已清场</span></td><td><span class="m1e-tag ok">已审核</span>
+                  <td><span class="status-tag block"><span class="dot"></span>拒收</span></td><td>王受权</td>
+                  <td><span class="op-link op-view" data-code="RE-2608-005">查看</span></td>
+                </tr>
+                <tr class="re-row" data-code="RE-2608-006" data-rc="RC-2608-008" data-product="阿司匹林肠溶片" data-owner="王受权" data-restatus="合格放行">
+                  <td class="num">RE-2608-006</td><td><span class="op-link op-rc" data-rc="RC-2608-008">RC-2608-008</span></td><td>阿司匹林肠溶片</td>
+                  <td><span class="m1e-tag ok">已清场</span></td><td><span class="m1e-tag ok">已审核</span>
+                  <td><span class="status-tag normal"><span class="dot"></span>合格放行</span></td><td>王受权</td>
+                  <td><span class="op-link op-view" data-code="RE-2608-006">查看</span><span class="op-link op-archive" data-code="RE-2608-006">归档追溯</span></td>
+                </tr>
+                <tr class="re-row" data-code="RE-2608-007" data-rc="RC-2608-003" data-product="阿莫西林" data-owner="王受权" data-restatus="已入库">
+                  <td class="num">RE-2608-007</td><td><span class="op-link op-rc" data-rc="RC-2608-003">RC-2608-003</span></td><td>阿莫西林</td>
+                  <td><span class="m1e-tag ok">已清场</span></td><td><span class="m1e-tag ok">已审核</span>
+                  <td><span class="status-tag normal"><span class="dot"></span>已入库</span></td><td>王受权</td>
+                  <td><span class="op-link op-view" data-code="RE-2608-007">查看</span><span class="op-link op-archive" data-code="RE-2608-007">归档追溯</span></td>
+                </tr>
+                <tr class="re-row" data-code="RE-2608-008" data-rc="RC-2608-007" data-product="对乙酰氨基酚" data-owner="—" data-restatus="待审核">
+                  <td class="num">RE-2608-008</td><td><span class="op-link op-rc" data-rc="RC-2608-007">RC-2608-007</span></td><td>对乙酰氨基酚</td>
+                  <td><span class="m1e-tag wait">清场中</span></td><td><span class="m1e-tag wait">审核中</span>
+                  <td><span class="status-tag info"><span class="dot"></span>待审核</span></td><td>—</td>
+                  <td><span class="op-link op-view" data-code="RE-2608-008">查看</span><span class="op-link op-decide" data-code="RE-2608-008">放行决策</span></td>
+                </tr>
+                <tr id="emptyRow" style="display:none;"><td colspan="8" style="text-align:center;padding:32px;color:var(--text-sec);">无匹配的放行记录</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-top:1px solid var(--page);font-size:12px;color:var(--text-sec);">
+            <span>当前筛选结果 <b id="reCount" style="color:var(--primary-600);font-family:'DIN',monospace;">8</b> 条放行记录</span>
+            <span id="reFilterDesc" style="opacity:.85;">状态：全部 · 产品：全部产品</span>
+          </div>
+        </div>
+
+        <div class="right-panel">
+          <div class="card">
+            <div class="card-header"><div class="card-title"><span class="dot" style="background: var(--primary-400);"></span>放行决策分布</div></div>
+            <div class="mini-list">
+              <div class="mini-item"><div class="mini-name">合格放行</div><div class="mini-meta">2 批</div><span class="mini-go">—</span></div>
+              <div class="mini-item"><div class="mini-name">有条件放行</div><div class="mini-meta">1 批</div><span class="mini-go">—</span></div>
+              <div class="mini-item"><div class="mini-name">拒收</div><div class="mini-meta">1 批</div><span class="mini-go">—</span></div>
+              <div class="mini-item"><div class="mini-name">已入库</div><div class="mini-meta">1 批</div><span class="mini-go">—</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title"><span class="dot" style="background: var(--info);"></span>待 QA 审核队列</div></div>
+            <div class="mini-list" id="reviewList"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title"><span class="dot" style="background: var(--block);"></span>隔离区清单</div></div>
+            <div class="mini-list" id="isolateList"></div>
+          </div>
+        </div>
+      </div>
+    
+    </div></div>
+  </div>
+</div>
+
+<!-- 放行详情 抽屉 -->
+<div class="drawer-mask" id="rdMask">
+  <div class="drawer" id="rdDrawer">
+    <div class="drawer-head"><div class="drawer-title" id="rdTitle">放行详情</div><span class="drawer-close" onclick="RE.detailClose()">✕</span></div>
+    <div class="drawer-body">
+      <div class="info-banner-mini" id="rdInfo"></div>
+      <div class="field"><div class="field-label">清场记录</div><div id="rdClear" style="font-size:12px;color:var(--text-sub);"></div></div>
+      <div class="field"><div class="field-label">EBR 审核项</div><div id="rdEbr"></div></div>
+      <div class="field"><div class="field-label">检验报告汇总</div><div id="rdReport" style="font-size:12px;color:var(--text-sub);"></div></div>
+      <div class="field"><div class="field-label">操作记录</div><div id="rdLogs"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- 放行决策 抽屉 -->
+<div class="drawer-mask" id="raMask">
+  <div class="drawer" id="raDrawer">
+    <div class="drawer-head"><div class="drawer-title" id="raTitle"><span style="color:var(--primary-600);">✅</span> QA 放行决策</div><span class="drawer-close" onclick="RE.actClose()">✕</span></div>
+    <div class="drawer-body">
+      <div class="info-banner-mini" id="raInfo"></div>
+      <div class="field"><div class="field-label">放行决策（质量受权人）</div>
+        <div class="radio-row active" data-path="合格放行"><div class="radio-dot"></div><div><div class="radio-title">合格放行</div><div class="radio-desc">检验结果合格，QA 审核通过 → 成品入库</div></div></div>
+        <div class="radio-row" data-path="有条件放行"><div class="radio-dot"></div><div><div class="radio-title">有条件放行</div><div class="radio-desc">经 QA 总监审批（如返工后达标），全程留痕</div></div></div>
+        <div class="radio-row" data-path="拒收"><div class="radio-dot"></div><div><div class="radio-title">拒收</div><div class="radio-desc">不合格品隔离、红色标识、销毁处理</div></div></div>
+      </div>
+      <div class="field"><div class="field-label">决策说明</div><textarea class="field-area" id="raNote" placeholder="放行/拒收依据、CAPA 关联…"></textarea></div>
+      <div class="field"><div class="field-label"><span class="field-req">*</span> 质量受权人电子签名</div><input class="field-input" id="raSign" type="password" placeholder="请输入签名口令…"></div>
+      <div class="sign-note">依据 GMP 与 21 CFR Part 11，放行需质量受权人电子签名；真实 OOS 必须拒收不得放行。</div>
+    </div>
+    <div class="drawer-foot"><button class="btn btn-ghost" onclick="RE.actClose()">取消</button><button class="btn btn-primary" onclick="RE.confirm()">确认决策</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ===== 清场放行：阶段06 =====
+  (function () {
+    var $ = function (id) { return document.getElementById(id); };
+    var toastTimer;
+    function toast(msg) { var t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove('show'); }, 1800); }
+    function setText(id, v) { var e = $(id); if (e) e.textContent = v; }
+    function setHTML(id, v) { var e = $(id); if (e) e.innerHTML = v; }
+
+    var tab = '全部', detailCode = null, actCode = null, actPath = '合格放行';
+    function rowByCode(code) { var rows = document.querySelectorAll('.re-row'); for (var i = 0; i < rows.length; i++) { if (rows[i].getAttribute('data-code') === code) return rows[i]; } return null; }
+    function dataset(r) { return { code: r.getAttribute('data-code'), rc: r.getAttribute('data-rc'), product: r.getAttribute('data-product'), owner: r.getAttribute('data-owner'), restatus: r.getAttribute('data-restatus') }; }
+    function statusTag(st) {
+      if (st === '待审核') return '<span class="status-tag info"><span class="dot"></span>待审核</span>';
+      if (st === '合格放行') return '<span class="status-tag normal"><span class="dot"></span>合格放行</span>';
+      if (st === '有条件放行') return '<span class="status-tag warning"><span class="dot"></span>有条件放行</span>';
+      if (st === '拒收') return '<span class="status-tag block"><span class="dot"></span>拒收</span>';
+      if (st === '已入库') return '<span class="status-tag normal"><span class="dot"></span>已入库</span>';
+      return st;
+    }
+    function opHTML(code, st) {
+      var h = '<span class="op-link op-view" data-code="' + code + '">查看</span>';
+      if (st === '待审核') h += '<span class="op-link op-decide" data-code="' + code + '">放行决策</span>';
+      else if (st === '合格放行' || st === '已入库') h += '<span class="op-link op-archive" data-code="' + code + '">归档追溯</span>';
+      return h;
+    }
+    function pass(r) {
+      var st = r.getAttribute('data-restatus'); var product = r.getAttribute('data-product');
+      var q = ($('fSearch').value || '').trim().toLowerCase(); var code = r.getAttribute('data-code').toLowerCase(); var rc = r.getAttribute('data-rc').toLowerCase();
+      if (tab !== '全部' && st !== tab) return false;
+      if ($('fProduct').value !== '全部产品' && product !== $('fProduct').value) return false;
+      if (q && code.indexOf(q) === -1 && rc.indexOf(q) === -1) return false;
+      return true;
+    }
+    function apply() {
+      var rows = document.querySelectorAll('.re-row'); var n = 0;
+      for (var i = 0; i < rows.length; i++) { if (pass(rows[i])) { rows[i].style.display = ''; n++; } else { rows[i].style.display = 'none'; } }
+      setText('reCount', n); setText('reFilterDesc', '状态：' + tab + ' · 产品：' + $('fProduct').value);
+      var e = $('emptyRow'); if (e) e.style.display = n ? 'none' : '';
+    }
+    function recalc() {
+      var rows = document.querySelectorAll('.re-row'); var clear = 0, review = 0, released = 0, reject = 0, total = 0;
+      for (var i = 0; i < rows.length; i++) {
+        var st = rows[i].getAttribute('data-restatus'); total++;
+        if (st === '清场中') clear++;
+        else if (st === '待审核') review++;
+        else if (st === '合格放行' || st === '已入库' || st === '有条件放行') released++;
+        else if (st === '拒收') reject++;
+      }
+      setText('mClear', countSt('清场中')); setText('mReview', countSt('待审核'));
+      setText('mReleased', countSt('合格放行') + countSt('已入库') + countSt('有条件放行')); setText('mReject', countSt('拒收'));
+      setText('cAll', total); setText('cReview', countSt('待审核')); setText('cPass', countSt('合格放行')); setText('cCond', countSt('有条件放行')); setText('cReject', countSt('拒收')); setText('cStock', countSt('已入库'));
+      renderReview(); renderIsolate(); apply();
+    }
+    function countSt(s) { var rows = document.querySelectorAll('.re-row'); var n = 0; for (var i = 0; i < rows.length; i++) if (rows[i].getAttribute('data-restatus') === s) n++; return n; }
+    function renderReview() {
+      var rows = document.querySelectorAll('.re-row'); var h = '', n = 0;
+      for (var i = 0; i < rows.length && n < 5; i++) { if (rows[i].getAttribute('data-restatus') === '待审核') { h += '<div class="mini-item"><div><div class="mini-name">' + rows[i].getAttribute('data-rc') + '</div><div class="mini-meta">' + rows[i].getAttribute('data-product') + ' · ' + rows[i].getAttribute('data-code') + '</div></div><span class="mini-go" onclick="RE.act(\'' + rows[i].getAttribute('data-code') + '\')">决策</span></div>'; n++; } }
+      if (!h) h = '<div class="mini-item" style="color:var(--text-sec);">当前无待审核</div>';
+      setHTML('reviewList', h);
+    }
+    function renderIsolate() {
+      var rows = document.querySelectorAll('.re-row'); var h = '', n = 0;
+      for (var i = 0; i < rows.length && n < 5; i++) { if (rows[i].getAttribute('data-restatus') === '拒收') { h += '<div class="mini-item"><div><div class="mini-name">' + rows[i].getAttribute('data-rc') + '</div><div class="mini-meta">' + rows[i].getAttribute('data-product') + ' · 红色隔离</div></div><span class="mini-go" onclick="RE.openDetail(\'' + rows[i].getAttribute('data-code') + '\')">详情</span></div>'; n++; } }
+      if (!h) h = '<div class="mini-item" style="color:var(--text-sec);">隔离区为空</div>';
+      setHTML('isolateList', h);
+    }
+    function showMask(id) { $(id).classList.add('show'); }
+    function hideMask(id) { $(id).classList.remove('show'); }
+
+    function ebrItems() {
+      return [
+        { n: '批记录完整性', d: 'EBR 各工序签名齐全', s: 'ok' },
+        { n: '参数合规性', d: 'CPP 在控 / 无超限', s: 'ok' },
+        { n: '偏差闭环', d: '偏差单 CAPA 完成', s: 'ok' },
+        { n: '检验报告', d: 'QC 全项合格', s: 'ok' }
+      ];
+    }
+    function renderCheck(container, items) {
+      var h = '';
+      for (var i = 0; i < items.length; i++) { var it = items[i]; var tag = it.s === 'ok' ? '<span class="m1e-tag ok">通过</span>' : '<span class="m1e-tag wait">待核</span>'; h += '<div class="check-item"><div><div class="check-name">' + it.n + '</div><div class="check-desc">' + it.d + '</div></div>' + tag + '</div>'; }
+      setHTML(container, h);
+    }
+
+    window.RE = {
+      act: function (code) {
+        actCode = code || null; var d = code ? dataset(rowByCode(code)) : null;
+        setText('raTitle', 'QA 放行决策 · ' + (code || 'RE-2608-—'));
+        setHTML('raInfo', '<div class="ibm-item"><div class="ibm-label">放行单号</div><div class="ibm-value num">' + (code || 'RE-2608-—') + '</div></div><div class="ibm-item"><div class="ibm-label">批次</div><div class="ibm-value num">' + (d ? d.rc : '—') + '</div></div><div class="ibm-item"><div class="ibm-label">产品</div><div class="ibm-value">' + (d ? d.product : '—') + '</div></div><div class="ibm-item"><div class="ibm-label">当前状态</div><div class="ibm-value">待审核</div></div>');
+        actPath = '合格放行'; selectPath('合格放行'); $('raNote').value = ''; $('raSign').value = '';
+        showMask('raMask');
+      },
+      actClose: function () { hideMask('raMask'); },
+      confirm: function () {
+        if (!actCode) { toast('请选择放行单'); return; }
+        if (!($('raSign').value || '').trim()) { toast('请输入质量受权人电子签名'); return; }
+        var tr = rowByCode(actCode); var st = actPath === '拒收' ? '拒收' : (actPath === '有条件放行' ? '有条件放行' : '合格放行');
+        tr.setAttribute('data-restatus', st);
+        if (st === '合格放行') tr.cells[6].innerHTML = statusTag('合格放行');
+        else tr.cells[6].innerHTML = statusTag(st);
+        tr.cells[7].innerHTML = opHTML(actCode, st);
+        if (actPath === '有条件放行') tr.setAttribute('data-ranote', ($('raNote').value || ''));
+        recalc(); RE.actClose();
+        toast(actPath === '拒收' ? '已确认拒收，不合格品隔离销毁' : (actPath === '有条件放行' ? '有条件放行，已报 QA 总监审批' : '合格放行，批次入库'));
+      },
+      openDetail: function (code) {
+        var r = rowByCode(code); if (!r) return; var d = dataset(r);
+        setText('rdTitle', '放行详情 · ' + code);
+        setHTML('rdInfo',
+          '<div class="ibm-item"><div class="ibm-label">放行单号</div><div class="ibm-value num">' + code + '</div></div>'
+          + '<div class="ibm-item"><div class="ibm-label">批次</div><div class="ibm-value num">' + d.rc + '</div></div>'
+          + '<div class="ibm-item"><div class="ibm-label">产品</div><div class="ibm-value">' + d.product + '</div></div>'
+          + '<div class="ibm-item"><div class="ibm-label">决策</div><div class="ibm-value">' + statusTag(d.restatus) + '</div></div>'
+        );
+        setHTML('rdClear', '批结束后清场完成，清场记录（设备/环境/物料残留）纳入批记录，未清场不可开工下一批。');
+        renderCheck('rdEbr', ebrItems());
+        setHTML('rdReport', 'QC 全项检验：性状/含量/有关物质/溶出度/微生物 均符合注册标准；检验报告编号 ' + d.code.replace('RE', 'RPT') + '。');
+        setHTML('rdLogs',
+          '<div class="log-row"><span class="log-time">08-06</span><span class="log-msg">批次 ' + d.rc + ' 清场完成</span></div>'
+          + '<div class="log-row"><span class="log-time">08-06</span><span class="log-msg">QA 审核 EBR 完整性</span></div>'
+          + '<div class="log-row"><span class="log-time">—</span><span class="log-msg">等待放行决策</span></div>'
+        );
+        showMask('rdMask');
+      },
+      detailClose: function () { hideMask('rdMask'); },
+      archive: function (code) { toast('已转入批次追溯归档：' + code); window.location.href = '批次追溯.html'; }
+    };
+    function selectPath(p) { actPath = p; var rows = document.querySelectorAll('.radio-row'); for (var i = 0; i < rows.length; i++) rows[i].classList.toggle('active', rows[i].getAttribute('data-path') === p); }
+    var radios = document.querySelectorAll('.radio-row');
+    for (var ri = 0; ri < radios.length; ri++) { radios[ri].addEventListener('click', function () { selectPath(this.getAttribute('data-path')); }); }
+
+    var table = $('reTable');
+    table.addEventListener('click', function (e) {
+      var t = e.target;
+      var rcL = t.closest ? t.closest('.op-rc') : null; if (rcL && rcL.getAttribute('data-rc')) { window.location.href = '釜次详情.html'; return; }
+      var view = t.closest ? t.closest('.op-view') : null; if (view) { RE.openDetail(view.getAttribute('data-code')); return; }
+      var dec = t.closest ? t.closest('.op-decide') : null; if (dec) { RE.act(dec.getAttribute('data-code')); return; }
+      var arc = t.closest ? t.closest('.op-archive') : null; if (arc) { RE.archive(arc.getAttribute('data-code')); return; }
+      var tr = t.closest ? t.closest('.re-row') : null; if (tr && tr.getAttribute('data-code')) { RE.openDetail(tr.getAttribute('data-code')); }
+    });
+
+    var tabs = document.querySelectorAll('#reTabs .filter-tab');
+    for (var i = 0; i < tabs.length; i++) { tabs[i].addEventListener('click', function () { tab = this.getAttribute('data-restatus'); for (var j = 0; j < tabs.length; j++) tabs[j].classList.remove('active'); this.classList.add('active'); apply(); }); }
+    $('fProduct').addEventListener('change', apply);
+    $('fSearch').addEventListener('input', apply);
+    window.reTab = function (status) { tab = status; for (var j = 0; j < tabs.length; j++) tabs[j].classList.toggle('active', tabs[j].getAttribute('data-restatus') === status); apply(); };
+    recalc();
+  })();
+</script>
+  <script src="sidebar.js"></script>
+  <script src="plant.js"></script>
+<script src="role.js"></script>
+</body>
+</html>
