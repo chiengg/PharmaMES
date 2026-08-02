@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MES 精细化工 - 工序动作管理</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary-50: #E6F1FB; --primary-200: #B5D4F4; --primary-400: #378ADD;
+    --primary-600: #185FA5; --primary-800: #0C447C; --primary-900: #042C53;
+    --normal: #1D9E75; --normal-bg: #E1F5EE;
+    --info: #EF9F27; --info-bg: #FAEEDA;
+    --warning: #D85A30; --warning-bg: #FAECE7;
+    --block: #E24B4A; --block-bg: #FCEBEB;
+    --white: #FFFFFF; --page: #F1EFE8; --border: #D3D1C7;
+    --text-sec: #888780; --text-sub: #5F5E5A; --text: #2C2C2A;
+  }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif;
+    background: var(--page); color: var(--text);
+    font-size: 14px; line-height: 1.6; overflow: hidden; height: 100vh;
+  }
+  .app { display: flex; height: 100vh; }
+
+  /* === 侧边栏 === */
+  .sidebar { width: 200px; min-width: 200px; background: var(--primary-800); color: #85B7EB; display: flex; flex-direction: column; overflow-y: auto; }
+  .sidebar-logo { padding: 14px 16px; border-bottom: 1px solid var(--primary-600); display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .sidebar-nav { padding: 8px 0; flex: 1; }
+  .nav-item { padding: 8px 16px 8px 36px; font-size: 12.5px; color: #85B7EB; cursor: pointer; position: relative; transition: all 0.15s; display: flex; align-items: center; gap: 7px; }
+  .nav-item:hover { background: var(--primary-900); color: #B5D4F4; }
+  .nav-item.active { background: var(--primary-600); color: #FFF; font-weight: 500; }
+  .nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--primary-400); }
+  .nav-section-title { padding: 16px 20px 6px; font-size: 11px; color: #378ADD; text-transform: uppercase; letter-spacing: 0.5px; }
+  .sidebar-footer { padding: 12px 20px; border-top: 1px solid var(--primary-600); font-size: 12px; color: #5DCAA5; display: flex; align-items: center; gap: 6px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--normal); }
+
+  /* === 主区域 === */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { height: 52px; min-height: 52px; background: var(--white); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+  .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-sec); }
+  .breadcrumb .current { color: var(--text); font-weight: 500; }
+  .breadcrumb a { color: var(--text-sec); text-decoration: none; cursor: pointer; }
+  .breadcrumb a:hover { color: var(--primary-600); }
+  .topbar-right { display: flex; align-items: center; gap: 20px; }
+  .user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+  .user-info:hover { background: var(--page); }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-600); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }
+  .user-name { font-size: 13px; color: var(--text); }
+  .user-role { font-size: 11px; color: var(--text-sec); }
+
+  /* === 内容区 === */
+  .content { flex: 1; overflow-y: auto; padding: 14px 28px; }
+
+  /* === 页面标题 === */
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+  .page-title { font-size: 22px; font-weight: 500; color: var(--text); }
+  .page-subtitle { font-size: 13px; color: var(--text-sec); margin-top: 2px; }
+  .header-actions { display: flex; gap: 10px; }
+  .btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+  .btn-primary { background: var(--primary-600); color: #fff; }
+  .btn-primary:hover { background: var(--primary-800); }
+  .btn-secondary { background: var(--white); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--primary-400); color: var(--primary-600); }
+
+  /* === 指标卡片 === */
+  .metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+  .metric-card { background: var(--white); border-radius: 10px; padding: 14px 16px; border: 1px solid var(--border); position: relative; overflow: hidden; }
+  .metric-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .metric-card.blue::before { background: var(--primary-400); }
+  .metric-card.green::before { background: var(--normal); }
+  .metric-card.amber::before { background: var(--info); }
+  .metric-card.gray::before { background: var(--text-sec); }
+  .metric-label { font-size: 11px; color: var(--text-sec); margin-bottom: 6px; }
+  .metric-value { font-family: "DIN Alternate", "Roboto", monospace; font-size: 26px; font-weight: 500; line-height: 1.1; }
+  .metric-card.blue .metric-value { color: var(--primary-600); }
+  .metric-card.green .metric-value { color: var(--normal); }
+  .metric-card.amber .metric-value { color: var(--info); }
+  .metric-card.gray .metric-value { color: var(--text-sub); }
+  .metric-unit { font-size: 12px; color: var(--text-sec); font-family: inherit; }
+  .metric-detail { font-size: 10px; color: var(--text-sec); margin-top: 4px; }
+
+  /* === 主布局 === */
+  .main-grid { display: grid; grid-template-columns: 1fr 320px; gap: 16px; margin-bottom: 16px; }
+
+  /* === 卡片 === */
+  .card { background: var(--white); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+  .card-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .card-title { font-size: 15px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .card-title .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .card-body { padding: 0; }
+
+  /* === 筛选栏 === */
+  .filter-bar { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--page); flex-wrap: wrap; }
+  .filter-group { display: flex; align-items: center; gap: 6px; }
+  .filter-label { font-size: 12px; color: var(--text-sec); }
+  .filter-select { padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--text); background: var(--white); cursor: pointer; font-family: inherit; outline: none; }
+  .filter-select:focus { border-color: var(--primary-400); }
+  .filter-tabs { display: flex; gap: 4px; background: var(--page); border-radius: 8px; padding: 3px; }
+  .filter-tab { padding: 4px 12px; font-size: 12px; color: var(--text-sec); cursor: pointer; border-radius: 6px; border: none; background: none; font-family: inherit; transition: all 0.15s; }
+  .filter-tab.active { background: var(--white); color: var(--primary-600); font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+  .filter-tab .count { font-family: "DIN", monospace; font-size: 11px; margin-left: 3px; opacity: 0.7; }
+
+  /* === 列表表格 === */
+  .exec-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .exec-table th { text-align: left; padding: 10px 16px; background: var(--page); color: var(--text-sec); font-weight: 500; font-size: 12px; border-bottom: 1px solid var(--border); white-space: nowrap; position: sticky; top: 0; }
+  .exec-table td { padding: 12px 16px; border-bottom: 1px solid var(--page); color: var(--text); vertical-align: middle; }
+  .exec-table tbody tr { cursor: pointer; transition: background 0.12s; }
+  .exec-table tbody tr:hover { background: var(--primary-50); }
+  .exec-table .num { font-family: "DIN Alternate", "Roboto", monospace; }
+  .action-name { font-family: "DIN Alternate", "Roboto", monospace; font-weight: 500; color: var(--primary-600); }
+
+  /* === 状态标签 === */
+  .status-tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 14px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+  .status-tag .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .status-tag.normal { background: var(--normal-bg); color: #085041; } .status-tag.normal .dot { background: var(--normal); }
+  .status-tag.info { background: var(--info-bg); color: #633806; } .status-tag.info .dot { background: var(--info); }
+  .status-tag.warning { background: var(--warning-bg); color: #712B13; } .status-tag.warning .dot { background: var(--warning); }
+  .status-tag.review { background: var(--primary-50); color: var(--primary-800); } .status-tag.review .dot { background: var(--primary-400); }
+
+  /* === 右侧面板 === */
+  .right-panel { display: flex; flex-direction: column; gap: 16px; }
+
+  /* === 统计卡 === */
+  .stat-card { padding: 14px 20px; }
+  .stat-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--page); }
+  .stat-item:last-child { border-bottom: none; }
+  .stat-left { display: flex; align-items: center; gap: 8px; }
+  .stat-bar { width: 4px; height: 16px; border-radius: 2px; }
+  .stat-name { font-size: 12px; color: var(--text-sub); }
+  .stat-count { font-family: "DIN", monospace; font-size: 16px; font-weight: 500; }
+
+  /* === 底部 === */
+  .bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-sec); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .pulse { animation: pulse 1.5s ease-in-out infinite; }
+
+  /* === 侧边栏 v2：分组折叠 + 窄宽 + 新LOGO === */
+  .logo-text { line-height: 1.25; min-width: 0; }
+  .logo-name { font-size: 15px; font-weight: 500; color: #FFFFFF; letter-spacing: 0.3px; }
+  .logo-slogan { font-size: 10.5px; color: #93B5D9; margin-top: 1px; }
+  .nav-group-head { padding: 14px 16px 5px; font-size: 11px; color: #6FA9DA; letter-spacing: 0.6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; transition: color 0.15s; }
+  .nav-group-head:hover { color: #B5D4F4; }
+  .nav-group-head > span:first-child { font-weight: 500; }
+  .nav-caret { font-size: 10px; opacity: 0.75; transition: transform 0.18s; display: inline-block; }
+  .nav-group-items { overflow: hidden; }
+  .nav-group.collapsed .nav-caret { transform: rotate(-90deg); }
+  .nav-group.collapsed .nav-group-items { display: none; }
+  .sidebar-collapse { padding: 10px 16px; font-size: 12px; color: #85B7EB; cursor: pointer; display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--primary-600); transition: all 0.15s; }
+  .sidebar-collapse:hover { background: var(--primary-900); color: #B5D4F4; }
+  .collapse-caret { display: inline-block; transition: transform 0.2s; font-size: 14px; line-height: 1; }
+  .sidebar.collapsed .collapse-caret { transform: rotate(180deg); }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- 侧边栏 -->
+  <aside class="sidebar" id="appSidebar"></aside>
+
+  <!-- 主区域 -->
+  <div class="main">
+    <header class="topbar">
+      <div class="breadcrumb">
+        <a onclick="window.location.href='生产执行管理.html'">生产管理</a>
+        <span>›</span>
+        <span class="current">工序动作管理</span>
+      </div>
+      <div class="topbar-right">
+        <div id="plantSwitch"></div>
+        <div id="roleSwitch"></div>
+      <div class="user-info">
+          <div class="avatar">张</div>
+          <div><div class="user-name">张明</div><div class="user-role">车间主管</div></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="tabbar" id="tabBar"></div>
+      <div class="content">
+    
+      <!-- 页面标题 -->
+      <div class="page-header">
+        <div>
+          <div class="page-title">工序动作管理</div>
+          <div class="page-subtitle">标准动作库 · 2026年7月31日 · 一车间 · 共 6 大类 24 项标准动作</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary">📥 导出动作库</button>
+          <button class="btn btn-secondary">🔄 同步标准</button>
+          <button class="btn btn-primary" onclick="location.href='标准动作-新增编辑.html'">＋ 新增动作</button>
+        </div>
+      </div>
+
+      <!-- 指标卡片 -->
+      <div class="metrics-row">
+        <div class="metric-card blue">
+          <div class="metric-label">标准动作总数</div>
+          <div class="metric-value">24<span class="metric-unit"> 项</span></div>
+          <div class="metric-detail">前处理8 · 反应6 · 后处理6 · 包装4</div>
+        </div>
+        <div class="metric-card green">
+          <div class="metric-label">本月执行次数</div>
+          <div class="metric-value">1,286<span class="metric-unit"> 次</span></div>
+          <div class="metric-detail">较上月 +12.4%</div>
+        </div>
+        <div class="metric-card amber">
+          <div class="metric-label">待培训人员</div>
+          <div class="metric-value">18<span class="metric-unit"> 人</span></div>
+          <div class="metric-detail">已认证 42 人</div>
+        </div>
+        <div class="metric-card gray">
+          <div class="metric-label">平均执行时长</div>
+          <div class="metric-value">4.2<span class="metric-unit"> min</span></div>
+          <div class="metric-detail">最短 1.5 · 最长 12.0</div>
+        </div>
+      </div>
+
+      <!-- 主体布局 -->
+      <div class="main-grid">
+        <!-- 左侧：标准动作列表 -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="dot" style="background: var(--primary-400);"></span>标准动作库</div>
+            <div class="filter-tabs" id="catTabs">
+              <button class="filter-tab active" data-cat="全部">全部<span class="count">24</span></button>
+              <button class="filter-tab" data-cat="前处理">前处理<span class="count">8</span></button>
+              <button class="filter-tab" data-cat="反应工序">反应工序<span class="count">6</span></button>
+              <button class="filter-tab" data-cat="后处理">后处理<span class="count">6</span></button>
+              <button class="filter-tab" data-cat="包装工序">包装工序<span class="count">4</span></button>
+            </div>
+          </div>
+          <div class="filter-bar">
+            <div class="filter-group">
+              <span class="filter-label">工序分类：</span>
+              <select class="filter-select" id="fCat"><option>全部分类</option><option>前处理</option><option>反应工序</option><option>后处理</option><option>包装工序</option></select>
+            </div>
+            <div class="filter-group">
+              <span class="filter-label">适用设备：</span>
+              <select class="filter-select" id="fEquip"><option>全部设备</option><option>配料釜</option><option>反应釜 R-201</option><option>结晶釜 R-205</option><option>烘箱</option><option>压片机 T-302</option><option>包装机</option><option>CIP站</option></select>
+            </div>
+            <div class="filter-group">
+              <span class="filter-label">执行状态：</span>
+              <select class="filter-select" id="fAStatus"><option>全部状态</option><option>启用</option><option>培训中</option><option>待复核</option></select>
+            </div>
+          </div>
+          <div style="overflow-x: auto;">
+            <table class="exec-table">
+              <thead>
+                <tr>
+                  <th>动作编号</th>
+                  <th>动作名称</th>
+                  <th>所属工序</th>
+                  <th>标准时长</th>
+                  <th>适用设备</th>
+                  <th>执行状态</th>
+                  <th>最近执行</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="act-row" data-code="ACT-001" data-cat="前处理" data-equip="台秤 / 配料釜" data-astatus="启用">
+                  <td class="num">ACT-001</td>
+                  <td class="action-name">称量配料</td>
+                  <td>前处理</td>
+                  <td class="num">15 min</td>
+                  <td>台秤 / 配料釜</td>
+                  <td><span class="status-tag normal"><span class="dot"></span>启用</span></td>
+                  <td class="num">07-31 08:30</td>
+                  <td><span style="font-size: 12px; color: var(--primary-600); cursor: pointer;">查看 →</span></td>
+                </tr>
+                <tr class="act-row" data-code="ACT-002" data-cat="前处理" data-equip="计量泵 / 反应釜" data-astatus="启用">
+                  <td class="num">ACT-002</td>
+                  <td class="action-name">溶媒加入</td>
+                  <td>前处理</td>
+                  <td class="num">8 min</td>
+                  <td>计量泵 / 反应釜</td>
+                  <td><span class="status-tag normal"><span class="dot"></span>启用</span></td>
+                  <td class="num">07-31 09:10</td>
+                  <td><span style="font-size: 12px; color: var(--primary-600); cursor: pointer;">查看 →</span></td>
+                </tr>
+                <tr class="act-row" data-code="ACT-003" data-cat="反应工序" data-equip="反应釜 R-201" data-astatus="启用">
+                  <td class="num">ACT-003</td>
+                  <td class="action-name">投料反应</td>
+                  <td>反应工序</td>
+                  <td class="num">45 min</td>
+                  <td>反应釜 R-201</td>
+                  <td><span class="status-tag normal"><span class="dot"></span>启用</span></td>
+                  <td class="num">07-31 10:05</td>
+                  <td><span style="font-size: 12px; color: var(--primary-600); cursor: pointer;">查看 →</span></td>
+                </tr>
+                <tr class="act-row" data-code="ACT-004" data-cat="反应工序" data-equip="结晶釜 R-205" data-astatus="培训中">
+                  <td class="num">ACT-004</td>
+                  <td class="action-name">冷却结晶</td>
+                  <td>反应工序</td>
+                  <td class="num">30 min</td>
+                  <td>结晶釜 R-205</td>
+                  <td><span class="status-tag review"><span class="dot"></span>培训中</span></td>
+                  <td class="num">07-30 14:20</td>
+                  <td><span style="font-size: 12px; color: var(--primary-600); cursor: pointer;">查看 →</span></td>
+                </tr>
+                <tr class="act-row" data-code="ACT-005" data-cat="反应工序" data-equip="过滤机组 / 烘箱" data-astatus="启用">
+                  <td class="num">ACT-005</td>
+                  <td class="action-name">过滤干燥</td>
+                  <td>反应工序</td>
+                  <td class="num">60 min</td>
+                  <td>过滤机组 / 烘箱</td>
+                  <td><span class="status-tag normal"><span class="dot"></span>启用</span></td>
+                  <td class="num">07-31 11:30</td>
+                  <td><span style="font-size: 12px; color: var(--primary-600); cursor: pointer;">查看 →</span></td>
+                </tr>
+                <tr class="act-row" data-code="ACT-006" data-cat="后处理" data-equip="混合机 / 制粒机" data-astatus="启用">
+                  <td class="num">ACT-006</td>
+                  <td class="action-name">混合制粒</td>
+                  <td>后处理</td>
+                  <td class="num">25 min</td>
+                  <td>混合机 / 制粒机</td>
+                  <td><span class="status-tag normal"><span class="dot"></span>启用</span></td>
+                  <td class="num">07-31 09:45</td>
+                  <td><span style="font-size: 12px; color: var(--primary-600); cursor: pointer;">查看 →</span></td>
+                </tr>
+                <tr class="act-row" data-code="ACT-007" data-cat="后处理" data-equip="压片机 T-302" data-astatus="培训中">
+                  <td class="num">ACT-007</td>
+                  <td class="action-name">压片</td>
+                  <td>后处理</td>
+                  <td class="num">20 min</td>
+                  <td>压片机 T-302</td>
+                  <td><span class="status-tag review"><span class="dot"></span>培训中</span></td>
+                  <td class="num">07-30 16:10</td>
+                  <td><span style="font-size: 12px; color: var(--primary-600); cursor: pointer;">查看 →</span></td>
+                </tr>
+                <tr class="act-row" data-code="ACT-008" data-cat="后处理" data-equip="包衣锅 / 干燥机" data-astatus="启用">
+                  <td class="num">ACT-008</td>
+                  <td class="action-name">包衣</td>
+                  <td>后处理</td>
+                  <td class="num">35 min</td>
+                  <td>包衣锅 / 干燥机</td>
+                  <td><span class="status-tag normal"><span class="dot"></span>启用</span></td>
+                  <td class="num">07-31 13:20</td>
+                  <td><span style="font-size: 12px; color: var(--primary-600); cursor: pointer;">查看 →</span></td>
+                </tr>
+                <tr class="act-row" data-code="ACT-009" data-cat="包装工序" data-equip="铝塑包装机" data-astatus="启用">
+                  <td class="num">ACT-009</td>
+                  <td class="action-name">包装</td>
+                  <td>包装工序</td>
+                  <td class="num">18 min</td>
+                  <td>铝塑包装机</td>
+                  <td><span class="status-tag normal"><span class="dot"></span>启用</span></td>
+                  <td class="num">07-31 15:00</td>
+                  <td><span style="font-size: 12px; color: var(--primary-600); cursor: pointer;">查看 →</span></td>
+                </tr>
+                <tr class="act-row" data-code="ACT-010" data-cat="前处理" data-equip="在线秤 / 配料线" data-astatus="待复核">
+                  <td class="num">ACT-010</td>
+                  <td class="action-name">在线称量</td>
+                  <td>前处理</td>
+                  <td class="num">10 min</td>
+                  <td>在线秤 / 配料线</td>
+                  <td><span class="status-tag info"><span class="dot"></span>待复核</span></td>
+                  <td class="num">07-30 10:40</td>
+                  <td><span style="font-size: 12px; color: var(--primary-600); cursor: pointer;">查看 →</span></td>
+                </tr>
+                <tr class="act-row" data-code="ACT-011" data-cat="前处理" data-equip="取样器 / QC实验室" data-astatus="启用">
+                  <td class="num">ACT-011</td>
+                  <td class="action-name">取样送检</td>
+                  <td>前处理</td>
+                  <td class="num">12 min</td>
+                  <td>取样器 / QC实验室</td>
+                  <td><span class="status-tag normal"><span class="dot"></span>启用</span></td>
+                  <td class="num">07-31 09:20</td>
+                  <td><span style="font-size: 12px; color: var(--primary-600); cursor: pointer;">查看 →</span></td>
+                </tr>
+                <tr class="act-row" data-code="ACT-012" data-cat="后处理" data-equip="CIP站 / 清洗釜" data-astatus="启用">
+                  <td class="num">ACT-012</td>
+                  <td class="action-name">设备清洗</td>
+                  <td>后处理</td>
+                  <td class="num">22 min</td>
+                  <td>CIP站 / 清洗釜</td>
+                  <td><span class="status-tag normal"><span class="dot"></span>启用</span></td>
+                  <td class="num">07-31 17:15</td>
+                  <td><span style="font-size: 12px; color: var(--primary-600); cursor: pointer;">查看 →</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-top:1px solid var(--page);font-size:12px;color:var(--text-sec);">
+            <span>当前筛选结果 <b id="actCount" style="color:var(--primary-600);font-family:'DIN',monospace;">12</b> 项标准动作</span>
+            <span id="actFilterDesc" style="opacity:.85;">分类：全部 · 设备：全部设备 · 状态：全部状态</span>
+          </div>
+        </div>
+
+        <!-- 右侧面板 -->
+        <div class="right-panel">
+          <!-- 按工序分类统计 -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="dot" style="background: var(--primary-400);"></span>按工序分类</div>
+              <span style="font-size: 11px; color: var(--text-sec);">共 24 项</span>
+            </div>
+            <div class="card-body stat-card">
+              <div class="stat-item">
+                <div class="stat-left"><div class="stat-bar" style="background: var(--primary-400);"></div><span class="stat-name">前处理</span></div>
+                <div><span class="stat-count" style="color: var(--primary-600);">8</span><span style="font-size: 11px; color: var(--text-sec); margin-left: 4px;">项 · 33%</span></div>
+              </div>
+              <div class="stat-item">
+                <div class法条stat-left"><div class="stat-bar" style="background: var(--normal);"></div><span class="stat-name">反应工序</span></div>
+                <div><span class="stat-count" style="color: var(--normal);">6</span><span style="font-size: 11px; color: var(--text-sec); margin-left: 4px;">项 · 25%</span></div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-left"><div class="stat-bar" style="background: var(--info);"></div><span class="stat-name">后处理</span></div>
+                <div><span class="stat-count" style="color: var(--info);">6</span><span style="font-size: 11px; color: var(--text-sec); margin-left: 4px;">项 · 25%</span></div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-left"><div class="stat-bar" style="background: var(--warning);"></div><span class="stat-name">包装工序</span></div>
+                <div><span class="stat-count" style="color: var(--warning);">4</span><span style="font-size: 11px; color: var(--text-sec); margin-left: 4px;">项 · 17%</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 待培训人员 -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="dot" style="background: var(--amber, var(--info));"></span>待培训人员</div>
+              <span style="font-size: 11px; color: var(--text-sec);">18 人</span>
+            </div>
+            <div class="card-body stat-card">
+              <div class="stat-item">
+                <div class="stat-left"><span class="stat-name">李伟 · 投料操作</span></div>
+                <div><span class="stat-count" style="color: var(--warning); font-size: 13px;">培训中</span></div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-left"><span class="stat-name">王芳 · 称量操作</span></div>
+                <div><span class="stat-count" style="color: var(--warning); font-size: 13px;">培训中</span></div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-left"><span class="stat-name">赵强 · 压片操作</span></div>
+                <div><span class="stat-count" style="color: var(--warning); font-size: 13px;">培训中</span></div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-left"><span class="stat-name">陈静 · 包衣操作</span></div>
+                <div><span class="stat-count" style="color: var(--warning); font-size: 13px;">培训中</span></div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-left"><span class="stat-name">孙丽 · 干燥操作</span></div>
+                <div><span class="stat-count" style="color: var(--warning); font-size: 13px;">培训中</span></div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-left"><span class="stat-name">周涛 · 混合操作</span></div>
+                <div><span class="stat-count" style="color: var(--warning); font-size: 13px;">培训中</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 执行频次 Top 设备 -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="dot" style="background: var(--normal);"></span>高频执行设备</div>
+            </div>
+            <div class="card-body stat-card">
+              <div class="stat-item">
+                <div class="stat-left"><span class="stat-name">反应釜 R-201</span></div>
+                <div><span class="stat-count" style="color: var(--primary-600);">386 次</span></div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-left"><span class="stat-name">压片机 T-302</span></div>
+                <div><span class="stat-count" style="color: var(--primary-600);">254 次</span></div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-left"><span class="stat-name">烘箱 D-105</span></div>
+                <div><span class="stat-count" style="color: var(--primary-600);">198 次</span></div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-left"><span class="stat-name">包衣锅 Y-1</span></div>
+                <div><span class="stat-count" style="color: var(--primary-600);">148 次</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 底部：动作类型分布 + 执行趋势 -->
+      <div class="bottom-grid">
+        <!-- 动作类型分布 -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="dot" style="background: var(--primary-400);"></span>动作类型分布</div>
+            <div class="filter-tabs">
+              <button class="filter-tab active">按工序</button>
+              <button class="filter-tab">按设备</button>
+            </div>
+          </div>
+          <div class="card-body" style="padding: 16px 20px;">
+            <div style="display: flex; gap: 24px; align-items: center; height: 150px;">
+              <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <div style="display: flex; align-items: center; gap: 8px;"><div style="width: 10px; height: 10px; border-radius: 2px; background: var(--primary-600);"></div><span style="font-size: 12px; color: var(--text-sub);">前处理</span></div>
+                  <span style="font-family: DIN, monospace; font-size: 14px; font-weight: 500; color: var(--primary-600);">8</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <div style="display: flex; align-items: center; gap: 8px;"><div style="width: 10px; height: 10px; border-radius: 2px; background: var(--normal);"></div><span style="font-size: 12px; color: var(--text-sub);">反应工序</span></div>
+                  <span style="font-family: DIN, monospace; font-size: 14px; font-weight: 500; color: var(--normal);">6</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <div style="display: flex; align-items: center; gap: 8px;"><div style="width: 10px; height: 10px; border-radius: 2px; background: var(--info);"></div><span style="font-size: 12px; color: var(--text-sub);">后处理</span></div>
+                  <span style="font-family: DIN, monospace; font-size: 14px; font-weight: 500; color: var(--info);">6</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <div style="display: flex; align-items: center; gap: 8px;"><div style="width: 10px; height: 10px; border-radius: 2px; background: var(--warning);"></div><span style="font-size: 12px; color: var(--text-sub);">包装工序</span></div>
+                  <span style="font-family: DIN, monospace; font-size: 14px; font-weight: 500; color: var(--warning);">4</span>
+                </div>
+              </div>
+              <div style="flex: 1; border-left: 1px solid var(--page); padding-left: 20px;">
+                <div style="font-size: 12px; font-weight: 500; color: var(--text-sub); margin-bottom: 10px;">执行频次（本月）</div>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 12px; color: var(--text-sub);">称量配料</span><span style="font-family: DIN, monospace; font-size: 13px; color: var(--text);">312</span></div>
+                  <div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 12px; color: var(--text-sub);">投料反应</span><span style="font-family: DIN, monospace; font-size: 13px; color: var(--text);">286</span></div>
+                  <div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 12px; color: var(--text-sub);">冷却结晶</span><span style="font-family: DIN, monospace; font-size: 13px; color: var(--text);">198</span></div>
+                  <div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 12px; color: var(--text-sub);">过滤干燥</span><span style="font-family: DIN, monospace; font-size: 13px; color: var(--text);">176</span></div>
+                  <div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 12px; color: var(--text-sub);">混合制粒</span><span style="font-family: DIN, monospace; font-size: 13px; color: var(--text);">154</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 执行趋势 -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="dot" style="background: var(--info);"></span>近7天执行趋势</div>
+            <span style="font-size: 11px; color: var(--text-sec);">单位：次/日</span>
+          </div>
+          <div class="card-body" style="padding: 16px 20px;">
+            <div style="display: flex; gap: 14px; height: 150px; align-items: flex-end; padding: 0 10px;">
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                <div style="width: 70%; height: 96px; background: var(--primary-600); border-radius: 2px 2px 0 0;" title="07-25 执行 192 次"></div>
+                <span style="font-size: 11px; color: var(--text-sec); font-family: DIN, monospace;">07-25</span>
+              </div>
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                <div style="width: 70%; height: 124px; background: var(--primary-600); border-radius: 2px 2px 0 0;" title="07-26 执行 248 次"></div>
+                <span style="font-size: 11px; color: var(--text-sec); font-family: DIN, monospace;">07-26</span>
+              </div>
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                <div style="width: 70%; height: 88px; background: var(--primary-600); border-radius: 2px 2px 0 0;" title="07-27 执行 176 次"></div>
+                <span style="font-size: 11px; color: var(--text-sec); font-family: DIN, monospace;">07-27</span>
+              </div>
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                <div style="width: 70%; height: 140px; background: var(--primary-600); border-radius: 2px 2px 0 0;" title="07-28 执行 280 次"></div>
+                <span style="font-size: 11px; color: var(--text-sec); font-family: DIN, monospace;">07-28</span>
+              </div>
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                <div style="width: 70%; height: 112px; background: var(--primary-600); border-radius: 2px 2px 0 0;" title="07-29 执行 224 次"></div>
+                <span style="font-size: 11px; color: var(--text-sec); font-family: DIN, monospace;">07-29</span>
+              </div>
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                <div style="width: 70%; height: 156px; background: var(--primary-600); border-radius: 2px 2px 0 0;" title="07-30 执行 312 次"></div>
+                <span style="font-size: 11px; color: var(--text-sec); font-family: DIN, monospace;">07-30</span>
+              </div>
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                <div style="width: 70%; height: 184px; background: var(--primary-600); border-radius: 2px 2px 0 0;" title="07-31 执行 386 次"></div>
+                <span style="font-size: 11px; color: var(--text-sec); font-family: DIN, monospace; font-weight: 500; color: var(--primary-600);">07-31</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    
+    </div></div>
+  </div>
+
+
+<script>
+  // ===== 标准动作库：分类Tab + 筛选条件 真实过滤 =====
+  (function () {
+    var rows = Array.prototype.slice.call(document.querySelectorAll('.act-row'));
+    if (!rows.length) return;
+    var catTabs = document.getElementById('catTabs');
+    var fCat = document.getElementById('fCat');
+    var fEquip = document.getElementById('fEquip');
+    var fAStatus = document.getElementById('fAStatus');
+    var tbody = rows[0].parentNode;
+    var curCat = '全部';
+
+    var emptyRow = document.createElement('tr');
+    emptyRow.innerHTML = '<td colspan="8" style="text-align:center;padding:56px 0;color:var(--text-sec);font-size:13px;">'
+      + '<div style="font-size:28px;opacity:.35;margin-bottom:8px;">≡</div>'
+      + '该分类下暂无标准动作<br><span style="font-size:12px;opacity:.75;">请调整分类Tab或筛选条件后重试</span></td>';
+    emptyRow.style.display = 'none';
+    tbody.appendChild(emptyRow);
+
+    function pass(r) {
+      var d = r.dataset;
+      if (curCat !== '全部' && d.cat !== curCat) return false;
+      if (fCat && fCat.value !== '全部分类' && d.cat !== fCat.value) return false;
+      if (fEquip && fEquip.value !== '全部设备' && (d.equip || '').indexOf(fEquip.value) < 0) return false;
+      if (fAStatus && fAStatus.value !== '全部状态' && d.astatus !== fAStatus.value) return false;
+      return true;
+    }
+
+    function apply() {
+      var shown = 0;
+      rows.forEach(function (r) {
+        var ok = pass(r);
+        r.style.display = ok ? '' : 'none';
+        if (ok) shown++;
+      });
+      emptyRow.style.display = shown ? 'none' : '';
+      var c = document.getElementById('actCount');
+      if (c) c.textContent = shown;
+      var desc = document.getElementById('actFilterDesc');
+      if (desc) {
+        desc.textContent = '分类：' + (fCat && fCat.value !== '全部分类' ? fCat.value : curCat)
+          + ' · 设备：' + (fEquip ? fEquip.value : '全部设备')
+          + ' · 状态：' + (fAStatus ? fAStatus.value : '全部状态');
+      }
+    }
+
+    if (catTabs) {
+      catTabs.querySelectorAll('.filter-tab').forEach(function (btn) {
+        var cat = btn.getAttribute('data-cat');
+        var n = (cat === '全部') ? rows.length : rows.filter(function (r) { return r.dataset.cat === cat; }).length;
+        var c = btn.querySelector('.count'); if (c) c.textContent = n;
+        btn.addEventListener('click', function () {
+          catTabs.querySelectorAll('.filter-tab').forEach(function (b) { b.classList.remove('active'); });
+          this.classList.add('active');
+          curCat = cat;
+          if (fCat) fCat.value = (cat === '全部') ? '全部分类' : cat;
+          apply();
+        });
+      });
+    }
+    if (fCat) fCat.addEventListener('change', function () {
+      curCat = (this.value === '全部分类') ? '全部' : this.value;
+      if (catTabs) {
+        catTabs.querySelectorAll('.filter-tab').forEach(function (b) {
+          b.classList.toggle('active', b.getAttribute('data-cat') === curCat);
+        });
+      }
+      apply();
+    });
+    if (fEquip) fEquip.addEventListener('change', apply);
+    if (fAStatus) fAStatus.addEventListener('change', apply);
+    apply();
+  })();
+
+  // 其他Tab组（图表切换等）仅切换高亮
+  document.querySelectorAll('.filter-tabs').forEach(group => {
+    if (group.id === 'catTabs') return;
+    group.querySelectorAll('.filter-tab').forEach(btn => {
+      btn.addEventListener('click', function() {
+        group.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+      });
+    });
+  });
+  // 列表「查看 →」点击 → 标准动作库详情
+  document.querySelectorAll('.exec-table td span').forEach(span => {
+    if (span.textContent.includes('查看')) {
+      span.addEventListener('click', function(e) {
+        e.stopPropagation();
+        window.location.href = '标准动作库-详情.html';
+      });
+    }
+  });
+</script>
+  <script src="sidebar.js"></script>
+  <script src="plant.js"></script>
+<script src="role.js"></script>
+</body>
+</html>
