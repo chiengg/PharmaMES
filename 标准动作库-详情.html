@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MES 精细化工 - 标准动作库详情</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary-50: #E6F1FB; --primary-200: #B5D4F4; --primary-400: #378ADD;
+    --primary-600: #185FA5; --primary-800: #0C447C; --primary-900: #042C53;
+    --normal: #1D9E75; --normal-bg: #E1F5EE;
+    --info: #EF9F27; --info-bg: #FAEEDA;
+    --warning: #D85A30; --warning-bg: #FAECE7;
+    --block: #E24B4A; --block-bg: #FCEBEB;
+   --white: #FFFFFF; --page: #F1EFE8; --border: #D3D1C7;
+    --text-sec: #888780; --text-sub: #5F5E5A; --text: #2C2C2A;
+  }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif;
+    background: var(--page); color: var(--text);
+    font-size: 14px; line-height: 1.6; overflow: hidden; height: 100vh;
+  }
+  .app { display: flex; height: 100vh; }
+  .sidebar { width: 200px; min-width: 200px; background: var(--primary-800); color: #85B7EB; display: flex; flex-direction: column; overflow-y: auto; }
+  .sidebar-logo { padding: 14px 16px; border-bottom: 1px solid var(--primary-600); display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .sidebar-nav { padding: 8px 0; flex: 1; }
+  .nav-item { padding: 8px 16px 8px 36px; font-size: 12.5px; color: #85B7EB; cursor: pointer; position: relative; transition: all 0.15s; display: flex; align-items: center; gap: 7px; }
+  .nav-item:hover { background: var(--primary-900); color: #B5D4F4; }
+  .nav-item.active { background: var(--primary-600); color: #FFF; font-weight: 500; }
+  .nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--primary-400); }
+  .nav-section-title { padding: 16px 20px 6px; font-size: 11px; color: #378ADD; text-transform: uppercase; letter-spacing: 0.5px; }
+  .sidebar-footer { padding: 12px 20px; border-top: 1px solid var(--primary-600); font-size: 12px; color: #5DCAA5; display: flex; align-items: center; gap: 6px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--normal); }
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { height: 52px; min-height: 52px; background: var(--white); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+  .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-sec); }
+  .breadcrumb .current { color: var(--text); font-weight: 500; }
+  .breadcrumb a { color: var(--text-sec); text-decoration: none; cursor: pointer; }
+  .breadcrumb a:hover { color: var(--primary-600); }
+  .topbar-right { display: flex; align-items: center; gap: 20px; }
+  .user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+  .user-info:hover { background: var(--page); }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-600); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }
+  .user-name { font-size: 13px; color: var(--text); }
+  .user-role { font-size: 11px; color: var(--text-sec); }
+  .content { flex: 1; overflow-y: auto; padding: 14px 28px; }
+  .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; }
+  .page-title-row { display: flex; align-items: center; gap: 12px; }
+  .page-title { font-size: 22px; font-weight: 500; color: var(--text); }
+  .page-subtitle { font-size: 13px; color: var(--text-sec); margin-top: 4px; }
+  .header-actions { display: flex; gap: 10px; }
+  .btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+  .btn-primary { background: var(--primary-600); color: #fff; }
+  .btn-primary:hover { background: var(--primary-800); }
+  .btn-secondary { background: var(--white); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--primary-400); color: var(--primary-600); }
+  .status-tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 14px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+  .status-tag .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .status-tag.normal { background: var(--normal-bg); color: #085041; }
+  .status-tag.normal .dot { background: var(--normal); }
+  .status-tag.review { background: var(--primary-50); color: var(--primary-800); }
+  .status-tag.review .dot { background: var(--primary-400); }
+  .status-tag.draft { background: var(--page); color: var(--text-sub); }
+  .status-tag.draft .dot { background: var(--text-sec); }
+  .info-banner { background: var(--white); border-radius: 12px; border: 1px solid var(--border); padding: 20px 24px; margin-bottom: 16px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .info-item { display: flex; flex-direction: column; gap: 4px; }
+  .info-label { font-size: 11px; color: var(--text-sec); }
+  .info-value { font-size: 14px; color: var(--text); font-weight: 500; }
+  .info-value.num { font-family: "DIN Alternate", "Roboto", monospace; }
+  .info-value.link { color: var(--primary-600); cursor: pointer; }
+  .info-value.link:hover { text-decoration: underline; }
+  .tab-nav { display: flex; gap: 0; background: var(--white); border-radius: 10px 10px 0 0; border: 1px solid var(--border); border-bottom: none; overflow: hidden; }
+  .tab-btn { padding: 12px 24px; font-size: 13px; color: var(--text-sub); cursor: pointer; border: none; background: none; font-family: inherit; transition: all 0.15s; position: relative; display: flex; align-items: center; gap: 6px; }
+  .tab-btn:hover { color: var(--primary-600); background: var(--primary-50); }
+  .tab-btn.active { color: var(--primary-600); font-weight: 500; }
+  .tab-btn.active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--primary-600); }
+  .tab-btn .badge { font-size: 10px; padding: 1px 6px; border-radius: 8px; background: var(--page); color: var(--text-sec); font-family: "DIN", monospace; }
+  .tab-btn.active .badge { background: var(--primary-50); color: var(--primary-600); }
+  .tab-content { background: var(--white); border-radius: 0 0 12px 12px; border: 1px solid var(--border); margin-bottom: 16px; }
+  .tab-pane { display: none; padding: 20px 24px; }
+  .tab-pane.active { display: block; }
+  .detail-section { margin-bottom: 24px; }
+  .detail-section:last-child { margin-bottom: 0; }
+  .detail-section-title { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--page); }
+  .detail-section-title .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .detail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 24px; }
+  .detail-item { display: flex; flex-direction: column; gap: 4px; }
+  .detail-label { font-size: 11px; color: var(--text-sec); }
+  .detail-value { font-size: 13px; color: var(--text); }
+  .detail-value.num { font-family: "DIN Alternate", "Roboto", monospace; }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .data-table th { text-align: left; padding: 8px 12px; background: var(--page); color: var(--text-sec); font-weight: 500; font-size: 11px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .data-table td { padding: 10px 12px; border-bottom: 1px solid var(--page); color: var(--text); vertical-align: middle; }
+  .data-table tbody tr:hover { background: var(--primary-50); }
+  .data-table .num { font-family: "DIN Alternate", "Roboto", monospace; }
+  .id-link { font-family: "DIN Alternate", "Roboto", monospace; font-weight: 500; color: var(--primary-600); cursor: pointer; }
+  .id-link:hover { text-decoration: underline; }
+  .mat-status { font-size: 11px; padding: 2px 8px; border-radius: 10px; display: inline-flex; align-items: center; gap: 4px; }
+  .mat-status .dot { width: 5px; height: 5px; border-radius: 50%; }
+  .mat-status.full { background: var(--normal-bg); color: #085041; }
+  .mat-status.full .dot { background: var(--normal); }
+  .mat-status.partial { background: var(--info-bg); color: #633806; }
+  .mat-status.partial .dot { background: var(--info); }
+  .mat-status.pending { background: var(--page); color: var(--text-sub); }
+  .mat-status.pending .dot { background: var(--text-sec); }
+  .version-timeline { position: relative; padding-left: 24px; }
+  .version-timeline::protective content: ''; position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+  .version-item { position: relative; padding-bottom: 20px; }
+  .version-item:last-child { padding-bottom: 0; }
+  .version-item::before { content: ''; position: absolute; left: -21px; top: 4px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--border); background: var(--white); }
+  .version-item.current::before { border-color: var(--primary-600); background: var(--primary-600); }
+  .version-item.normal::before { border-color: var(--normal); background: var(--normal); }
+  .version-header { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .version-no { font-family: "DIN", monospace; font-size: 14px; font-weight: 500; color: var(--text); }
+  .version-item.current .version-no { color: var(--primary-600); }
+  .version-date { font-size: 11px; color: var(--text-sec); font-family: "DIN", monospace; }
+  .version-desc { font-size: 12px; color: var(--text-sub); margin-bottom: 4px; }
+  .version-changes { font-size: 11px; color: var(--text-sec); display: flex; flex-direction: column; gap: 2px; padding-left: 12px; border-left: 2px solid var(--page); margin-top: 4px; }
+  .approval-flow { display: flex; flex-direction: column; gap: 0; }
+  .approval-node { display: flex; gap: 16px; padding-bottom: 24px; position: relative; }
+  .approval-node:last-child { padding-bottom: 0; }
+  .approval-node::before { content: ''; position: absolute; left: 15px; top: 32px; bottom: 0; width: 2px; background: var(--border); }
+  .approval-node:last-child::before { display: none; }
+  .approval-node.done::before { background: var(--normal); }
+  .approval-icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; z-index: 1; }
+  .approval-icon.done { background: var(--normal); color: #fff; }
+  .approval-icon.current { background: var(--primary-600); color: #fff; }
+  .approval-icon.pending { background: var(--page); color: var(--text-sec); border: 2px solid var(--border); }
+  .approval-body { flex: 1; padding-top: 4px; }
+  .approval-name { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 2px; }
+  .approval-role { font-size: 11px; color: var(--text-sec); margin-bottom: 6px; }
+  .approval-result { font-size: 12px; color: var(--text-sub); padding: 6px 10px; background: var(--page); border-radius: 6px; }
+  .approval-result.done { background: var(--normal-bg); color: #085041; }
+  .approval-time { font-size: 11px; color: var(--text-sec); font-family: "DIN", monospace; margin-top: 4px; }
+  .batch-progress { display: flex; align-items: center; gap: 6px; }
+  .batch-progress-bar { width: 80px; height: 5px; background: var(--page); border-radius: 3px; overflow: hidden; }
+  .batch-progress-fill { height: 100%; border-radius: 3px; }
+  .batch-progress-text { font-family: "DIN", monospace; font-size: 11px; color: var(--text-sec); }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-sec); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .pulse { animation: pulse  ■1.5s ease-in-out infinite; }
+
+  /* === 侧边栏 v2：分组折叠 + 窄宽 + 新LOGO === */
+  .logo-text { line-height: 1.25; min-width: 0; }
+  .logo-name { font-size: 15px; font-weight: 500; color: #FFFFFF; letter-spacing: 0.3px; }
+  .logo-slogan { font-size: 10.5px; color: #93B5D9; margin-top: 1px; }
+  .nav-group-head { padding: 14px 16px 5px; font-size: 11px; color: #6FA9DA; letter-spacing: 0.6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; transition: color 0.15s; }
+  .nav-group-head:hover { color: #B5D4F4; }
+  .nav-group-head > span:first-child { font-weight: 500; }
+  .nav-caret { font-size: 10px; opacity: 0.75; transition: transform 0.18s; display: inline-block; }
+  .nav-group-items { overflow: hidden; }
+  .nav-group.collapsed .nav-caret { transform: rotate(-90deg); }
+  .nav-group.collapsed .nav-group-items { display: none; }
+  .sidebar-collapse { padding: 10px 16px; font-size: 12px; color: #85B7EB; cursor: pointer; display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--primary-600); transition: all 0.15s; }
+  .sidebar-collapse:hover { background: var(--primary-900); color: #B5D4F4; }
+  .collapse-caret { display: inline-block; transition: transform 0.2s; font-size: 14px; line-height: 1; }
+  .sidebar.collapsed .collapse-caret { transform: rotate(180deg); }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="appSidebar"></aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="breadcrumb">
+        <a onclick="window.location.href='标准动作库.html'">基础配置</a>
+        <span>›</span>
+        <a onclick="window.location.href='标准动作库.html'">标准动作库</a>
+        <span>›</span>
+        <span class="current">标准动作库 ACT-003 详情</span>
+      </div>
+      <div class="topbar-right">
+        <div id="plantSwitch"></div>
+        <div id="roleSwitch"></div>
+      <div class="user-info">
+          <div class="avatar">张</div>
+          <div><div class="user-name">张明</div><div class="user-role">车间主管</div></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="tabbar" id="tabBar"></div>
+      <div class="content">
+    
+      <div class="page-header">
+        <div>
+          <div class="page-title-row">
+            <div class="page-title">投料反应 · 标准动作详情</div>
+            <span class="status-tag normal"><span class="dot"></span>启用</span>
+            <span style="font-family: 'DIN', monospace; font-size: 13px; color: var(--text-sec); padding: 3px 10px; background: var(--page); border-radius: 14px;">ACT-003</span>
+          </div>
+          <div class="page-subtitle">标准动作库 · 最后更新: 2026-07-31 09:00 · 更新人: 张明</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="window.location.href='标准动作库.html'">← 返回列表</button>
+          <button class="btn btn-secondary">📋 复制创建</button>
+          <button class="btn btn-secondary">📄 导出PDF</button>
+          <button class="btn btn-primary" onclick="window.location.href='标准动作-新增编辑.html?mode=edit'">✎ 编辑</button>
+        </div>
+      </div>
+
+      <div class="info-banner">
+        <div class="info-item">
+          <div class="info-label">动作编号</div>
+          <div class="info-value num">ACT-003</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">动作名称</div>
+          <div class="info-value">投料反应</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">所属工序</div>
+          <div class="info-value">反应工序</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">标准时长</div>
+          <div class="info-value num">45 min</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">适用设备</div>
+          <div class="info-value">反应釜 R-201</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">执行状态</div>
+          <div class="info-value"><span class="status-tag normal"><span class="dot"></span>启用</span></div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">本月执行</div>
+          <div class="info-value num">286 次</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">关联釜次</div>
+          <div class="info-value num">12 批</div>
+        </div>
+      </div>
+
+      <div class="tab-nav">
+        <button class="tab-btn active" data-tab="params">动作参数</button>
+        <button class="tab-btn" data-tab="process">关联工序</button>
+        <button class="tab-btn" data-tab="records">执行记录 <span class="badge">12</span></button>
+        <button class="tab-btn" data-tab="training">培训记录</button>
+      </div>
+
+      <div class="tab-content">
+        <div class="tab-pane active" id="tab-params">
+          <div class="detail-section">
+            <div class="detail-section-title"><span class="dot" style="background: var(--primary-400);"></span>动作基础参数</div>
+            <div class="detail-grid">
+              <div class="detail-item"><div class="detail-label">投料温度</div><div class="detail-value num">60~80°C</div></div>
+              <div class="detail-item"><div class="detail-label">反应压力</div><div class="detail-value num">1.2~1.8 MPa</div></div>
+              <div class="detail-item"><div class="detail-label">搅拌转速</div><div class="detail-value num">80~100 rpm</div></div>
+              <div class="detail-item"><div class="detail-label">投料量</div><div class="detail-value num">450~500 kg</div></div>
+              <div class="detail-item"><div class="detail-label">反应 pH</div><div class="detail-value num">6.5~7.5</div></div>
+              <div class="detail-item"><div class="detail-label">标准工时</div><div class="detail-value num">45 min</div></div>
+            </div>
+          </div>
+          <div class="detail-section">
+            <div class="detail-section-title"><span class="dot" style="background: var(--normal);"></span>前置条件</div>
+            <div class="detail-grid">
+              <div class="detail-item"><div class="detail-label">物料齐备</div><div class="detail-value">原料/辅料/溶剂已就位</div></div>
+              <div class="detail-item"><div class="detail-label">设备就绪</div><div class="detail-value">反应釜 R-201 空闲</div></div>
+              <div class="detail-item"><div class="detail-label">人员持证</div><div class="detail-value">操作员持有效上岗证</div></div>
+            </div>
+          </div>
+          <div class="detail-section">
+            <div class="detail-section-title"><span class="dot" style="background: var(--text-sec);"></span>动作说明</div>
+            <div style="padding: 8px 12px; background: var(--page); border-radius: 8px; font-size: 12px; color: var(--text-sub);">
+              投料反应为标准反应工序核心动作：将称量好的物料按既定顺序投入反应釜，控制温度/压力/转速在允许范围内，完成规定投料量后进入下一工序。本动作适用于对乙酰氨基酚、阿莫西林、阿司匹林等片剂的反应工序。
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-pane" id="tab-process">
+          <div class="detail-section">
+            <div class="detail-section-title"><span class="dot" style="background: var(--primary-400);"></span>关联工序流程</div>
+            <div class="proc-flow" style="display: flex; align-items: center; gap: 8px; padding: 12px 0; flex-wrap: wrap;">
+              <div style="padding: 8px 14px; background: var(--primary-50); border: 1px solid var(--primary-200); border-radius: 8px; font-size: 12px; color: var(--primary-800); font-weight: 500;">称量配料</div>
+              <span style="color: var(--text-sec);">→</span>
+              <div style="padding: 8px 14px; background: var(--normal-bg); border: 1px solid var(--normal); border-radius: 8px; font-size: 12px; color: #085041; font-weight: 500;">投料反应</div>
+              <span style="color: var(--text-sec);">→</span>
+              <div style="padding: 8px 14px; background: var(--primary-50); border: 1px solid var(--primary-200); border-radius: 8px;不休font-size: 12px; color: var(--primary-800); font-weight: 500;">冷却结晶</div>
+              <span style="color: var(--text-sec);">→</span>
+              <div style="padding: 8px 14px; background: var(--primary-50); border: 1px solid var(--primary-200); border-radius: 8px; font-size: 12px; color: var(--primary-800); font-weight: 500;">过滤干燥</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-pane" id="tab-records">
+          <div class="detail-section">
+            <div class="detail-section-title"><span class="dot" style="background: var(--block);"></span>近期执行记录</div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>执行编号</th><th>关联釜次</th><th>设备</th><th>操作员</th><th>开始时间</th><th>结束时间</th><th>状态</th><th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td class="num">EXE-0731-001</td><td class="num id-link" onclick="window.location.href='釜次详情.html'">RC-0731-001</td><td>R-201</td><td>张明</td><td class="num">08:30</td><td class="num">09:15</td><td><span class="status-tag normal"><span class="dot"></span>正常</span></td><td><span style="font-size:12px;color:var(--primary-600);cursor:pointer;">查看 →</span></td></tr>
+                <tr><td class="num">EXE-0730-003</td><td class="num id-link" onclick="window.location.href='釜次详情.html'">RC-0730-003</td><td>R-203</td><td>王芳</td><td class="num">07:00</td><td class="num">07:45</td><td><span class="status-tag normal"><span class="dot"></span>正常</span></td><td><span style="font-size:12px;color:var(--primary-600);cursor:pointer;">查看 →</span></td></tr>
+                <tr><td class="num">EXE-0729-005</td><td class="num id-link" onclick="window.location.href='釜次详情.html'">RC-0729-005</td><td>R-205</td><td>李伟</td><td class="num">06:00</td><td class="num">06:48</td><td><span class="status-tag normal"><span class="dot"></span>正常</span></td><td><span style="font-size:12px;color:var(--primary-600);cursor:pointer;">查看 →</span></td></tr>
+                <tr><td class="num">EXE-0728-002</td><td class="num id-link" onclick="window.location.href='釜次详情.html'">RC-0728-002</td><td>R-201</td><td>赵强</td><td class="num">05:00</td><td class="num">05:42</td><td><span class="status-tag normal"><span class="dot"></span>正常</span></td><td><span style="font-size:12px;color:var(--primary-600);cursor:pointer;">查看 →</span></td></tr>
+                <tr><td class="num">EXE-0725-001</td><td class="num id-link" onclick="window.location.href='釜次详情.html'">RC-0725-001</td><td>R-208</td><td>陈静</td><td class="num">04:00</td><td class="num">04:38</td><td><span class="status-tag normal"><span class="dot"></span>正常</span></LT></td><td><span style="font-size:12px;color:var(--primary-600);cursor:pointer;">查看 →</span></td></tr>
+                <tr><td class="num">EXE-0722-004</td><td class="num id-link" onclick="window.location.href='釜次详情.html'">RC-0722-004</td><td>R-206</td><td>周涛</td><td class="num">03:00</td><td class="num">03:36</td><td><span class="status-tag normal"><span class="dot"></span>正常</span></td><td><span style="font-size:12px;color:var(--primary-600);cursor:pointer;">查看 →</span></td></tr>
+              </tbody>
+            </table>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0 0;font-size:12px;color:var(--text-sec);">
+              <span>共 6 条执行记录 · 本月累计 286 次</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-pane" id="tabtraining">
+          <div class="detail-section">
+            <div class="detail-section-title"><span class="dot" style="background: var(--info);"></span>培训考核记录</div>
+            <div class="approval-flow">
+              <div class="approval-node done">
+                <div class="approval-icon done">✓</div>
+                <div class="approval-body">
+                  <div class="approval-name">李伟 · 投料操作</div>
+                  <div class="approval-role">理论+实操培训 · 考核通过</div>
+                  <div class="approval-result done">已获准独立执行本动作</div>
+                  <div class="approval-time">2026-07-20 14:30</div>
+                </div>
+              </div>
+              <div class="approval-node done">
+                <div class="approval-icon done">✓</div>
+                <div class="approval-body">
+                  <div class="approval-name">王芳 · 称量操作</div>
+                  <div class="approval-role">理论+实操培训 · 考核通过</div>
+                  <div class="approval-result done">已获准独立执行本动作</div>
+                  <div class="approval-time">2026-07-18 10:15</div>
+                </div>
+              </div>
+              <div class="approval-node current">
+                <div class="approval-icon current">→</div>
+                <div class="approval-body">
+                  <div class="approval-name">赵强 · 压片操作</div>
+                  <div class="approval-role">培训中 · 待考核</div>
+                  <div class="approval-result">预计 2026-08-01 完成培训</div>
+                  <div class="approval-time">进行中</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="detail-section">
+            <div class="detail-section-title"><span class="dot" style="background: var(--text-sec);"></span>历史培训统计</div>
+            <table class="data-table">
+              <thead><tr><th>人员</th><th>角色</th><th>培训状态</th><th>考核结果</th><th>获准执行</th></tr></thead>
+              <tbody>
+                <tr><td>李伟</td><td>投料操作</td><td><span class="status-tag normal"><span class="dot"></span>已通过</span></td><td class="num">96 分</td><td>是</td></tr>
+                <tr><td>王芳</td><td>称量操作</td><td><span class="status-tag normal"><span class="dot"></span>已通过</span></td><td class="num">94 分</td><td>是</td></tr>
+                <tr><td>赵强</td><td>压片操作</td><td><span class="status-tag warning"><span class="dot"></span>培训中</span></td><td class="num">—</td><td>否</td></tr>
+                <tr><td>陈静</td><td>包衣操作</td><td><span class="status-tag normal"><span class="dot"></span>已通过</span></td><td class="num">92 分</td><td>是</td></tr>
+                <tr><td>孙丽</td><td>干燥操作</td><td><span class="status-tag normal"><span class="dot"></span>已通过</span></td><td class="num">95 分</td><td>وفعله是</td></tr>
+                <tr><td>周涛</td><td>混合操作</td><td><span class="status-tag warning"><span class="dot"></span>培训中</span></td><td class="num">—</td><td>否</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    
+    </div></div>
+  </div>
+
+
+<script>
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const tabId = this.getAttribute('data-tab');
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      this.classList.add('active');
+      document.getElementById('tab-' + tabId).classList.add('active');
+    });
+  });
+</script>
+  <script src="sidebar.js"></script>
+  <script src="plant.js"></script>
+<script src="role.js"></script>
+</body>
+</html>
