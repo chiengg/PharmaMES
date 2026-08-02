@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MES 制药 - 偏差/CAPA</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary-50: #E6F1FB; --primary-200: #B5D4F4; --primary-400: #378ADD;
+    --primary-600: #185FA5; --primary-800: #0C447C; --primary-900: #042C53;
+    --normal: #1D9E75; --normal-bg: #E1F5EE;
+    --info: #EF9F27; --info-bg: #FAEEDA;
+    --warning: #D85A30; --warning-bg: #FAECE7;
+    --block: #E24B4A; --block-bg: #FCEBEB;
+    --white: #FFFFFF; --page: #F1EFE8; --border: #D3D1C7;
+    --text-sec: #888780; --text-sub: #5F5E5A; --text: #2C2C2A;
+  }
+  body { font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif; background: var(--page); color: var(--text); font-size: 14px; line-height: 1.6; overflow: hidden; height: 100vh; }
+  .app { display: flex; height: 100vh; }
+  .sidebar { width: 200px; min-width: 200px; background: var(--primary-800); color: #85B7EB; display: flex; flex-direction: column; overflow-y: auto; }
+  .sidebar-logo { padding: 14px 16px; border-bottom: 1px solid var(--primary-600); display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .sidebar-nav { padding: 8px 0; flex: 1; }
+  .nav-item { padding: 8px 16px 8px 36px; font-size: 12.5px; color: #85B7EB; cursor: pointer; position: relative; transition: all 0.15s; display: flex; align-items: center; gap: 7px; }
+  .nav-item:hover { background: var(--primary-900); color: #B5D4F4; }
+  .nav-item.active { background: var(--primary-600); color: #FFF; font-weight: 500; }
+  .nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--primary-400); }
+  .nav-section-title { padding: 16px 20px 6px; font-size: 11px; color: #378ADD; text-transform: uppercase; letter-spacing: 0.5px; }
+  .sidebar-footer { padding: 12px 20px; border-top: 1px solid var(--primary-600); font-size: 12px; color: #5DCAA5; display: flex; align-items: center; gap: 6px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--normal); }
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { height: 52px; min-height: 52px; background: var(--white); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+  .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-sec); }
+  .breadcrumb .current { color: var(--text); font-weight: 500; }
+  .breadcrumb a { color: var(--text-sec); text-decoration: none; cursor: pointer; }
+  .breadcrumb a:hover { color: var(--primary-600); }
+  .topbar-right { display: flex; align-items: center; gap: 20px; }
+  .user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+  .user-info:hover { background: var(--page); }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-600); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }
+  .user-name { font-size: 13px; color: var(--text); }
+  .user-role { font-size: 11px; color: var(--text-sec); }
+  .content { flex: 1; overflow-y: auto; padding: 14px 28px; }
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+  .page-title { font-size: 22px; font-weight: 500; color: var(--text); }
+  .page-subtitle { font-size: 13px; color: var(--text-sec); margin-top: 2px; }
+  .header-actions { display: flex; gap: 10px; }
+  .btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+  .btn-primary { background: var(--primary-600); color: #fff; }
+  .btn-primary:hover { background: var(--primary-800); }
+  .btn-secondary { background: var(--white); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--primary-400); color: var(--primary-600); }
+  .btn-danger { background: var(--block); color: #fff; }
+  .btn-danger:hover { opacity: 0.9; }
+  .btn-ghost { background: var(--page); color: var(--text-sub); border: 1px solid var(--border); }
+  .btn-ghost:hover { color: var(--primary-600); border-color: var(--primary-400); }
+  .btn-sm { padding: 4px 12px; font-size: 12px; border-radius: 6px; }
+
+  .metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+  .metric-card { background: var(--white); border-radius: 10px; padding: 14px 16px; border: 1px solid var(--border); position: relative; overflow: hidden; }
+  .metric-card.blue { border-top: 3px solid var(--primary-400); }
+  .metric-card.green { border-top: 3px solid var(--normal); }
+  .metric-card.amber { border-top: 3px solid var(--info); }
+  .metric-card.red { border-top: 3px solid var(--block); }
+  .metric-label { font-size: 12px; color: var(--text-sec); }
+  .metric-value { font-size: 26px; font-weight: 600; color: var(--text); font-family: "DIN", monospace; margin: 2px 0; }
+  .metric-detail { font-size: 11px; color: var(--text-sec); }
+
+  .seg-tabs { display: flex; gap: 4px; background: var(--page); padding: 4px; border-radius: 10px; width: fit-content; }
+  .seg-tab { padding: 7px 22px; border-radius: 8px; font-size: 13px; color: var(--text-sub); cursor: pointer; border: none; background: none; font-family: inherit; display: flex; align-items: center; gap: 6px; }
+  .seg-tab.active { background: var(--white); color: var(--primary-600); font-weight: 600; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .seg-tab .count { font-size: 11px; background: var(--primary-50); color: var(--primary-600); border-radius: 8px; padding: 0 7px; font-family: "DIN", monospace; }
+
+  .card { background: var(--white); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 16px; }
+  .card-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--page); }
+  .card-title { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .filter-tabs { display: flex; gap: 4px; }
+  .filter-tab { background: none; border: none; padding: 6px 12px; font-size: 13px; color: var(--text-sub); cursor: pointer; border-radius: 6px; font-family: inherit; display: flex; align-items: center; gap: 6px; }
+  .filter-tab .count { font-size: 11px; color: var(--text-sec); background: var(--page); border-radius: 8px; padding: 0 6px; font-family: "DIN", monospace; }
+  .filter-tab.active { background: var(--primary-50); color: var(--primary-600); font-weight: 500; }
+  .filter-tab.active .count { background: var(--primary-200); color: var(--primary-800); }
+  .filter-bar { display: flex; gap: 14px; padding: 12px 20px; border-bottom: 1px solid var(--page); flex-wrap: wrap; }
+  .filter-group { display: flex; align-items: center; gap: 6px; }
+  .filter-label { font-size: 12px; color: var(--text-sec); white-space: nowrap; }
+  .filter-select { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: var(--white); color: var(--text); font-family: inherit; }
+  .filter-search { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; width: 200px; font-family: inherit; }
+  .filter-search:focus, .filter-select:focus { outline: none; border-color: var(--primary-400); }
+
+  .exec-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .exec-table th { text-align: left; padding: 10px 16px; background: var(--page); color: var(--text-sub); font-weight: 500; font-size: 12px; white-space: nowrap; position: sticky; top: 0; z-index: 1; }
+  .exec-table td { padding: 10px 16px; border-bottom: 1px solid var(--page); font-size: 13px; }
+  #capTable td:first-child, #capTable th:first-child { white-space: nowrap; }
+
+  /* CAPA 表格：按字段名映射后统一 row 组件 + 条件 className（is-overdue） */
+  #capTable td { vertical-align: middle; }
+  #capTable .cap-cell-clip { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #capTable tr.is-overdue .cell-due { color: var(--block); font-weight: 600; }
+  #capTable tr.is-overdue .cell-due::after { content: '（超期）'; margin-left: 4px; font-size: 11px; }
+  .exec-table tbody tr { cursor: pointer; transition: background 0.12s; }
+  .exec-table tbody tr:hover { background: var(--primary-50); }
+  .exec-table tbody tr:last-child td { border-bottom: none; }
+
+  .st-tag { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 500; }
+  .st-已关闭, .st-已验证 { background: var(--normal-bg); color: var(--normal); }
+  .st-调查中, .st-验证中, .st-执行中, .st-执行中2 { background: var(--info-bg); color: var(--info); }
+  .st-待分级, .st-待执行, .st-待CAPA { background: var(--primary-50); color: var(--primary-600); }
+  .st-CAPA执行 { background: var(--warning-bg); color: var(--warning); }
+  .st-超期 { background: var(--block-bg); color: var(--block); }
+  .lv-tag { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 500; }
+  .lv-微小 { background: #EEEDE7; color: var(--text-sec); }
+  .lv-一般 { background: var(--info-bg); color: var(--info); }
+  .lv-重大 { background: var(--block-bg); color: var(--block); }
+  .batch-id-link { color: var(--primary-600); cursor: pointer; font-family: "DIN", monospace; }
+  .batch-id-link:hover { text-decoration: underline; }
+  .op-link { color: var(--primary-600); cursor: pointer; }
+  .op-link:hover { text-decoration: underline; }
+  .op-view { margin-right: 10px; }
+  .src-chip { display: inline-block; padding: 1px 10px; border-radius: 10px; font-size: 12px; background: var(--page); color: var(--text-sub); }
+
+  /* 闭环流程条 */
+  .flow-banner { display: flex; align-items: center; gap: 6px; background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 12px 18px; margin-bottom: 16px; overflow-x: auto; }
+  .flow-step { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-sub); white-space: nowrap; }
+  .flow-step .fs-no { width: 20px; height: 20px; border-radius: 50%; background: var(--primary-50); color: var(--primary-600); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; }
+  .flow-step.done .fs-no { background: var(--normal-bg); color: var(--normal); }
+  .flow-arrow { color: var(--border); font-size: 12px; }
+  .flow-back { color: var(--primary-400); font-size: 12px; margin-left: 4px; }
+
+  /* 抽屉 */
+  .drawer-mask { position: fixed; inset: 0; background: rgba(4, 44, 83, 0.35); opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 40; }
+  .drawer-mask.show { opacity: 1; pointer-events: auto; }
+  .drawer { position: fixed; top: 0; right: -560px; width: 560px; max-width: 92vw; height: 100vh; background: var(--white); box-shadow: -8px 0 30px rgba(0,0,0,0.15); transition: right 0.28s ease; z-index: 50; display: flex; flex-direction: column; }
+  .drawer.show { right: 0; }
+  .drawer-head { padding: 18px 22px; border-bottom: 1px solid var(--page); display: flex; justify-content: space-between; align-items: center; }
+  .drawer-title { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+  .drawer-close { width: 30px; height: 30px; border-radius: 50%; border: none; background: var(--page); color: var(--text-sub); font-size: 14px; cursor: pointer; }
+  .drawer-close:hover { background: var(--block-bg); color: var(--block); }
+  .drawer-body { flex: 1; overflow-y: auto; padding: 20px 22px; }
+  .drawer-foot { padding: 14px 22px; border-top: 1px solid var(--page); display: flex; gap: 10px; justify-content: flex-end; }
+  .detail-section { margin-bottom: 18px; }
+  .detail-section-title { font-size: 13px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; }
+  .detail-item { padding: 6px 0; }
+  .detail-label { font-size: 11px; color: var(--text-sec); }
+  .detail-value { font-size: 13px; color: var(--text); }
+  .rca-box { border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; font-size: 12px; color: var(--text-sub); line-height: 2; }
+  .rca-box b { color: var(--text); }
+  /* CAPA 表格行（仅作标识，保留 table-row 语义；不要加 display:flex 等破坏表格布局的属性） */
+  #capTable tr.cap-row.is-overdue { background: rgba(217,48,37,0.04); }
+  .cap-act-bar { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 0 22px; }
+  .cap-readonly { font-size: 12px; color: var(--text-sec); font-weight: 500; }
+  .timeline { border-left: 2px solid var(--primary-200); margin-left: 8px; padding-left: 16px; }
+  .tl-item { position: relative; padding: 7px 0; }
+  .tl-item::before { content: ''; position: absolute; left: -21px; top: 12px; width: 8px; height: 8px; border-radius: 50%; background: var(--primary-400); }
+  .tl-item.done::before { background: var(--normal); }
+  .tl-title { font-size: 12px; color: var(--text); font-weight: 500; }
+  .tl-time { font-size: 11px; color: var(--text-sec); font-family: "DIN", monospace; }
+  .tl-note { font-size: 12px; color: var(--text-sub); }
+
+  /* 偏差分级评估按钮 */
+  .lv-set-hint { font-size: 11px; color: var(--info); font-weight: normal; margin-left: 8px; }
+  .lv-btn-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .lv-btn { padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--white); cursor: pointer; text-align: left; font-family: inherit; transition: all 0.15s; display: flex; flex-direction: column; gap: 4px; }
+  .lv-btn:hover { border-color: var(--primary-400); background: var(--primary-50); transform: translateY(-1px); }
+  .lv-btn small { font-size: 11px; color: var(--text-sec); font-weight: 400; }
+  .lv-btn-微小 { border-left: 3px solid var(--text-sec); }
+  .lv-btn-一般 { border-left: 3px solid var(--info); }
+  .lv-btn-重大 { border-left: 3px solid var(--block); }
+  .lv-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .lv-btn-微小 .lv-dot { background: var(--text-sec); }
+  .lv-btn-一般 .lv-dot { background: var(--info); }
+  .lv-btn-重大 .lv-dot { background: var(--block); }
+
+  /* 趋势分析 */
+  .trend-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+  .trend-card { background: var(--white); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  .trend-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .bars { display: flex; align-items: flex-end; gap: 10px; height: 120px; padding: 0 4px; border-bottom: 1px solid var(--border); }
+  .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+  .bar { width: 60%; min-height: 4px; border-radius: 4px 4px 0 0; background: var(--primary-400); transition: height 0.3s; }
+  .bar.warn { background: var(--warning); }
+  .bar.hot { background: var(--block); }
+  .bar-label { font-size: 10px; color: var(--text-sec); }
+  .bar-val { font-size: 10px; color: var(--text-sub); font-family: "DIN", monospace; }
+  .donut-row { display: flex; align-items: center; gap: 14px; }
+  .donut { width: 96px; height: 96px; border-radius: 50%; position: relative; flex: none; }
+  .donut-center { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600; color: var(--text); font-family: "DIN", monospace; }
+  .legend { flex: 1; }
+  .lg-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-sub); padding: 4px 0; }
+  .lg-sq { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+  .lg-num { margin-left: auto; font-family: "DIN", monospace; color: var(--text); }
+  .stat-list { margin-top: 12px; }
+  .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dashed var(--page); font-size: 12px; }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-name { color: var(--text-sub); }
+  .stat-name b { color: var(--text); }
+  .stat-val { font-family: "DIN", monospace; font-weight: 600; color: var(--primary-600); }
+  .stat-val.red { color: var(--block); }
+  .stat-val.green { color: var(--normal); }
+
+  .toast { position: fixed; top: 18px; left: 50%; transform: translateX(-50%) translateY(-12px); background: var(--text); color: #fff; padding: 10px 20px; border-radius: 10px; font-size: 13px; z-index: 80; opacity: 0; transition: all 0.25s ease; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-sec); }
+
+  /* === 侧边栏 v2：分组折叠 + 窄宽 + 新LOGO === */
+  .logo-text { line-height: 1.25; min-width: 0; }
+  .logo-name { font-size: 15px; font-weight: 500; color: #FFFFFF; letter-spacing: 0.3px; }
+  .logo-slogan { font-size: 10.5px; color: #93B5D9; margin-top: 1px; }
+  .nav-group-head { padding: 14px 16px 5px; font-size: 11px; color: #6FA9DA; letter-spacing: 0.6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; transition: color 0.15s; }
+  .nav-group-head:hover { color: #B5D4F4; }
+  .nav-group-head > span:first-child { font-weight: 500; }
+  .nav-caret { font-size: 10px; opacity: 0.75; transition: transform 0.18s; display: inline-block; }
+  .nav-group-items { overflow: hidden; }
+  .nav-group.collapsed .nav-caret { transform: rotate(-90deg); }
+  .nav-group.collapsed .nav-group-items { display: none; }
+  .sidebar-collapse { padding: 10px 16px; font-size: 12px; color: #85B7EB; cursor: pointer; display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--primary-600); transition: all 0.15s; }
+  .sidebar-collapse:hover { background: var(--primary-900); color: #B5D4F4; }
+  .collapse-caret { display: inline-block; transition: transform 0.2s; font-size: 14px; line-height: 1; }
+  .sidebar.collapsed .collapse-caret { transform: rotate(180deg); }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="appSidebar"></aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="breadcrumb">
+        <a onclick="window.location.href='生产执行管理.html'">生产管理</a>
+        <span>›</span>
+        <span class="current">偏差/CAPA</span>
+      </div>
+      <div class="topbar-right">
+        <div id="plantSwitch"></div>
+        <div id="roleSwitch"></div>
+      <div class="user-info"><div class="avatar">王</div><div><div class="user-name">王芳</div><div class="user-role">QA 质量保证</div></div></div>
+      </div>
+    </header>
+
+    <div class="tabbar" id="tabBar"></div>
+      <div class="content">
+    
+      <div class="page-header">
+        <div>
+          <div class="page-title">偏差 / CAPA</div>
+          <div class="page-subtitle">偏差识别 · 分级评估 · 根本原因调查（RCA）· CAPA 制定与验证 · 闭环管理 · GMP 第 210/211 章合规</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="toast('已导出偏差/CAPA 台账 Excel（含 RCA 结论与有效性验证）')">⬇ 导出台账</button>
+          <button class="btn btn-primary" onclick="openReport()">⚠ 报告偏差</button>
+        </div>
+      </div>
+
+      <div class="metrics-row">
+        <div class="metric-card blue"><div class="metric-label">本月偏差总数</div><div class="metric-value" id="mDr">12</div><div class="metric-detail">微小 5 · 一般 5 · 重大 2</div></div>
+        <div class="metric-card amber"><div class="metric-label">调查中 / 待分级</div><div class="metric-value" id="mOpen">4</div><div class="metric-detail">调查中 2 · 待分级 1 · 待CAPA 1</div></div>
+        <div class="metric-card red"><div class="metric-label">CAPA 进行中</div><div class="metric-value" id="mCap">6</div><div class="metric-detail">执行中 3 · 验证中 2 · 超期 1</div></div>
+        <div class="metric-card green"><div class="metric-label">闭环率</div><div class="metric-value" id="mClose">78%</div><div class="metric-detail">近 90 天 CAPA 按时关闭率 · 目标 ≥ 85%</div></div>
+      </div>
+
+      <!-- 闭环流程条 -->
+      <div class="flow-banner">
+        <div class="flow-step done"><span class="fs-no">1</span>偏差报告</div><span class="flow-arrow">→</span>
+        <div class="flow-step done"><span class="fs-no">2</span>分级评估</div><span class="flow-arrow">→</span>
+        <div class="flow-step"><span class="fs-no">3</span>调查·RCA</div><span class="flow-arrow">→</span>
+        <div class="flow-step"><span class="fs-no">4</span>CAPA 制定</div><span class="flow-arrow">→</span>
+        <div class="flow-step"><span class="fs-no">5</span>执行·验证</div><span class="flow-arrow">→</span>
+        <div class="flow-step"><span class="fs-no">6</span>关闭归档</div>
+        <span class="flow-back">↺ 趋势回顾 → 预防再发生（闭环）</span>
+      </div>
+
+      <div class="seg-tabs" id="segTabs">
+        <button class="seg-tab active" data-seg="dev">⚠ 偏差台账<span class="count">12</span></button>
+        <button class="seg-tab" data-seg="cap">🛠 CAPA 台账<span class="count">8</span></button>
+        <button class="seg-tab" data-seg="trend">📊 趋势分析<span class="count"></span></button>
+      </div>
+
+      <!-- ============ 区段 1：偏差台账 ============ -->
+      <div id="segDev" style="margin-top:16px;">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="dot" style="background: var(--block);"></span>偏差台账（偏差编号 DR-2608-XXX）</div>
+            <div class="filter-tabs" id="devTabs">
+              <button class="filter-tab active" data-st="全部">全部<span class="count">12</span></button>
+              <button class="filter-tab" data-st="待分级">待分级<span class="count">1</span></button>
+              <button class="filter-tab" data-st="调查中">调查中<span class="count">2</span></button>
+              <button class="filter-tab" data-st="待CAPA">待CAPA<span class="count">1</span></button>
+              <button class="filter-tab" data-st="CAPA执行">CAPA执行<span class="count">3</span></button>
+              <button class="filter-tab" data-st="验证中">验证中<span class="count">2</span></button>
+              <button class="filter-tab" data-st="已关闭">已关闭<span class="count">3</span></button>
+            </div>
+          </div>
+          <div class="filter-bar">
+            <div class="filter-group"><span class="filter-label">等级：</span><select class="filter-select" id="fLv"><option>全部等级</option><option>微小</option><option>一般</option><option>重大</option></select></div>
+            <div class="filter-group"><span class="filter-label">来源工序：</span><select class="filter-select" id="fProc"><option>全部工序</option><option>反应</option><option>离心</option><option>干燥</option><option>称量配料</option><option>包装</option><option>检验</option></select></div>
+            <div class="filter-group" style="margin-left:auto;"><input class="filter-search" id="fSearch" placeholder="搜索偏差编号 / 批次 / 描述…">
+              <button class="btn btn-secondary btn-sm" style="margin-left:8px;" onclick="openReport()">＋ 报告新偏差</button>
+            </div>
+          </div>
+          <div style="overflow-x: auto;">
+            <table class="exec-table" id="devTable">
+              <thead><tr><th>偏差编号</th><th>发生日期</th><th>产品 / 批次</th><th>来源工序</th><th>偏差描述</th><th>等级</th><th>状态</th><th>报告人</th><th>调查人</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr class="dev-row" data-code="DR-2608-012" data-lv="重大" data-st="CAPA执行" data-proc="干燥"><td><span class="batch-id-link">DR-2608-012</span></td><td>07-31</td><td>阿莫西林胶囊 <span class="batch-id-link">RC-2608-018</span></td><td>干燥</td><td>流化床干燥超温至 68℃（上限 60℃），持续 4min</td><td><span class="lv-tag lv-重大">重大</span></td><td><span class="st-tag st-CAPA执行">CAPA执行</span></td><td>张伟</td><td>赵工</td><td><span class="op-link op-view" data-code="DR-2608-012">详情</span></td></tr>
+                <tr class="dev-row" data-code="DR-2608-011" data-lv="一般" data-st="验证中" data-proc="离心"><td><span class="batch-id-link">DR-2608-011</span></td><td>07-28</td><td>对乙酰氨基酚颗粒 <span class="batch-id-link">RC-2608-015</span></td><td>离心</td><td>离心机滤布破损，母液中可见固体颗粒</td><td><span class="lv-tag lv-一般">一般</span></td><td><span class="st-tag st-验证中">验证中</span></td><td>林晓</td><td>赵工</td><td><span class="op-link op-view" data-code="DR-2608-011">详情</span></td></tr>
+                <tr class="dev-row" data-code="DR-2608-010" data-lv="一般" data-st="CAPA执行" data-proc="包装"><td><span class="batch-id-link">DR-2608-010</span></td><td>07-25</td><td>布洛芬混悬液 <span class="batch-id-link">RC-2608-012</span></td><td>包装</td><td>泡罩密封不良率 3.2%（内控 ≤ 1.0%）</td><td><span class="lv-tag lv-一般">一般</span></td><td><span class="st-tag st-CAPA执行">CAPA执行</span></td><td>孙强</td><td>周涛</td><td><span class="op-link op-view" data-code="DR-2608-010">详情</span></td></tr>
+                <tr class="dev-row" data-code="DR-2608-009" data-lv="微小" data-st="已关闭" data-proc="称量配料"><td><span class="batch-id-link">DR-2608-009</span></td><td>07-22</td><td>头孢氨苄片 <span class="batch-id-link">RC-2608-010</span></td><td>称量配料</td><td>称量记录中复核人签名栏空白（复核已完成，补签）</td><td><span class="lv-tag lv-微小">微小</span></td><td><span class="st-tag st-已关闭">已关闭</span></td><td>张伟</td><td>—</td><td><span class="op-link op-view" data-code="DR-2608-009">详情</span></td></tr>
+                <tr class="dev-row" data-code="DR-2608-008" data-lv="一般" data-st="调查中" data-proc="反应"><td><span class="batch-id-link">DR-2608-008</span></td><td>07-20</td><td>对乙酰氨基酚粗品 <span class="batch-id-link">RC-2608-008</span></td><td>反应</td><td>反应釜搅拌电流波动异常（15→42A），疑似搅拌桨松动</td><td><span class="lv-tag lv-一般">一般</span></td><td><span class="st-tag st-调查中">调查中</span></td><td>赵敏</td><td>赵工</td><td><span class="op-link op-view" data-code="DR-2608-008">详情</span></td></tr>
+                <tr class="dev-row" data-code="DR-2608-007" data-lv="重大" data-st="验证中" data-proc="检验"><td><span class="batch-id-link">DR-2608-007</span></td><td>07-18</td><td>阿莫西林胶囊 <span class="batch-id-link">RC-2608-006</span></td><td>检验</td><td>成品含量测定 OOS：98.2%（标准 95.0-105.0%）→ 复核确认实验室误差</td><td><span class="lv-tag lv-重大">重大</span></td><td><span class="st-tag st-验证中">验证中</span></td><td>孙丽</td><td>赵工</td><td><span class="op-link op-view" data-code="DR-2608-007">详情</span></td></tr>
+                <tr class="dev-row" data-code="DR-2608-006" data-lv="微小" data-st="已关闭" data-proc="反应"><td><span class="batch-id-link">DR-2608-006</span></td><td>07-15</td><td>苯甲酸钠防腐溶液 <span class="batch-id-link">RC-2608-005</span></td><td>反应</td><td>投料顺序与 SOP 描述顺序不一致（先投辅料后投主料）</td><td><span class="lv-tag lv-微小">微小</span></td><td><span class="st-tag st-已关闭">已关闭</span></td><td>陈静</td><td>—</td><td><span class="op-link op-view" data-code="DR-2608-006">详情</span></td></tr>
+                <tr class="dev-row" data-code="DR-2608-005" data-lv="一般" data-st="CAPA执行" data-proc="包装"><td><span class="batch-id-link">DR-2608-005</span></td><td>07-12</td><td>对乙酰氨基酚颗粒 <span class="batch-id-link">RC-2608-004</span></td><td>包装</td><td>包装批次标签批号喷码偏移，影响可读性</td><td><span class="lv-tag lv-一般">一般</span></td><td><span class="st-tag st-CAPA执行">CAPA执行</span></td><td>孙强</td><td>周涛</td><td><span class="op-link op-view" data-code="DR-2608-005">详情</span></td></tr>
+                <tr class="dev-row" data-code="DR-2608-004" data-lv="微小" data-st="已关闭" data-proc="称量配料"><td><span class="batch-id-link">DR-2608-004</span></td><td>07-08</td><td>阿莫西林胶囊 <span class="batch-id-link">RC-2608-003</span></td><td>称量配料</td><td>电子秤零点漂移 0.5g（校准周期内，未影响投料量）</td><td><span class="lv-tag lv-微小">微小</span></td><td><span class="st-tag st-已关闭">已关闭</span></td><td>张伟</td><td>—</td><td><span class="op-link op-view" data-code="DR-2608-004">详情</span></td></tr>
+                <tr class="dev-row" data-code="DR-2608-003" data-lv="一般" data-st="调查中" data-proc="干燥"><td><span class="batch-id-link">DR-2608-003</span></td><td>07-05</td><td>布洛芬混悬液 <span class="batch-id-link">RC-2608-002</span></td><td>干燥</td><td>干燥收率 88.9%（内控 ≥ 92%），收率偏低</td><td><span class="lv-tag lv-一般">一般</span></td><td><span class="st-tag st-调查中">调查中</span></td><td>林晓</td><td>赵工</td><td><span class="op-link op-view" data-code="DR-2608-003">详情</span></td></tr>
+                <tr class="dev-row" data-code="DR-2608-002" data-lv="重大" data-st="待CAPA" data-proc="反应"><td><span class="batch-id-link">DR-2608-002</span></td><td>07-02</td><td>对乙酰氨基酚粗品 <span class="batch-id-link">RC-2608-001</span></td><td>反应</td><td>反应釜温度传感器漂移，实际温度低于设定 6℃（偏差超限）</td><td><span class="lv-tag lv-重大">重大</span></td><td><span class="st-tag st-待CAPA">待CAPA</span></td><td>赵敏</td><td>赵工</td><td><span class="op-link op-view" data-code="DR-2608-002">详情</span></td></tr>
+                <tr class="dev-row" data-code="DR-2608-001" data-lv="微小" data-st="待分级" data-proc="称量配料"><td><span class="batch-id-link">DR-2608-001</span></td><td>07-01</td><td>乙醇（回收） <span class="batch-id-link">RC-2608-000</span></td><td>称量配料</td><td>回收乙醇暂存桶标识破损，待确认批号（新上报）</td><td><span class="lv-tag lv-微小">微小</span></td><td><span class="st-tag st-待分级">待分级</span></td><td>孙强</td><td>—</td><td><span class="op-link op-view" data-code="DR-2608-001">详情</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ 区段 2：CAPA 台账 ============ -->
+      <div id="segCap" style="margin-top:16px;display:none;">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="dot" style="background: var(--info);"></span>CAPA 台账（纠正措施 + 预防措施 · 有效性验证）</div>
+            <div class="filter-tabs" id="capTabs">
+              <button class="filter-tab active" data-c="全部">全部<span class="count">8</span></button>
+              <button class="filter-tab" data-c="执行中">执行中<span class="count">3</span></button>
+              <button class="filter-tab" data-c="验证中">验证中<span class="count">2</span></button>
+              <button class="filter-tab" data-c="已关闭">已关闭<span class="count">2</span></button>
+              <button class="filter-tab" data-c="超期">超期<span class="count">1</span></button>
+            </div>
+          </div>
+          <div class="filter-bar">
+            <div class="filter-group"><span class="filter-label">来源：</span><select class="filter-select" id="fSrc"><option>全部来源</option><option>偏差</option><option>OOS</option><option>审计</option><option>投诉</option><option>趋势预警</option></select></div>
+            <div class="filter-group"><span class="filter-label">责任人：</span><select class="filter-select" id="fOwn"><option>全部责任人</option><option>赵工</option><option>周涛</option><option>张伟</option><option>王芳</option><option>陈静</option></select></div>
+            <div class="filter-group" style="margin-left:auto;"><input class="filter-search" id="cSearch" placeholder="搜索 CAPA 编号 / 关联偏差 / 措施…"></div>
+          </div>
+          <div style="overflow-x: auto;">
+            <table class="exec-table" id="capTable" style="width: 100%; table-layout: fixed; min-width: 1180px;">
+              <colgroup>
+                <col style="width:138px"><col style="width:78px"><col style="width:132px">
+                <col><col>
+                <col style="width:84px"><col style="width:108px"><col style="width:92px"><col style="width:70px">
+              </colgroup>
+              <thead><tr><th>CAPA 编号</th><th>来源</th><th>关联偏差</th><th>纠正措施（CA）</th><th>预防措施（PA）</th><th>责任人</th><th>计划完成</th><th>状态</th><th>操作</th></tr></thead>
+              <tbody>
+                <tr class="cap-row" data-code="CAPA-2608-008" data-c="超期" data-src="偏差" data-own="赵工"><td><span class="batch-id-link">CAPA-2608-008</span></td><td><span class="src-chip">偏差</span></td><td><span class="batch-id-link" onclick="event.stopPropagation();toast('跳转偏差 DR-2608-002')">DR-2608-002</span></td><td>温度传感器更换 + 双回路校验</td><td>关键参数仪表年度双校验制度</td><td>赵工</td><td><span style="color:var(--block);">07-25（超期）</span></td><td><span class="st-tag st-超期">超期</span></td><td><span class="op-link op-view" data-code="CAPA-2608-008">详情</span></td></tr>
+                <tr class="cap-row" data-code="CAPA-2608-007" data-c="验证中" data-src="OOS" data-own="王芳"><td><span class="batch-id-link">CAPA-2608-007</span></td><td><span class="src-chip">OOS</span></td><td><span class="batch-id-link" onclick="event.stopPropagation();toast('跳转偏差 DR-2608-007')">DR-2608-007</span></td><td>HPLC 进样针更换 + 系统适用性加严</td><td>检验方法转移前强制系统适用性测试</td><td>王芳</td><td>08-05</td><td><span class="st-tag st-验证中">验证中</span></td><td><span class="op-link op-view" data-code="CAPA-2608-007">详情</span></td></tr>
+                <tr class="cap-row" data-code="CAPA-2608-006" data-c="执行中" data-src="偏差" data-own="周涛"><td><span class="batch-id-link">CAPA-2608-006</span></td><td><span class="src-chip">偏差</span></td><td><span class="batch-id-link" onclick="event.stopPropagation();toast('跳转偏差 DR-2608-010')">DR-2608-010</span></td><td>泡罩机热封参数重新验证 + 模具更换</td><td>包装工序首件密封性抽检制度（每 30min）</td><td>周涛</td><td>08-10</td><td><span class="st-tag st-执行中">执行中</span></td><td><span class="op-link op-view" data-code="CAPA-2608-006">详情</span></td></tr>
+                <tr class="cap-row" data-code="CAPA-2608-005" data-c="执行中" data-src="偏差" data-own="张伟"><td><span class="batch-id-link">CAPA-2608-005</span></td><td><span class="src-chip">偏差</span></td><td><span class="batch-id-link" onclick="event.stopPropagation();toast('跳转偏差 DR-2608-011')">DR-2608-011</span></td><td>离心机滤布更换 + 破损检查 SOP 更新</td><td>滤布寿命台账 + 使用次数上限管控</td><td>张伟</td><td>08-08</td><td><span class="st-tag st-执行中">执行中</span></td><td><span class="op-link op-view" data-code="CAPA-2608-005">详情</span></td></tr>
+                <tr class="cap-row" data-code="CAPA-2608-004" data-c="执行中" data-src="偏差" data-own="赵工"><td><span class="batch-id-link">CAPA-2608-004</span></td><td><span class="src-chip">偏差</span></td><td><span class="batch-id-link" onclick="event.stopPropagation();toast('跳转偏差 DR-2608-012')">DR-2608-012</span></td><td>流化床超温联锁程序修复 + 冗余测温点</td><td>关键设备超温联锁季度测试制度</td><td>赵工</td><td>08-15</td><td><span class="st-tag st-执行中">执行中</span></td><td><span class="op-link op-view" data-code="CAPA-2608-004">详情</span></td></tr>
+                <tr class="cap-row" data-code="CAPA-2608-003" data-c="验证中" data-src="审计" data-own="王芳"><td><span class="batch-id-link">CAPA-2608-003</span></td><td><span class="src-chip">审计</span></td><td>内部审计发现项 12</td><td>培训记录电子化归档补录</td><td>年度 GMP 培训矩阵制度更新</td><td>王芳</td><td>07-30</td><td><span class="st-tag st-验证中">验证中</span></td><td><span class="op-link op-view" data-code="CAPA-2608-003">详情</span></td></tr>
+                <tr class="cap-row" data-code="CAPA-2608-002" data-c="已关闭" data-src="投诉" data-own="陈静"><td><span class="batch-id-link">CAPA-2608-002</span></td><td><span class="src-chip">投诉</span></td><td>客诉 CF-2608-005</td><td>说明书排版错误纠正 + 已售批次召回评估</td><td>说明书版本审校双签制度</td><td>陈静</td><td>07-10</td><td><span class="st-tag st-已关闭">已关闭</span></td><td><span class="op-link op-view" data-code="CAPA-2608-002">详情</span></td></tr>
+                <tr class="cap-row" data-code="CAPA-2608-001" data-c="已关闭" data-src="偏差" data-own="周涛"><td><span class="batch-id-link">CAPA-2608-001</span></td><td><span class="src-chip">偏差</span></td><td><span class="batch-id-link" onclick="event.stopPropagation();toast('跳转偏差 DR-2608-005')">DR-2608-005</span></td><td>喷码机光电传感器清洁校准</td><td>喷码首件确认制度（每批次）</td><td>周涛</td><td>07-06</td><td><span class="st-tag st-已关闭">已关闭</span></td><td><span class="op-link op-view" data-code="CAPA-2608-001">详情</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div style="background:var(--primary-50);border:1px solid var(--primary-200);border-radius:10px;padding:14px 18px;font-size:12px;color:var(--primary-800);line-height:1.8;">
+          <b>CAPA 管理原则：</b>纠正措施（CA）消除已发现问题，预防措施（PA）防止问题再发生；重大偏差 / OOS / 严重投诉必须启动 CAPA，措施完成后须进行 <b>有效性验证</b>（连续 3 个月无同类偏差复发）方可关闭；超期未关闭自动升级至 QA 负责人（CAPA-2608-008 已升级）。
+        </div>
+      </div>
+
+      <!-- ============ 区段 3：趋势分析 ============ -->
+      <div id="segTrend" style="margin-top:16px;display:none;">
+        <div class="trend-grid">
+          <div class="trend-card">
+            <div class="trend-title"><span class="dot" style="background:var(--primary-400)"></span>近 6 个月偏差数量趋势（月度）</div>
+            <div class="bars" id="trendBars"></div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-sec);margin-top:6px;padding:0 4px;"><span>2月</span><span>3月</span><span>4月</span><span>5月</span><span>6月</span><span>7月</span></div>
+            <div style="font-size:11px;color:var(--text-sec);margin-top:8px;">红色柱 = 当月含重大偏差；虚线为目标线 10 起/月。7 月偏差 12 起，环比 +20%，已触发趋势预警，需 CAPA 复盘。</div>
+          </div>
+          <div class="trend-card">
+            <div class="trend-title"><span class="dot" style="background:var(--info)"></span>偏差等级分布（本月）</div>
+            <div class="donut-row">
+              <div class="donut" id="donut"></div>
+              <div class="legend">
+                <div class="lg-item"><span class="lg-sq" style="background:#EEEDE7;"></span>微小<span class="lg-num">5</span></div>
+                <div class="lg-item"><span class="lg-sq" style="background:var(--info);"></span>一般<span class="lg-num">5</span></div>
+                <div class="lg-item"><span class="lg-sq" style="background:var(--block);"></span>重大<span class="lg-num">2</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="trend-grid" style="margin-top:16px;">
+          <div class="trend-card">
+            <div class="trend-title"><span class="dot" style="background:var(--normal)"></span>CAPA 闭环时效（近 90 天）</div>
+            <div class="stat-list">
+              <div class="stat-row"><span class="stat-name">CAPA 按时关闭率</span><span class="stat-val green">78%</span></div>
+              <div class="stat-row"><span class="stat-name">平均关闭周期</span><span class="stat-val">21 天</span></div>
+              <div class="stat-row"><span class="stat-name">超期未关闭</span><span class="stat-val red">1 项（CAPA-2608-008）</span></div>
+              <div class="stat-row"><span class="stat-name">有效性验证通过率</span><span class="stat-val green">92%</span></div>
+              <div class="stat-row"><span class="stat-name">同类偏差复发率（验证后 3 月）</span><span class="stat-val red">8%</span></div>
+            </div>
+          </div>
+          <div class="trend-card">
+            <div class="trend-title"><span class="dot" style="background:var(--block)"></span>重复偏差 TOP 工序（本月）</div>
+            <div class="stat-list">
+              <div class="stat-row"><span class="stat-name"><b>包装</b>（喷码 / 密封 / 标签）</span><span class="stat-val red">3 起</span></div>
+              <div class="stat-row"><span class="stat-name"><b>反应</b>（温度 / 搅拌 / 投料）</span><span class="stat-val">2 起</span></div>
+              <div class="stat-row"><span class="stat-name"><b>干燥</b>（超温 / 收率）</span><span class="stat-val">2 起</span></div>
+              <div class="stat-row"><span class="stat-name"><b>称量配料</b>（记录 / 标识）</span><span class="stat-val">2 起</span></div>
+              <div class="stat-row"><span class="stat-name">其他</span><span class="stat-val">3 起</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    
+    </div></div>
+  </div>
+
+
+<div class="drawer-mask" id="drawerMask" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <div class="drawer-title"><span class="dot" style="background:var(--block)"></span><span id="dTitle">详情</span></div>
+    <button class="drawer-close" onclick="closeDrawer()">✕</button>
+  </div>
+  <div class="drawer-body" id="dBody"></div>
+  <div class="drawer-foot">
+    <button class="btn btn-secondary" onclick="closeDrawer()">关闭</button>
+    <button class="btn btn-primary" id="dAct" data-role-min="1" data-role-act-min="1" onclick="dAct()">流转</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var DEVS = {
+  'DR-2608-012': { name: '流化床干燥超温', date: '07-31', prod: '阿莫西林胶囊', rc: 'RC-2608-018', proc: '干燥', lv: '重大', st: 'CAPA执行', rep: '张伟', inv: '赵工',
+    desc: '流化床干燥进风温度超限至 68℃（SOP 上限 60℃），持续 4min，DCS 超温联锁未触发。',
+    rca: '<b>5Why 分析：</b><br>① 为何超温？→ 蒸汽调节阀开度失控。<br>② 为何失控？→ 调节阀阀杆卡涩。<br>③ 为何卡涩？→ 阀芯结垢。<br>④ 为何结垢？→ 蒸汽管线无定期除垢。<br>⑤ 为何无除垢制度？→ 蒸汽系统维护计划缺失。<br><b>根因：</b>蒸汽调节阀结垢卡涩 + 超温联锁程序失效（双重失效）。',
+    impact: '批次 RC-2608-018 已隔离待评估；对乙酰氨基酚含量无影响，水分符合内控，QA 建议有条件放行并加强热分布验证。',
+    caps: ['CAPA-2608-004'],
+    tl: [['07-31 14:20', '偏差上报', '张伟 报告'], ['07-31 16:40', '分级评估', '重大（影响产品质量 + 联锁失效）'], ['08-01 09:00', '调查完成', '根因确认：调节阀结垢 + 联锁失效'], ['08-01 10:30', 'CAPA 制定', 'CA+PA 生成，责任人赵工'], ['执行中…', 'CAPA 执行', '更换阀芯 / 联锁修复中']] },
+  'DR-2608-011': { name: '离心机滤布破损', date: '07-28', prod: '对乙酰氨基酚颗粒', rc: 'RC-2608-015', proc: '离心', lv: '一般', st: '验证中', rep: '林晓', inv: '赵工',
+    desc: '离心结束后检查发现滤布边缘破损约 5cm，母液中可见少量固体颗粒。',
+    rca: '<b>5Why 分析：</b><br>① 为何滤布破损？→ 滤布使用次数超限。<br>② 为何超限？→ 无滤布寿命台账。<br>③ 为何无台账？→ 滤布按消耗品领用，未纳入设备管理。<br><b>根因：</b>滤布无使用次数管控（管理缺失）。',
+    impact: '批次 RC-2608-015 母液单独收集复滤，固体回收返工；颗粒质量无影响。',
+    caps: ['CAPA-2608-005'],
+    tl: [['07-28 15:10', '偏差上报', '林晓 报告'], ['07-28 17:00', '分级评估', '一般（无产品质量影响）'], ['07-29 11:00', '调查完成', '根因：滤布寿命无管控'], ['07-29 14:00', 'CAPA 制定', '滤布台账 + 使用上限'], ['验证中…', '有效性验证', '连续 3 月无复发验证中']] },
+  'DR-2608-010': { name: '泡罩密封不良率超标', date: '07-25', prod: '布洛芬混悬液', rc: 'RC-2608-012', proc: '包装', lv: '一般', st: 'CAPA执行', rep: '孙强', inv: '周涛',
+    desc: '泡罩包装首件及过程抽检密封不良率 3.2%（内控 ≤ 1.0%），热封温度波动。',
+    rca: '<b>5Why 分析：</b><br>① 为何密封不良？→ 热封温度偏低波动。<br>② 为何温度波动？→ 加热板老化。<br>③ 为何未发现？→ 无密封性定期抽检。<br><b>根因：</b>热封部件老化 + 过程监控缺失。',
+    impact: '已包装批次逐板检查，剔除不良品后 QA 抽检合格放行。',
+    caps: ['CAPA-2608-006'],
+    tl: [['07-25 10:20', '偏差上报', '孙强 报告'], ['07-25 14:00', '分级评估', '一般'], ['07-26 09:30', '调查完成', '根因：加热板老化'], ['07-26 11:00', 'CAPA 制定', '参数重验证 + 模具更换'], ['执行中…', 'CAPA 执行', '验证与抽检制度落地中']] },
+  'DR-2608-009': { name: '复核人签名栏空白', date: '07-22', prod: '头孢氨苄片', rc: 'RC-2608-010', proc: '称量配料', lv: '微小', st: '已关闭', rep: '张伟', inv: '—',
+    desc: '称量记录表复核人签名栏空白，复核已完成（口头确认），属记录填写遗漏。',
+    rca: '<b>调查：</b>操作完成后复核人离开现场，未即时补签。<b>根因：</b>记录填写习惯问题（人员培训不足）。',
+    impact: '无质量影响；当场补签并培训强调。',
+    caps: [],
+    tl: [['07-22 09:00', '偏差上报', '张伟 报告'], ['07-22 09:30', '分级评估', '微小'], ['07-22 15:00', '关闭', '补签完成 + 培训记录归档']] },
+  'DR-2608-008': { name: '反应釜搅拌电流波动', date: '07-20', prod: '对乙酰氨基酚粗品', rc: 'RC-2608-008', proc: '反应', lv: '一般', st: '调查中', rep: '赵敏', inv: '赵工',
+    desc: '反应过程搅拌电流从 15A 波动至 42A，疑似搅拌桨松动或物料粘壁。',
+    rca: '<b>调查中：</b>正在执行搅拌桨紧固检查 + 釜内壁挂料排查；电流波形分析已导出待评估。',
+    impact: '批次继续反应，反应时间延长 30min 观察；如根因为设备故障将隔离评估。',
+    caps: [],
+    tl: [['07-20 13:40', '偏差上报', '赵敏 报告'], ['07-20 16:00', '分级评估', '一般（暂不影响质量）'], ['调查中…', '调查', '设备检查 + 电流分析']] },
+  'DR-2608-007': { name: '成品含量 OOS', date: '07-18', prod: '阿莫西林胶囊', rc: 'RC-2608-006', proc: '检验', lv: '重大', st: '验证中', rep: '孙丽', inv: '赵工',
+    desc: '成品含量测定 98.2%（标准 95.0-105.0%），OOS 第一阶段调查后确认为实验室误差（进样针污染）。',
+    rca: '<b>OOS 调查：</b>第一阶段：原液复测合格，确认实验室误差。<b>根因：</b>HPLC 进样针残留污染。',
+    impact: '批次按复测结果合格放行；关联 <a style="color:var(--primary-600);cursor:pointer;" onclick="window.location.href=\'质量控制.html\'">质量控制 OOS 流程</a>。',
+    caps: ['CAPA-2608-007'],
+    tl: [['07-18 09:00', '偏差上报', '孙丽 报告'], ['07-18 10:00', '分级评估', '重大（OOS 关联）'], ['07-19 15:00', '调查完成', '实验室误差确认'], ['07-20 09:00', 'CAPA 制定', '进样针更换 + 适用性加严'], ['验证中…', '有效性验证', '方法转移验证中']] },
+  'DR-2608-006': { name: '投料顺序与 SOP 不符', date: '07-15', prod: '苯甲酸钠防腐溶液', rc: 'RC-2608-005', proc: '反应', lv: '微小', st: '已关闭', rep: '陈静', inv: '—',
+    desc: '实际投料顺序与 SOP 描述不一致（先投辅料后投主料），SOP 描述本身与实际工艺存在歧义。',
+    rca: '<b>调查：</b>SOP 描述顺序与实际操作不一致，属文件歧义。<b>根因：</b>SOP 表述不清。',
+    impact: '无质量影响；修订 SOP（关联变更管理 CC-2608-016）。',
+    caps: [],
+    tl: [['07-15 10:00', '偏差上报', '陈静 报告'], ['07-15 10:40', '分级评估', '微小'], ['07-16 14:00', '关闭', 'SOP 修订发起（CC-2608-016）']] },
+  'DR-2608-005': { name: '标签批号喷码偏移', date: '07-12', prod: '对乙酰氨基酚颗粒', rc: 'RC-2608-004', proc: '包装', lv: '一般', st: 'CAPA执行', rep: '孙强', inv: '周涛',
+    desc: '包装过程标签批号喷码位置偏移，部分标签喷码超出可读区域。',
+    rca: '<b>5Why：</b>① 为何偏移？→ 光电传感器位置漂移。<br>② 为何漂移？→ 传感器支架松动。<br>③ 为何未发现？→ 无首件确认。<br><b>根因：</b>喷码定位传感器松动 + 无首件确认。',
+    impact: '已喷码批次人工目检，可读性差标签更换，QA 抽检合格。',
+    caps: ['CAPA-2608-001'],
+    tl: [['07-12 09:30', '偏差上报', '孙强 报告'], ['07-12 11:00', '分级评估', '一般'], ['07-13 10:00', '调查完成', '根因：传感器松动'], ['07-13 13:00', 'CAPA 制定', '清洁校准 + 首件确认制度'], ['执行中…', 'CAPA 执行', '制度培训中']] },
+  'DR-2608-004': { name: '电子秤零点漂移', date: '07-08', prod: '阿莫西林胶囊', rc: 'RC-2608-003', proc: '称量配料', lv: '微小', st: '已关闭', rep: '张伟', inv: '—',
+    desc: '电子秤使用前校准发现零点漂移 0.5g，在校准周期内且未影响投料量。',
+    rca: '<b>调查：</b>环境温湿度波动导致零点偏移，重新校准后恢复。<b>根因：</b>称量室温湿度控制波动。',
+    impact: '无质量影响；加强称量室温湿度监控。',
+    caps: [],
+    tl: [['07-08 08:30', '偏差上报', '张伟 报告'], ['07-08 09:00', '分级评估', '微小'], ['07-08 11:00', '关闭', '重新校准 + 温湿度记录核查']] },
+  'DR-2608-003': { name: '干燥收率偏低', date: '07-05', prod: '布洛芬混悬液', rc: 'RC-2608-002', proc: '干燥', lv: '一般', st: '调查中', rep: '林晓', inv: '赵工',
+    desc: '干燥工序收率 88.9%（内控 ≥ 92%），偏差超限，正在调查物料损失途径。',
+    rca: '<b>调查中：</b>物料平衡核算中（称量记录 vs 干燥前后重量）；排查筛网残留与管道附着。',
+    impact: '批次待评估；如收率持续偏低将按 OOS 等效流程处理。',
+    caps: [],
+    tl: [['07-05 16:20', '偏差上报', '林晓 报告'], ['07-05 17:00', '分级评估', '一般'], ['调查中…', '调查', '物料平衡核算']] },
+  'DR-2608-002': { name: '反应釜温度传感器漂移', date: '07-02', prod: '对乙酰氨基酚粗品', rc: 'RC-2608-001', proc: '反应', lv: '重大', st: '待CAPA', rep: '赵敏', inv: '赵工',
+    desc: '温度传感器比对发现漂移 6℃，实际反应温度低于设定值，偏差超出允许范围。',
+    rca: '<b>5Why：</b>① 为何漂移？→ 传感器老化。<br>② 为何未检出？→ 仪表未按期比对。<br>③ 为何未按期？→ 比对计划未覆盖该点位。<br><b>根因：</b>传感器老化 + 比对计划缺口。',
+    impact: '批次 RC-2608-001 反应程度待评估，QA 已暂停放行，待确认含量合格后放行。',
+    caps: ['CAPA-2608-008'],
+    tl: [['07-02 10:10', '偏差上报', '赵敏 报告'], ['07-02 14:00', '分级评估', '重大（影响关键工艺参数）'], ['07-03 16:00', '调查完成', '根因：传感器老化'], ['07-04 09:00', 'CAPA 制定', '传感器更换 + 双回路校验'], ['待执行…', 'CAPA 待执行', '已升级 QA 负责人']] },
+  'DR-2608-001': { name: '回收乙醇标识破损', date: '07-01', prod: '乙醇（回收）', rc: 'RC-2608-000', proc: '称量配料', lv: '微小', st: '待分级', rep: '孙强', inv: '—',
+    desc: '回收乙醇暂存桶标识破损，批号不可辨，待确认后补充标识（新上报，待分级评估）。',
+    rca: '<b>待调查：</b>完成分级评估后启动。',
+    impact: '桶已隔离待确认，未投入生产。',
+    caps: [],
+    tl: [['07-01 17:30', '偏差上报', '孙强 报告'], ['待分级…', '分级评估', 'QA 待评估']] }
+};
+
+var CAPAS = {
+  'CAPA-2608-008': { src: '偏差', dev: 'DR-2608-002', ca: '温度传感器更换 + 双回路独立校验', pa: '关键工艺参数仪表年度双校验制度（覆盖全部测点）', own: '赵工', due: '07-25', st: '超期', eff: '待验证', note: '因传感器备件到货延迟，计划延期至 08-05，已升级 QA 负责人审批', tl: [['07-04', 'CAPA 发起', '关联 DR-2608-002'], ['07-10', 'CA 执行', '传感器更换完成'], ['07-25', '超期', 'PA 制度发布延期，升级处理']] },
+  'CAPA-2608-007': { src: 'OOS', dev: 'DR-2608-007', ca: 'HPLC 进样针更换 + 系统适用性加严', pa: '检验方法转移前强制系统适用性测试', own: '王芳', due: '08-05', st: '验证中', eff: '验证中（连续 3 月无复发）', note: 'CA 已执行，PA 制度已发布，进入有效性验证期', tl: [['07-20', 'CAPA 发起', '关联 DR-2608-007'], ['07-24', 'CA 执行', '进样针更换完成'], ['07-28', '验证开始', '进入 3 月验证期']] },
+  'CAPA-2608-006': { src: '偏差', dev: 'DR-2608-010', ca: '泡罩机热封参数重新验证 + 加热板/模具更换', pa: '包装工序每 30min 密封性抽检制度', own: '周涛', due: '08-10', st: '执行中', eff: '待验证', note: '热封参数验证已完成 60%，抽检制度已培训', tl: [['07-26', 'CAPA 发起', '关联 DR-2608-010'], ['07-30', 'CA 执行', '加热板更换完成'], ['08-02', 'PA 落地', '抽检制度试运行']] },
+  'CAPA-2608-005': { src: '偏差', dev: 'DR-2608-011', ca: '离心机滤布更换 + 破损检查 SOP 更新', pa: '滤布寿命台账 + 使用次数上限管控（100 次/张）', own: '张伟', due: '08-08', st: '执行中', eff: '待验证', note: 'SOP 已更新待 QA 批准，台账已建立', tl: [['07-29', 'CAPA 发起', '关联 DR-2608-011'], ['08-01', 'CA 执行', '滤布更换 + SOP 修订'], ['执行中', 'PA 落地', '台账运行中']] },
+  'CAPA-2608-004': { src: '偏差', dev: 'DR-2608-012', ca: '流化床超温联锁程序修复 + 冗余测温点加装', pa: '关键设备超温联锁季度测试制度', own: '赵工', due: '08-15', st: '执行中', eff: '待验证', note: '联锁程序已修复，冗余测温点安装中', tl: [['08-01', 'CAPA 发起', '关联 DR-2608-012'], ['执行中', 'CA 执行', '联锁修复 + 测温点加装']] },
+  'CAPA-2608-003': { src: '审计', dev: '内部审计发现项 12', ca: '培训记录电子化归档补录', pa: '年度 GMP 培训矩阵制度更新', own: '王芳', due: '07-30', st: '验证中', eff: '验证中', note: '补录完成，进入验证期', tl: [['07-15', 'CAPA 发起', '审计发现项'], ['07-22', 'CA 执行', '补录完成'], ['07-30', '验证开始', '进入验证期']] },
+  'CAPA-2608-002': { src: '投诉', dev: '客诉 CF-2608-005', ca: '说明书排版错误纠正 + 已售批次召回评估', pa: '说明书版本审校双签制度', own: '陈静', due: '07-10', st: '已关闭', eff: '验证通过（3 月无复发）', note: '召回评估无需召回，双签制度生效', tl: [['06-20', 'CAPA 发起', '客诉'], ['07-02', 'CA 执行', '说明书纠正'], ['07-10', '关闭', '验证通过']] },
+  'CAPA-2608-001': { src: '偏差', dev: 'DR-2608-005', ca: '喷码机光电传感器清洁校准', pa: '喷码首件确认制度（每批次）', own: '周涛', due: '07-06', st: '已关闭', eff: '验证通过（3 月无复发）', note: '首件确认制度已执行 25 批次', tl: [['07-13', 'CAPA 发起', '关联 DR-2608-005'], ['07-18', 'CA 执行', '传感器校准'], ['08-01', '关闭', '验证通过']] }
+};
+
+function $(id){ return document.getElementById(id); }
+function toast(msg){ var t = $('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(function(){ t.classList.remove('show'); }, 2600); }
+
+var DR_ORDER = ['DR-2608-012','DR-2608-011','DR-2608-010','DR-2608-009','DR-2608-008','DR-2608-007','DR-2608-006','DR-2608-005','DR-2608-004','DR-2608-003','DR-2608-002','DR-2608-001'];
+var CAPA_ORDER = ['CAPA-2608-008','CAPA-2608-007','CAPA-2608-006','CAPA-2608-005','CAPA-2608-004','CAPA-2608-003','CAPA-2608-002','CAPA-2608-001'];
+var curType = null, curCode = null;
+
+function openDrawer(type, code){
+  curType = type; curCode = code;
+  if (type === 'dev') {
+    var d = DEVS[code];
+    $('dTitle').textContent = d.name + ' · ' + code;
+    var capLinks = d.caps.length ? d.caps.map(function(c){ return '<span class="op-link" onclick="event.stopPropagation();openDrawer(\'cap\',\'' + c + '\')">' + c + '</span>'; }).join('、') : '无（微小偏差不强制）';
+    var tlRows = d.tl.map(function(t, i){
+      var done = i < d.tl.length - 1;
+      return '<div class="tl-item' + (done ? ' done' : '') + '"><div class="tl-title">' + t[1] + '</div><div class="tl-time">' + t[0] + '</div><div class="tl-note">' + t[2] + '</div></div>';
+    }).join('');
+    $('dBody').innerHTML =
+      '<div class="detail-section"><div class="detail-section-title"><span class="dot" style="background:var(--block)"></span>偏差基础信息</div>' +
+      '<div class="detail-grid">' +
+      '<div class="detail-item"><div class="detail-label">偏差编号</div><div class="detail-value">' + code + '</div></div>' +
+      '<div class="detail-item"><div class="detail-label">发生日期</div><div class="detail-value">2026-' + d.date + '</div></div>' +
+      '<div class="detail-item"><div class="detail-label">产品 / 批次</div><div class="detail-value">' + d.prod + ' <span class="batch-id-link" onclick="event.stopPropagation();window.location.href=\'批次追溯.html\'">' + d.rc + '</span></div></div>' +
+      '<div class="detail-item"><div class="detail-label">来源工序</div><div class="detail-value">' + d.proc + '</div></div>' +
+      '<div class="detail-item"><div class="detail-label">等级</div><div class="detail-value"><span class="lv-tag lv-' + d.lv + '">' + d.lv + '</span>' + (d.st === '待分级' ? ' <span style="font-size:11px;color:var(--info);">（点击下方设置）</span>' : '') + '</div></div>' +
+      '<div class="detail-item"><div class="detail-label">状态</div><div class="detail-value"><span class="st-tag st-' + d.st + '">' + d.st + '</span></div></div>' +
+      '<div class="detail-item"><div class="detail-label">报告人</div><div class="detail-value">' + d.rep + '</div></div>' +
+      '<div class="detail-item"><div class="detail-label">调查人</div><div class="detail-value">' + (d.inv === '—' ? '待指派' : d.inv) + '</div></div>' +
+      '</div></div>' +
+      (d.st === '待分级' ? '<div class="detail-section"><div class="detail-section-title"><span class="dot" style="background:var(--info)"></span>分级评估 <span class="lv-set-hint">⚠ 当前待分级，点击下方按钮设置等级（设置后自动转「调查中」并指派调查人）</span></div>' +
+        '<div class="lv-btn-row">' +
+          ['微小','一般','重大'].map(function(lv){
+            return '<button class="lv-btn lv-btn-' + lv + '" onclick="setLv(\'' + lv + '\')"><span class="lv-dot"></span>设置等级：' + lv + '<small>' + (lv === '微小' ? '无影响 · 仅留痕' : lv === '一般' ? '局部影响 · 一般调查' : '重大影响 · 深度调查 + OOS 三线') + '</small></button>';
+          }).join('') +
+        '</div></div>' : '') +
+      '<div class="detail-section"><div class="detail-section-title"><span class="dot" style="background:var(--primary-400)"></span>偏差描述</div>' +
+      '<div class="rca-box">' + d.desc + '</div></div>' +
+      '<div class="detail-section" data-role-min="1"><div class="detail-section-title"><span class="dot" style="background:var(--info)"></span>根本原因调查（RCA · 5Why）</div>' +
+      '<div class="rca-box">' + d.rca + '</div></div>' +
+      '<div class="detail-section" data-role-min="1"><div class="detail-section-title"><span class="dot" style="background:var(--warning)"></span>影响评估与批处置</div>' +
+      '<div class="rca-box">' + d.impact + '</div></div>' +
+      '<div class="detail-section"><div class="detail-section-title"><span class="dot" style="background:var(--normal)"></span>关联 CAPA</div>' +
+      '<div class="rca-box">' + capLinks + '</div></div>' +
+      '<div class="detail-section"><div class="detail-section-title"><span class="dot" style="background:var(--primary-400)"></span>闭环流转时间线</div>' +
+      '<div class="timeline">' + tlRows + '</div></div>';
+    var actMap = { '待分级': '完成分级评估', '调查中': '完成调查·制定CAPA', '待CAPA': '确认CAPA·开始执行', 'CAPA执行': '提交有效性验证', '验证中': '验证通过·关闭', '已关闭': '已关闭（只读）' };
+    $('dAct').textContent = actMap[d.st] || '流转';
+    $('dAct').style.display = (d.st === '已关闭') ? 'none' : '';
+  } else {
+    var c = CAPAS[code];
+    $('dTitle').textContent = 'CAPA · ' + code;
+    var tlRows = c.tl.map(function(t){
+      return '<div class="tl-item done"><div class="tl-title">' + t[1] + '</div><div class="tl-time">' + t[0] + '</div><div class="tl-note">' + t[2] + '</div></div>';
+    }).join('');
+    $('dBody').innerHTML =
+      '<div class="detail-section"><div class="detail-section-title"><span class="dot" style="background:var(--info)"></span>CAPA 基础信息</div>' +
+      '<div class="detail-grid">' +
+      '<div class="detail-item"><div class="detail-label">CAPA 编号</div><div class="detail-value">' + code + '</div></div>' +
+      '<div class="detail-item"><div class="detail-label">来源</div><div class="detail-value"><span class="src-chip">' + c.src + '</span></div></div>' +
+      '<div class="detail-item"><div class="detail-label">关联偏差</div><div class="detail-value">' + (c.dev.indexOf('DR-') === 0 ? '<span class="op-link" onclick="event.stopPropagation();openDrawer(\'dev\',\'' + c.dev + '\')">' + c.dev + '</span>' : c.dev) + '</div></div>' +
+      '<div class="detail-item"><div class="detail-label">责任人 / 期限</div><div class="detail-value">' + c.own + ' · ' + c.due + '</div></div>' +
+      '<div class="detail-item"><div class="detail-label">状态</div><div class="detail-value"><span class="st-tag st-' + c.st + '">' + c.st + '</span></div></div>' +
+      '<div class="detail-item"><div class="detail-label">有效性验证</div><div class="detail-value">' + c.eff + '</div></div>' +
+      '</div></div>' +
+      '<div class="detail-section" data-role-min="1"><div class="detail-section-title"><span class="dot" style="background:var(--normal)"></span>纠正措施（CA · 消除已发现问题）</div>' +
+      '<div class="rca-box"><b>' + c.ca + '</b></div></div>' +
+      '<div class="detail-section" data-role-min="1"><div class="detail-section-title"><span class="dot" style="background:var(--warning)"></span>预防措施（PA · 防止再发生）</div>' +
+      '<div class="rca-box"><b>' + c.pa + '</b></div></div>' +
+      '<div class="detail-section"><div class="detail-section-title"><span class="dot" style="background:var(--primary-400)"></span>执行备注</div>' +
+      '<div class="rca-box">' + c.note + '</div></div>' +
+      '<div class="detail-section"><div class="detail-section-title"><span class="dot" style="background:var(--primary-400)"></span>CAPA 流转时间线</div>' +
+      '<div class="timeline">' + tlRows + '</div></div>';
+    $('dAct').textContent = (c.st === '执行中') ? '提交有效性验证' : (c.st === '验证中') ? '验证通过·关闭' : (c.st === '超期') ? '延期申请（升级QA）' : '已关闭（只读）';
+    $('dAct').style.display = (c.st === '已关闭') ? 'none' : '';
+  }
+  $('drawer').classList.add('show');
+  $('drawerMask').classList.add('show');
+  if (window.ROLE) ROLE.refresh();
+}
+function closeDrawer(){ $('drawer').classList.remove('show'); $('drawerMask').classList.remove('show'); }
+function setLv(lv){
+  if (curType !== 'dev' || !curCode) return;
+  var d = DEVS[curCode];
+  if (!d) return;
+  if (d.st !== '待分级') {
+    toast('【' + curCode + '】已完成分级评估（当前等级：' + d.lv + '），如需调整请走变更管理 CC');
+    return;
+  }
+  d.lv = lv;
+  d.st = '调查中';
+  if (d.inv === '—') d.inv = '赵工';
+  d.tl.unshift([today(), '分级评估', '评估为「' + lv + '」级，已指派调查人']);
+  renderAll();
+  openDrawer(curType, curCode);
+  toast('【' + curCode + '】已设置等级「' + lv + '」并转「调查中」，调查人 ' + d.inv + ' 已指派');
+}
+function dAct(){
+  if (curType === 'dev') {
+    var d = DEVS[curCode];
+    var flow = { '待分级': ['调查中', '已完成分级评估：微小/一般/重大 判定并指派调查人'], '调查中': ['待CAPA', '调查完成，根因确认，CAPA 措施已制定待确认'], '待CAPA': ['CAPA执行', 'CAPA 已确认，责任人已指派，开始执行'], 'CAPA执行': ['验证中', 'CA/PA 执行完成，进入 3 个月有效性验证期'], '验证中': ['已关闭', '有效性验证通过，偏差关闭归档'] };
+    var info = flow[d.st];
+    if (!info) { toast('偏差已关闭，进入趋势回顾'); return; }
+    var oldSt = d.st;
+    d.st = info[0];
+    if (d.inv === '—') d.inv = '赵工';
+    toast('【' + curCode + '】状态「' + oldSt + '」→「' + d.st + '」 · ' + info[1]);
+  } else {
+    var c = CAPAS[curCode];
+    var flow = { '执行中': ['验证中', 'CA/PA 执行完成，提交有效性验证'], '验证中': ['已关闭', '有效性验证通过，CAPA 关闭归档'], '超期': ['执行中', '延期已批准（QA 负责人审批），新期限 08-05'] };
+    var info = flow[c.st];
+    if (!info) { toast('CAPA 已关闭'); return; }
+    var oldSt = c.st;
+    c.st = info[0];
+    toast('【' + curCode + '】状态「' + oldSt + '」→「' + c.st + '」 · ' + info[1]);
+  }
+  renderAll();
+  openDrawer(curType, curCode);
+}
+
+/* ---------- 偏差渲染 ---------- */
+function renderDev(){
+  var kw = $('fSearch').value.trim();
+  var st = document.querySelector('#devTabs .filter-tab.active').getAttribute('data-st');
+  var lv = $('fLv').value;
+  var proc = $('fProc').value;
+  var html = '';
+  DR_ORDER.forEach(function(code){
+    var d = DEVS[code];
+    if (st !== '全部' && d.st !== st) return;
+    if (lv !== '全部等级' && d.lv !== lv) return;
+    if (proc !== '全部工序' && d.proc !== proc) return;
+    if (kw && d.name.indexOf(kw) < 0 && code.indexOf(kw) < 0 && d.rc.indexOf(kw) < 0) return;
+    html += '<tr class="dev-row" data-code="' + code + '"><td><span class="batch-id-link">' + code + '</span></td>' +
+      '<td>' + d.date + '</td>' +
+      '<td>' + d.prod + ' <span class="batch-id-link">' + d.rc + '</span></td>' +
+      '<td>' + d.proc + '</td>' +
+      '<td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + d.desc + '</td>' +
+      '<td><span class="lv-tag lv-' + d.lv + '">' + d.lv + '</span></td>' +
+      '<td><span class="st-tag st-' + d.st + '">' + d.st + '</span></td>' +
+      '<td>' + d.rep + '</td><td>' + (d.inv === '—' ? '<span style="color:var(--text-sec);">待指派</span>' : d.inv) + '</td>' +
+      '<td><span class="op-link op-view" data-code="' + code + '">详情</span></td></tr>';
+  });
+  document.querySelector('#devTable tbody').innerHTML = html || '<tr><td colspan="10" style="text-align:center;color:var(--text-sec);padding:24px;">无匹配偏差</td></tr>';
+  bindDevRows();
+}
+function bindDevRows(){
+  document.querySelectorAll('#devTable tbody tr').forEach(function(r){
+    r.addEventListener('click', function(e){
+      if (e.target.closest('.op-view') || e.target.closest('.batch-id-link')) return;
+      openDrawer('dev', r.getAttribute('data-code'));
+    });
+  });
+  document.querySelectorAll('#devTable .op-view').forEach(function(o){
+    o.addEventListener('click', function(e){ e.stopPropagation(); openDrawer('dev', o.getAttribute('data-code')); });
+  });
+}
+
+/* ---------- CAPA 渲染 ---------- */
+// CAPA 表列定义（按字段名映射，避免 index 错位；与 thead 列顺序一一对应）
+var CAPA_COLUMNS = [
+  { key: 'code', cls: 'cell-code nowrap', render: function(code, x){ return '<span class="batch-id-link">' + code + '</span>'; } },
+  { key: 'src',  cls: 'cell-src', render: function(code, x){ return '<span class="src-chip">' + (x.src || '—') + '</span>'; } },
+  { key: 'dev',  cls: 'cell-dev', render: function(code, x){
+      var dev = x.dev || '—';
+      return dev.indexOf('DR-') === 0
+        ? '<span class="batch-id-link" onclick="event.stopPropagation();openDrawer(\'dev\',\'' + dev + '\')">' + dev + '</span>'
+        : dev;
+    } },
+  { key: 'ca',   cls: 'cell-ca', render: function(code, x){ return '<div class="cap-cell-clip" title="' + (x.ca || '') + '">' + (x.ca || '—') + '</div>'; } },
+  { key: 'pa',   cls: 'cell-pa', render: function(code, x){ return '<div class="cap-cell-clip" title="' + (x.pa || '') + '">' + (x.pa || '—') + '</div>'; } },
+  { key: 'own',  cls: 'cell-own nowrap', render: function(code, x){ return x.own || '—'; } },
+  { key: 'due',  cls: 'cell-due nowrap', render: function(code, x){ return x.due || '—'; } },
+  { key: 'st',   cls: 'cell-st', render: function(code, x){ return '<span class="st-tag st-' + x.st + '">' + x.st + '</span>'; } },
+  { key: 'act',  cls: 'cell-act nowrap', render: function(code){ return '<span class="op-link op-view" data-code="' + code + '">详情</span>'; } }
+];
+
+function renderCap(){
+  var kw = $('cSearch').value.trim();
+  var c = document.querySelector('#capTabs .filter-tab.active').getAttribute('data-c');
+  var src = $('fSrc').value;
+  var own = $('fOwn').value;
+  var html = '';
+  CAPA_ORDER.forEach(function(code){
+    var x = CAPAS[code];
+    if (!x) return;
+    if (c !== '全部' && x.st !== c) return;
+    if (src !== '全部来源' && x.src !== src) return;
+    if (own !== '全部责任人' && x.own !== own) return;
+    if (kw && (x.ca || '').indexOf(kw) < 0 && (x.pa || '').indexOf(kw) < 0 && code.indexOf(kw) < 0 && (x.dev || '').indexOf(kw) < 0) return;
+    // 统一 row 组件：按字段名映射 + 条件 className（is-overdue）控制样式
+    var isOverdue = (x.st === '超期');
+    var rowCls = 'cap-row' + (isOverdue ? ' is-overdue' : '');
+    var tds = CAPA_COLUMNS.map(function(col){ return '<td class="' + col.cls + '">' + col.render(code, x) + '</td>'; }).join('');
+    html += '<tr class="' + rowCls + '" data-code="' + code + '">' + tds + '</tr>';
+  });
+  document.querySelector('#capTable tbody').innerHTML = html || '<tr><td colspan="' + CAPA_COLUMNS.length + '" style="text-align:center;color:var(--text-sec);padding:24px;">无匹配 CAPA</td></tr>';
+  bindCapRows();
+}
+function bindCapRows(){
+  document.querySelectorAll('#capTable tbody tr').forEach(function(r){
+    r.addEventListener('click', function(e){
+      if (e.target.closest('.op-view')) return; // 详情按钮有独立 handler，避免重复触发
+      openDrawer('cap', r.getAttribute('data-code'));
+    });
+  });
+  document.querySelectorAll('#capTable .op-view').forEach(function(o){
+    o.addEventListener('click', function(e){ e.stopPropagation(); openDrawer('cap', o.getAttribute('data-code')); });
+  });
+}
+
+/* ---------- 报告偏差 ---------- */
+function openReport(){
+  var code = 'DR-2608-013';
+  DEVS[code] = { name: '（新上报）', date: '08-01', prod: '待确认', rc: '—', proc: '待确认', lv: '微小', st: '待分级', rep: '王芳', inv: '—',
+    desc: '新偏差上报：请填写偏差描述、来源工序与批次信息（QA 将按分级规则评估）。',
+    rca: '待分级评估后启动调查。', impact: '待评估。', caps: [], tl: [['08-01 17:00', '偏差上报', '王芳 报告（示例数据）'], ['待分级…', '分级评估', 'QA 待评估']] };
+  DR_ORDER.unshift(code);
+  renderAll();
+  var row = document.querySelector('#devTable tr[data-code="' + code + '"]');
+  if (row) { row.scrollIntoView({ behavior: 'smooth', block: 'center' }); row.style.background = 'var(--primary-50)'; }
+  toast('已登记新偏差 ' + code + '（待分级）：点击「详情」完成分级评估 → 调查 → CAPA → 关闭闭环');
+}
+
+/* ---------- 趋势分析 ---------- */
+function renderTrend(){
+  var data = [['2月', 7, false], ['3月', 9, false], ['4月', 6, false], ['5月', 8, false], ['6月', 10, true], ['7月', 12, true]];
+  var max = 12;
+  var html = '';
+  data.forEach(function(d){
+    var h = Math.round(d[1] / max * 100);
+    var cls = d[2] ? 'bar hot' : 'bar';
+    html += '<div class="bar-col"><div class="bar ' + cls + '" style="height:' + h + '%"></div><div class="bar-val">' + d[1] + '</div><div class="bar-label">' + d[0] + '</div></div>';
+  });
+  $('trendBars').innerHTML = html;
+  // 环形图：conic-gradient 微小5(灰) 一般5(琥珀) 重大2(红) → 占比 42/42/16
+  var donut = $('donut');
+  var g = 0.417, i = 0.417, b = 0.166;
+  donut.style.background = 'conic-gradient(#EEEDE7 0% ' + (g*100).toFixed(1) + '%, var(--info) ' + (g*100).toFixed(1) + '% ' + ((g+i)*100).toFixed(1) + '%, var(--block) ' + ((g+i)*100).toFixed(1) + '% 100%)';
+  donut.innerHTML = '<div class="donut-center">12</div>';
+}
+
+function renderAll(){ renderDev(); renderCap(); }
+
+(function(){
+  // seg-tabs
+  var segs = document.querySelectorAll('#segTabs .seg-tab');
+  segs.forEach(function(t){
+    t.addEventListener('click', function(){
+      segs.forEach(function(x){ x.classList.remove('active'); });
+      t.classList.add('active');
+      var seg = t.getAttribute('data-seg');
+      $('segDev').style.display = seg === 'dev' ? '' : 'none';
+      $('segCap').style.display = seg === 'cap' ? '' : 'none';
+      $('segTrend').style.display = seg === 'trend' ? '' : 'none';
+      if (seg === 'trend') renderTrend();
+    });
+  });
+  // 偏差过滤
+  var tabs = document.querySelectorAll('#devTabs .filter-tab');
+  tabs.forEach(function(t){ t.addEventListener('click', function(){ tabs.forEach(function(x){ x.classList.remove('active'); }); t.classList.add('active'); renderDev(); }); });
+  $('fLv').addEventListener('change', renderDev);
+  $('fProc').addEventListener('change', renderDev);
+  $('fSearch').addEventListener('input', renderDev);
+  // CAPA 过滤
+  var ctabs = document.querySelectorAll('#capTabs .filter-tab');
+  ctabs.forEach(function(t){ t.addEventListener('click', function(){ ctabs.forEach(function(x){ x.classList.remove('active'); }); t.classList.add('active'); renderCap(); }); });
+  $('fSrc').addEventListener('change', renderCap);
+  $('fOwn').addEventListener('change', renderCap);
+  $('cSearch').addEventListener('input', renderCap);
+
+  renderAll();
+})();
+</script>
+  <script src="sidebar.js"></script>
+  <script src="plant.js"></script>
+<script src="role.js"></script>
+</body>
+</html>
