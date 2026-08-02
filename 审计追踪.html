@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MES 制药 - 审计追踪</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary-50: #E6F1FB; --primary-200: #B5D4F4; --primary-400: #378ADD;
+    --primary-600: #185FA5; --primary-800: #0C447C; --primary-900: #042C53;
+    --normal: #1D9E75; --normal-bg: #E1F5EE;
+    --info: #EF9F27; --info-bg: #FAEEDA;
+    --warning: #D85A30; --warning-bg: #FAECE7;
+    --block: #E24B4A; --block-bg: #FCEBEB;
+    --white: #FFFFFF; --page: #F1EFE8; --border: #D3D1C7;
+    --text-sec: #888780; --text-sub: #5F5E5A; --text: #2C2C2A;
+  }
+  body { font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif; background: var(--page); color: var(--text); font-size: 14px; line-height: 1.6; overflow: hidden; height: 100vh; }
+  .app { display: flex; height: 100vh; }
+  .sidebar { width: 200px; min-width: 200px; background: var(--primary-800); color: #85B7EB; display: flex; flex-direction: column; overflow-y: auto; }
+  .sidebar-logo { padding: 14px 16px; border-bottom: 1px solid var(--primary-600); display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .sidebar-nav { padding: 8px 0; flex: 1; }
+  .nav-item { padding: 8px 16px 8px 36px; font-size: 12.5px; color: #85B7EB; cursor: pointer; position: relative; transition: all 0.15s; display: flex; align-items: center; gap: 7px; }
+  .nav-item:hover { background: var(--primary-900); color: #B5D4F4; }
+  .nav-item.active { background: var(--primary-600); color: #FFF; font-weight: 500; }
+  .nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--primary-400); }
+  .nav-section-title { padding: 16px 20px 6px; font-size: 11px; color: #378ADD; text-transform: uppercase; letter-spacing: 0.5px; }
+  .sidebar-footer { padding: 12px 20px; border-top: 1px solid var(--primary-600); font-size: 12px; color: #5DCAA5; display: flex; align-items: center; gap: 6px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--normal); }
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { height: 52px; min-height: 52px; background: var(--white); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+  .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-sec); }
+  .breadcrumb .current { color: var(--text); font-weight: 500; }
+  .breadcrumb a { color: var(--text-sec); text-decoration: none; cursor: pointer; }
+  .breadcrumb a:hover { color: var(--primary-600); }
+  .topbar-right { display: flex; align-items: center; gap: 20px; }
+  .user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+  .user-info:hover { background: var(--page); }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-600); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }
+  .user-name { font-size: 13px; color: var(--text); }
+  .user-role { font-size: 11px; color: var(--text-sec); }
+  .content { flex: 1; overflow-y: auto; padding: 14px 28px; }
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+  .page-title { font-size: 22px; font-weight: 500; color: var(--text); }
+  .page-subtitle { font-size: 13px; color: var(--text-sec); margin-top: 2px; }
+  .header-actions { display: flex; gap: 10px; }
+  .btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+  .btn-primary { background: var(--primary-600); color: #fff; }
+  .btn-primary:hover { background: var(--primary-800); }
+  .btn-secondary { background: var(--white); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--primary-400); color: var(--primary-600); }
+  .btn-danger { background: var(--block); color: #fff; }
+  .btn-danger:hover { opacity: 0.9; }
+  .btn-ghost { background: var(--page); color: var(--text-sub); border: 1px solid var(--border); }
+  .btn-ghost:hover { color: var(--primary-600); border-color: var(--primary-400); }
+  .btn-sm { padding: 4px 12px; font-size: 12px; border-radius: 6px; }
+
+  .metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+  .metric-card { background: var(--white); border-radius: 10px; padding: 14px 16px; border: 1px solid var(--border); position: relative; overflow: hidden; }
+  .metric-card.blue { border-top: 3px solid var(--primary-400); }
+  .metric-card.green { border-top: 3px solid var(--normal); }
+  .metric-card.amber { border-top: 3px solid var(--info); }
+  .metric-card.red { border-top: 3px solid var(--block); }
+  .metric-label { font-size: 12px; color: var(--text-sec); }
+  .metric-value { font-size: 26px; font-weight: 600; color: var(--text); font-family: "DIN", monospace; margin: 2px 0; }
+  .metric-detail { font-size: 11px; color: var(--text-sec); }
+
+  .compliance-banner { display: flex; align-items: center; gap: 12px; background: linear-gradient(90deg, var(--primary-800), var(--primary-600)); color: #fff; border-radius: 10px; padding: 14px 20px; margin-bottom: 16px; }
+  .cb-icon { width: 34px; height: 34px; border-radius: 8px; background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; font-size: 16px; flex: none; }
+  .cb-title { font-size: 14px; font-weight: 600; }
+  .cb-sub { font-size: 12px; color: #B5D4F4; margin-top: 1px; }
+  .cb-tags { margin-left: auto; display: flex; gap: 8px; }
+  .cb-tag { font-size: 11px; padding: 3px 10px; border-radius: 12px; background: rgba(255,255,255,0.15); white-space: nowrap; }
+
+  .seg-tabs { display: flex; gap: 4px; background: var(--page); padding: 4px; border-radius: 10px; width: fit-content; }
+  .seg-tab { padding: 7px 22px; border-radius: 8px; font-size: 13px; color: var(--text-sub); cursor: pointer; border: none; background: none; font-family: inherit; display: flex; align-items: center; gap: 6px; }
+  .seg-tab.active { background: var(--white); color: var(--primary-600); font-weight: 600; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .seg-tab .count { font-size: 11px; background: var(--primary-50); color: var(--primary-600); border-radius: 8px; padding: 0 7px; font-family: "DIN", monospace; }
+
+  .card { background: var(--white); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 16px; }
+  .card-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--page); }
+  .card-title { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .filter-tabs { display: flex; gap: 4px; }
+  .filter-tab { background: none; border: none; padding: 6px 12px; font-size: 13px; color: var(--text-sub); cursor: pointer; border-radius: 6px; font-family: inherit; display: flex; align-items: center; gap: 6px; }
+  .filter-tab .count { font-size: 11px; color: var(--text-sec); background: var(--page); border-radius: 8px; padding: 0 6px; font-family: "DIN", monospace; }
+  .filter-tab.active { background: var(--primary-50); color: var(--primary-600); font-weight: 500; }
+  .filter-tab.active .count { background: var(--primary-200); color: var(--primary-800); }
+  .filter-bar { display: flex; gap: 14px; padding: 12px 20px; border-bottom: 1px solid var(--page); flex-wrap: wrap; }
+  .filter-group { display: flex; align-items: center; gap: 6px; }
+  .filter-label { font-size: 12px; color: var(--text-sec); white-space: nowrap; }
+  .filter-select { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: var(--white); color: var(--text); font-family: inherit; }
+  .filter-search { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; width: 200px; font-family: inherit; }
+  .filter-search:focus, .filter-select:focus { outline: none; border-color: var(--primary-400); }
+
+  .exec-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .exec-table th { text-align: left; padding: 10px 16px; background: var(--page); color: var(--text-sub); font-weight: 500; font-size: 12px; white-space: nowrap; position: sticky; top: 0; z-index: 1; }
+  .exec-table td { padding: 10px 16px; border-bottom: 1px solid var(--page); font-size: 13px; }
+  .exec-table tbody tr:hover { background: var(--primary-50); }
+
+  .st-tag { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 500; }
+  .st-成功, .st-正常, .st-已验证 { background: var(--normal-bg); color: var(--normal); }
+  .st-异常, .st-失败 { background: var(--block-bg); color: var(--block); }
+  .st-待复核 { background: var(--info-bg); color: var(--info); }
+  .act-chip { display: inline-block; padding: 1px 10px; border-radius: 10px; font-size: 12px; background: var(--primary-50); color: var(--primary-600); font-family: "DIN", monospace; }
+  .act-chip.login { background: var(--normal-bg); color: var(--normal); }
+  .act-chip.delete { background: var(--block-bg); color: var(--block); }
+  .act-chip.modify { background: var(--info-bg); color: var(--info); }
+  .time-mono { font-family: "DIN", monospace; font-size: 12px; color: var(--text-sub); white-space: nowrap; }
+  .obj-link { color: var(--primary-600); cursor: pointer; font-family: "DIN", monospace; }
+  .obj-link:hover { text-decoration: underline; }
+  .before-v { color: var(--block); text-decoration: line-through; font-size: 12px; }
+  .after-v { color: var(--normal); font-weight: 500; font-size: 12px; }
+  .arrow-v { color: var(--text-sec); margin: 0 6px; }
+
+  /* 用户审计 */
+  .user-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 16px 20px; }
+  .user-card { border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .user-card.top { border-color: var(--primary-200); background: var(--primary-50); }
+  .user-head { display: flex; align-items: center; gap: 10px; }
+  .user-av { width: 34px; height: 34px; border-radius: 50%; background: var(--primary-600); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }
+  .user-nm { font-size: 13px; font-weight: 500; }
+  .user-role-txt { font-size: 11px; color: var(--text-sec); }
+  .user-stats { display: flex; gap: 14px; margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--page); font-size: 12px; }
+  .us-item b { font-size: 16px; font-weight: 600; color: var(--text); font-family: "DIN", monospace; }
+  .us-item span { color: var(--text-sec); font-size: 11px; display: block; }
+  .us-warn { color: var(--block); font-size: 11px; margin-top: 8px; }
+
+  /* 签名记录 */
+  .sig-row { display: flex; align-items: center; gap: 12px; padding: 11px 20px; border-bottom: 1px solid var(--page); }
+  .sig-row:last-child { border-bottom: none; }
+  .sig-ic { width: 30px; height: 30px; border-radius: 50%; background: var(--normal-bg); color: var(--normal); display: flex; align-items: center; justify-content: center; font-size: 13px; flex: none; }
+  .sig-ic.pending { background: var(--info-bg); color: var(--info); }
+  .sig-body { flex: 1; }
+  .sig-name { font-size: 13px; font-weight: 500; }
+  .sig-name small { font-weight: 400; color: var(--text-sec); font-size: 11px; margin-left: 8px; }
+  .sig-mean { font-size: 12px; color: var(--text-sub); margin-top: 2px; }
+  .sig-time { font-size: 11px; color: var(--text-sec); font-family: "DIN", monospace; }
+
+  .toast { position: fixed; top: 18px; left: 50%; transform: translateX(-50%) translateY(-12px); background: var(--text); color: #fff; padding: 10px 20px; border-radius: 10px; font-size: 13px; z-index: 80; opacity: 0; transition: all 0.25s ease; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-sec); }
+
+  /* === 侧边栏 v2：分组折叠 + 窄宽 + 新LOGO === */
+  .logo-text { line-height: 1.25; min-width: 0; }
+  .logo-name { font-size: 15px; font-weight: 500; color: #FFFFFF; letter-spacing: 0.3px; }
+  .logo-slogan { font-size: 10.5px; color: #93B5D9; margin-top: 1px; }
+  .nav-group-head { padding: 14px 16px 5px; font-size: 11px; color: #6FA9DA; letter-spacing: 0.6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; transition: color 0.15s; }
+  .nav-group-head:hover { color: #B5D4F4; }
+  .nav-group-head > span:first-child { font-weight: 500; }
+  .nav-caret { font-size: 10px; opacity: 0.75; transition: transform 0.18s; display: inline-block; }
+  .nav-group-items { overflow: hidden; }
+  .nav-group.collapsed .nav-caret { transform: rotate(-90deg); }
+  .nav-group.collapsed .nav-group-items { display: none; }
+  .sidebar-collapse { padding: 10px 16px; font-size: 12px; color: #85B7EB; cursor: pointer; display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--primary-600); transition: all 0.15s; }
+  .sidebar-collapse:hover { background: var(--primary-900); color: #B5D4F4; }
+  .collapse-caret { display: inline-block; transition: transform 0.2s; font-size: 14px; line-height: 1; }
+  .sidebar.collapsed .collapse-caret { transform: rotate(180deg); }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="appSidebar"></aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="breadcrumb">
+        <a onclick="window.location.href='生产执行管理.html'">生产管理</a>
+        <span>›</span>
+        <span class="current">审计追踪</span>
+      </div>
+      <div class="topbar-right">
+        <div id="plantSwitch"></div>
+        <div id="roleSwitch"></div>
+      <div class="user-info"><div class="avatar">王</div><div><div class="user-name">王芳</div><div class="user-role">QA 系统管理员</div></div></div>
+      </div>
+    </header>
+
+    <div class="tabbar" id="tabBar"></div>
+      <div class="content">
+    
+      <div class="page-header">
+        <div>
+          <div class="page-title">审计追踪</div>
+          <div class="page-subtitle">电子记录与电子签名 · 操作日志 / 数据变更 / 用户行为审计 / 合规报表 · FDA 21 CFR Part 11 合规</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="toast('已生成合规审计报表（PDF · 加盖审计员电子签名）')">📄 生成合规报表</button>
+          <button class="btn btn-secondary" onclick="toast('已导出审计日志（CSV，含 SHA-256 完整性校验值）')">⬇ 导出日志</button>
+          <button class="btn btn-primary" onclick="toast('审计日志为只读追加型，无法编辑 / 删除（21 CFR Part 11 数据完整性）')">🔒 日志防篡改</button>
+        </div>
+      </div>
+
+      <div class="compliance-banner">
+        <div class="cb-icon">🛡</div>
+        <div>
+          <div class="cb-title">FDA 21 CFR Part 11 合规状态：已通过验证</div>
+          <div class="cb-sub">电子记录完整性 · 审计轨迹不可篡改 · 电子签名等效手写签名（系统验证 VSR-2608-03）</div>
+        </div>
+        <div class="cb-tags">
+          <span class="cb-tag">电子记录 ✓</span>
+          <span class="cb-tag">审计轨迹 ✓</span>
+          <span class="cb-tag">电子签名 ✓</span>
+          <span class="cb-tag">数据完整性 ALCOA+ ✓</span>
+        </div>
+      </div>
+
+      <div class="metrics-row">
+        <div class="metric-card blue"><div class="metric-label">今日操作记录</div><div class="metric-value" id="mOps">286</div><div class="metric-detail">登录 42 · 业务操作 244 · 同比增长 +12%</div></div>
+        <div class="metric-card red"><div class="metric-label">异常 / 失败操作</div><div class="metric-value" id="mErr">6</div><div class="metric-detail">越权访问 2 · 密码错误 3 · 数据校验失败 1</div></div>
+        <div class="metric-card amber"><div class="metric-label">待复核签名</div><div class="metric-value" id="mSig">2</div><div class="metric-detail">配方审批 1 · 放行审核 1</div></div>
+        <div class="metric-card green"><div class="metric-label">数据保留率</div><div class="metric-value">100%</div><div class="metric-detail">合规期 10 年 · 归档 2.4 TB · 近 30 日零丢失</div></div>
+      </div>
+
+      <div class="seg-tabs" id="segTabs">
+        <button class="seg-tab active" data-seg="log">📜 操作日志<span class="count">286</span></button>
+        <button class="seg-tab" data-seg="chg">🔄 数据变更<span class="count">38</span></button>
+        <button class="seg-tab" data-seg="usr">👥 用户审计<span class="count">9</span></button>
+        <button class="seg-tab" data-seg="sig">✍ 电子签名<span class="count">12</span></button>
+      </div>
+
+      <!-- ============ 区段 1：操作日志 ============ -->
+      <div id="segLog" style="margin-top:16px;">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="dot" style="background: var(--primary-400);"></span>操作日志记录（实时 · 只读）</div>
+            <div class="filter-tabs" id="opTabs">
+              <button class="filter-tab active" data-op="全部">全部<span class="count">286</span></button>
+              <button class="filter-tab" data-op="登录">登录<span class="count">42</span></button>
+              <button class="filter-tab" data-op="创建">创建<span class="count">35</span></button>
+              <button class="filter-tab" data-op="修改">修改<span class="count">74</span></button>
+              <button class="filter-tab" data-op="审批">审批<span class="count">22</span></button>
+              <button class="filter-tab" data-op="删除">删除<span class="count">9</span></button>
+            </div>
+          </div>
+          <div class="filter-bar">
+            <div class="filter-group"><span class="filter-label">模块：</span><select class="filter-select" id="fModule"><option>全部模块</option><option>生产工单</option><option>工艺配方</option><option>动作库/BOM</option><option>物料主数据</option><option>称量配料</option><option>质量控制</option><option>清场放行</option><option>系统</option></select></div>
+            <div class="filter-group"><span class="filter-label">结果：</span><select class="filter-select" id="fRes"><option>全部结果</option><option>成功</option><option>异常</option></select></div>
+            <div class="filter-group" style="margin-left:auto;"><input class="filter-search" id="fSearch" placeholder="搜索用户 / 对象 / IP…"></div>
+          </div>
+          <div style="overflow-x: auto;">
+            <table class="exec-table" id="logTable">
+              <thead><tr><th>时间</th><th>用户</th><th>模块</th><th>动作</th><th>操作对象</th><th>结果</th><th>IP 地址</th><th>备注</th></tr></thead>
+              <tbody>
+                <tr data-mod="清场放行" data-res="成功"><td class="time-mono">16:02:11</td><td>王芳</td><td>清场放行</td><td><span class="act-chip">审批</span></td><td><span class="obj-link">RE-2608-031</span> 批次放行审核</td><td><span class="st-tag st-成功">成功</span></td><td>10.20.3.17</td><td>电子签名 ✓</td></tr>
+                <tr data-mod="工艺配方" data-res="成功"><td class="time-mono">15:58:47</td><td>李明</td><td>工艺配方</td><td><span class="act-chip">审批</span></td><td><span class="obj-link">RCP-2608-006</span> V1.1 批准</td><td><span class="st-tag st-成功">成功</span></td><td>10.20.3.9</td><td>电子签名 ✓</td></tr>
+                <tr data-mod="生产工单" data-res="成功"><td class="time-mono">15:42:03</td><td>陈静</td><td>生产工单</td><td><span class="act-chip modify">修改</span></td><td><span class="obj-link">WO-2608-014</span> 计划数量调整</td><td><span class="st-tag st-成功">成功</span></td><td>10.20.3.21</td><td>字段级留痕（见数据变更）</td></tr>
+                <tr data-mod="系统" data-res="异常"><td class="time-mono">15:33:56</td><td>刘洋</td><td>系统</td><td><span class="act-chip">登录</span></td><td>登录尝试（密码错误 ×3）</td><td><span class="st-tag st-异常">异常</span></td><td>10.20.5.77</td><td>触发账户临时锁定 15min</td></tr>
+                <tr data-mod="称量配料" data-res="成功"><td class="time-mono">15:27:18</td><td>张伟</td><td>称量配料</td><td><span class="act-chip">创建</span></td><td><span class="obj-link">WP-2608-021</span> 配料单</td><td><span class="st-tag st-成功">成功</span></td><td>10.20.3.33</td><td>电子秤采集净重 32.04 kg</td></tr>
+                <tr data-mod="动作库/BOM" data-res="成功"><td class="time-mono">15:15:42</td><td>周涛</td><td>动作库/BOM</td><td><span class="act-chip modify">修改</span></td><td><span class="obj-link">BOM-2608-003</span> V3.0 物料损耗率</td><td><span class="st-tag st-成功">成功</span></td><td>10.20.3.15</td><td>关联变更 CC-2608-015</td></tr>
+                <tr data-mod="质量控制" data-res="成功"><td class="time-mono">14:58:09</td><td>赵敏</td><td>质量控制</td><td><span class="act-chip">创建</span></td><td><span class="obj-link">OOS-2608-007</span> 检验结果超标</td><td><span class="st-tag st-成功">成功</span></td><td>10.20.4.26</td><td>OOS 三线调查开启</td></tr>
+                <tr data-mod="生产工单" data-res="成功"><td class="time-mono">14:41:30</td><td>林晓</td><td>生产工单</td><td><span class="act-chip delete">删除</span></td><td><span class="obj-link">WO-2608-019</span> 误建工单</td><td><span class="st-tag st-成功">成功</span></td><td>10.20.3.11</td><td>删除需二次授权，已留痕</td></tr>
+                <tr data-mod="物料主数据" data-res="异常"><td class="time-mono">14:25:16</td><td>孙强</td><td>物料主数据</td><td><span class="act-chip delete">删除</span></td><td>物料 RM-2608-009 删除请求</td><td><span class="st-tag st-异常">异常</span></td><td>10.20.6.44</td><td>越权：已生效物料不可删除</td></tr>
+                <tr data-mod="系统" data-res="成功"><td class="time-mono">13:58:22</td><td>王芳</td><td>系统</td><td><span class="act-chip">登录</span></td><td>系统登录</td><td><span class="st-tag st-成功">成功</span></td><td>10.20.3.17</td><td>双因素认证 ✓</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ 区段 2：数据变更 ============ -->
+      <div id="segChg" style="margin-top:16px;display:none;">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="dot" style="background: var(--info);"></span>数据变更追踪（字段级 Before → After · 不可篡改）</div>
+            <div class="filter-tabs" id="chgTabs">
+              <button class="filter-tab active" data-c="全部">全部<span class="count">38</span></button>
+              <button class="filter-tab" data-c="工艺配方">工艺配方<span class="count">9</span></button>
+              <button class="filter-tab" data-c="生产工单">生产工单<span class="count">11</span></button>
+              <button class="filter-tab" data-c="动作库/BOM">动作库/BOM<span class="count">7</span></button>
+              <button class="filter-tab" data-c="物料">物料<span class="count">11</span></button>
+            </div>
+          </div>
+          <div class="filter-bar">
+            <div class="filter-group" style="margin-left:auto;"><input class="filter-search" id="cSearch" placeholder="搜索对象 / 字段 / 变更人…"></div>
+          </div>
+          <div style="overflow-x: auto;">
+            <table class="exec-table" id="chgTable">
+              <thead><tr><th>时间</th><th>对象</th><th>字段</th><th style="min-width:180px;">变更内容</th><th>变更人</th><th>变更原因（关联单）</th></tr></thead>
+              <tbody>
+                <tr data-c="生产工单"><td class="time-mono">15:42:03</td><td><span class="obj-link">WO-2608-014</span></td><td>计划数量</td><td><span class="before-v">8000 袋</span><span class="arrow-v">→</span><span class="after-v">8500 袋</span></td><td>陈静</td><td>销售增补（PO-2608-118）</td></tr>
+                <tr data-c="工艺配方"><td class="time-mono">15:15:42</td><td><span class="obj-link">RCP-2608-003</span> V3.0</td><td>均质时间</td><td><span class="before-v">10 min</span><span class="arrow-v">→</span><span class="after-v">15 min</span></td><td>林晓</td><td>混悬稳定性改进（CC-2608-015）</td></tr>
+                <tr data-c="动作库/BOM"><td class="time-mono">14:58:09</td><td><span class="obj-link">BOM-2608-003</span></td><td>布洛芬损耗率</td><td><span class="before-v">1.5%</span><span class="arrow-v">→</span><span class="after-v">1.0%</span></td><td>周涛</td><td>称量精度提升（CC-2608-015）</td></tr>
+                <tr data-c="物料"><td class="time-mono">14:25:16</td><td><span class="obj-link">RM-2608-003</span></td><td>复验期</td><td><span class="before-v">2026-08</span><span class="arrow-v">→</span><span class="after-v">2026-11</span></td><td>王芳</td><td>复验合格，QA 批准延期</td></tr>
+                <tr data-c="工艺配方"><td class="time-mono">13:47:55</td><td><span class="obj-link">RCP-2608-006</span> V1.1</td><td>干燥水分上限</td><td><span class="before-v">≤ 3.5%</span><span class="arrow-v">→</span><span class="after-v">≤ 3.0%</span></td><td>林晓</td><td>中间体稳定性提高（CC-2608-013）</td></tr>
+                <tr data-c="物料"><td class="time-mono">13:20:31</td><td><span class="obj-link">SLV-2608-001</span></td><td>存储条件</td><td><span class="before-v">常温</span><span class="arrow-v">→</span><span class="after-v">避光</span></td><td>王芳</td><td>稳定性数据更新（CC-2608-012）</td></tr>
+                <tr data-c="生产工单"><td class="time-mono">12:35:08</td><td><span class="obj-link">WO-2608-011</span></td><td>开工时间</td><td><span class="before-v">08:30</span><span class="arrow-v">→</span><span class="after-v">09:15</span></td><td>张伟</td><td>前序釜次延后（偏差备注）</td></tr>
+                <tr data-c="动作库/BOM"><td class="time-mono">11:52:44</td><td><span class="obj-link">ACT-2608-001</span></td><td>SOP 版本</td><td><span class="before-v">SOP-041 V3.1</span><span class="arrow-v">→</span><span class="after-v">SOP-041 V3.2</span></td><td>周涛</td><td>条码校验新增（CC-2608-009）</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ 区段 3：用户审计 ============ -->
+      <div id="segUsr" style="margin-top:16px;display:none;">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="dot" style="background: var(--normal);"></span>用户行为审计（今日 · 按活跃度排序）</div>
+            <div class="filter-bar" style="border:none;padding:0;">
+              <div class="filter-group"><span class="filter-label">岗位：</span><select class="filter-select" id="fRole"><option>全部岗位</option><option>生产</option><option>QA</option><option>QC</option><option>工艺</option><option>系统</option></select></div>
+            </div>
+          </div>
+          <div class="user-grid" id="usrGrid"></div>
+        </div>
+      </div>
+
+      <!-- ============ 区段 4：电子签名 ============ -->
+      <div id="segSig" style="margin-top:16px;display:none;">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="dot" style="background: var(--warning);"></span>电子签名记录（21 CFR Part 11 · 签名含义 + 时间戳 + 身份验证）</div>
+          </div>
+          <div id="sigList">
+            <div class="sig-row"><div class="sig-ic">✍</div><div class="sig-body"><div class="sig-name">王芳 <small>QA · 质量保证</small></div><div class="sig-mean">含义：批准「清场放行」RE-2608-031 · 密码 + 令牌验证通过</div></div><div class="sig-time">07-31 16:02:11</div></div>
+            <div class="sig-row"><div class="sig-ic">✍</div><div class="sig-body"><div class="sig-name">李明 <small>生产负责人</small></div><div class="sig-mean">含义：批准「工艺配方」RCP-2608-006 V1.1 · 密码 + 令牌验证通过</div></div><div class="sig-time">07-31 15:58:47</div></div>
+            <div class="sig-row"><div class="sig-ic">✍</div><div class="sig-body"><div class="sig-name">陈静 <small>工艺工程师</small></div><div class="sig-mean">含义：提交「工艺配方」RCP-2608-004 审批 · 密码验证通过</div></div><div class="sig-time">07-31 15:40:22</div></div>
+            <div class="sig-row"><div class="sig-ic">✍</div><div class="sig-body"><div class="sig-name">王芳 <small>QA · 质量保证</small></div><div class="sig-mean">含义：审核「OOS 调查」OOS-2608-007 第一阶段 · 密码验证通过</div></div><div class="sig-time">07-31 14:58:40</div></div>
+            <div class="sig-row"><div class="sig-ic">✍</div><div class="sig-body"><div class="sig-name">张伟 <small>称量操作员</small></div><div class="sig-mean">含义：复核「称量配料」WP-2608-021 实际净重 · 密码验证通过</div></div><div class="sig-time">07-31 14:12:03</div></div>
+            <div class="sig-row"><div class="sig-ic pending">⏳</div><div class="sig-body"><div class="sig-name">李明 <small>生产负责人</small></div><div class="sig-mean">待签名：批准「布洛芬混悬液」RCP-2608-003 V3.0（QA 已审核）</div></div><div class="sig-time">待处理 · 已提醒</div></div>
+            <div class="sig-row"><div class="sig-ic pending">⏳</div><div class="sig-body"><div class="sig-name">王芳 <small>QA · 质量保证</small></div><div class="sig-mean">待签名：复核「批次放行」RE-2608-032 附条件放行条件项</div></div><div class="sig-time">待处理 · 已提醒</div></div>
+            <div class="sig-row"><div class="sig-ic">✍</div><div class="sig-body"><div class="sig-name">赵敏 <small>QC 检验员</small></div><div class="sig-mean">含义：签署「检验原始数据」QC-2608-091 记录确认 · 密码验证通过</div></div><div class="sig-time">07-31 11:30:18</div></div>
+            <div class="sig-row"><div class="sig-ic">✍</div><div class="sig-body"><div class="sig-name">周涛 <small>工艺工程师</small></div><div class="sig-mean">含义：提交「BOM 结构」BOM-2608-003 V3.0 变更 · 密码 + 令牌验证通过</div></div><div class="sig-time">07-31 10:48:56</div></div>
+          </div>
+        </div>
+        <div style="background:var(--primary-50);border:1px solid var(--primary-200);border-radius:10px;padding:14px 18px;font-size:12px;color:var(--primary-800);line-height:1.8;">
+          <b>合规说明：</b>电子签名由「签名含义 + 系统时间戳 + 身份验证（密码 / 双因素令牌）+ 操作关联」四要素构成；签名后数据立即锁定，任何修改会触发新的审计记录；审计日志采用 <b>Write-Once-Read-Many（WORM）</b> 存储，完整保留 10 年（GMP 记录保留要求）。
+        </div>
+      </div>
+    
+    </div></div>
+  </div>
+
+
+<div class="toast" id="toast"></div>
+
+<script>
+var USERS = [
+  { name: '王芳', role: 'QA', dept: '质量保证', ops: 58, login: 3, warn: 0, act: '16:02' },
+  { name: '陈静', role: '生产', dept: '生产管理', ops: 47, login: 2, warn: 0, act: '15:42' },
+  { name: '周涛', role: '工艺', dept: '工艺工程', ops: 39, login: 2, warn: 0, act: '15:15' },
+  { name: '张伟', role: '生产', dept: '称量配料', ops: 36, login: 2, warn: 0, act: '14:12' },
+  { name: '林晓', role: '工艺', dept: '工艺工程', ops: 31, login: 2, warn: 0, act: '14:41' },
+  { name: '赵敏', role: 'QC', dept: '质量控制', ops: 28, login: 2, warn: 0, act: '11:30' },
+  { name: '李明', role: '生产', dept: '生产负责人', ops: 22, login: 2, warn: 0, act: '15:58' },
+  { name: '孙强', role: '生产', dept: '仓库管理', ops: 18, login: 2, warn: 1, act: '14:25' },
+  { name: '刘洋', role: '系统', dept: 'IT 运维', ops: 7, login: 1, warn: 1, act: '15:33' }
+];
+
+function $(id){ return document.getElementById(id); }
+function toast(msg){ var t = $('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(function(){ t.classList.remove('show'); }, 2400); }
+
+/* ---------- 操作日志渲染 ---------- */
+function renderLog(){
+  var kw = $('fSearch').value.trim();
+  var op = document.querySelector('#opTabs .filter-tab.active').getAttribute('data-op');
+  var mod = $('fModule').value;
+  var res = $('fRes').value;
+  var rows = document.querySelectorAll('#logTable tbody tr');
+  rows.forEach(function(r){
+    var show = true;
+    if (op !== '全部') {
+      var chip = r.querySelector('.act-chip');
+      if (!chip || chip.textContent !== op) show = false;
+    }
+    if (mod !== '全部模块' && r.getAttribute('data-mod') !== mod) show = false;
+    if (res !== '全部结果' && r.getAttribute('data-res') !== res) show = false;
+    if (kw && r.textContent.indexOf(kw) < 0) show = false;
+    r.style.display = show ? '' : 'none';
+  });
+}
+
+/* ---------- 数据变更渲染 ---------- */
+function renderChg(){
+  var kw = $('cSearch').value.trim();
+  var c = document.querySelector('#chgTabs .filter-tab.active').getAttribute('data-c');
+  var rows = document.querySelectorAll('#chgTable tbody tr');
+  rows.forEach(function(r){
+    var show = (c === '全部' || r.getAttribute('data-c') === c);
+    if (show && kw && r.textContent.indexOf(kw) < 0) show = false;
+    r.style.display = show ? '' : 'none';
+  });
+}
+
+/* ---------- 用户审计渲染 ---------- */
+function renderUsr(){
+  var role = $('fRole').value;
+  var html = '';
+  USERS.forEach(function(u, i){
+    if (role !== '全部岗位' && u.role !== role) return;
+    html += '<div class="user-card' + (i < 3 ? ' top' : '') + '">' +
+      '<div class="user-head"><div class="user-av">' + u.name[0] + '</div><div><div class="user-nm">' + u.name + (i < 3 ? ' <span style="font-size:10px;color:var(--info);">TOP' + (i+1) + '</span>' : '') + '</div><div class="user-role-txt">' + u.dept + ' · ' + u.role + '</div></div></div>' +
+      '<div class="user-stats">' +
+      '<div class="us-item"><b>' + u.ops + '</b><span>今日操作</span></div>' +
+      '<div class="us-item"><b>' + u.login + '</b><span>登录次数</span></div>' +
+      '<div class="us-item"><b>' + u.warn + '</b><span>异常操作</span></div>' +
+      '</div>' +
+      (u.warn > 0 ? '<div class="us-warn">⚠ ' + (u.name === '孙强' ? '越权删除已拦截，已发送安全提醒' : '密码错误触发账户临时锁定，需管理员解锁') + '</div>' : '') +
+      '<div style="font-size:11px;color:var(--text-sec);margin-top:8px;">最近活跃：' + u.act + '</div></div>';
+  });
+  $('usrGrid').innerHTML = html || '<div style="grid-column:1/-1;text-align:center;color:var(--text-sec);padding:20px;">无匹配用户</div>';
+}
+
+(function(){
+  var segs = document.querySelectorAll('#segTabs .seg-tab');
+  segs.forEach(function(t){
+    t.addEventListener('click', function(){
+      segs.forEach(function(x){ x.classList.remove('active'); });
+      t.classList.add('active');
+      var seg = t.getAttribute('data-seg');
+      $('segLog').style.display = seg === 'log' ? '' : 'none';
+      $('segChg').style.display = seg === 'chg' ? '' : 'none';
+      $('segUsr').style.display = seg === 'usr' ? '' : 'none';
+      $('segSig').style.display = seg === 'sig' ? '' : 'none';
+    });
+  });
+  var opTabs = document.querySelectorAll('#opTabs .filter-tab');
+  opTabs.forEach(function(t){ t.addEventListener('click', function(){ opTabs.forEach(function(x){ x.classList.remove('active'); }); t.classList.add('active'); renderLog(); }); });
+  $('fModule').addEventListener('change', renderLog);
+  $('fRes').addEventListener('change', renderLog);
+  $('fSearch').addEventListener('input', renderLog);
+  var chgTabs = document.querySelectorAll('#chgTabs .filter-tab');
+  chgTabs.forEach(function(t){ t.addEventListener('click', function(){ chgTabs.forEach(function(x){ x.classList.remove('active'); }); t.classList.add('active'); renderChg(); }); });
+  $('cSearch').addEventListener('input', renderChg);
+  $('fRole').addEventListener('change', renderUsr);
+
+  renderLog();
+  renderChg();
+  renderUsr();
+})();
+</script>
+  <script src="sidebar.js"></script>
+  <script src="plant.js"></script>
+<script src="role.js"></script>
+</body>
+</html>
