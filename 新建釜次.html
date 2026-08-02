@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MES 精细化工 - 新建釜次</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary-50: #E6F1FB; --primary-200: #B5D4F4; --primary-400: #378ADD;
+    --primary-600: #185FA5; --primary-800: #0C447C; --primary-900: #042C53;
+    --normal: #1D9E75; --normal-bg: #E1F5EE;
+    --info: #EF9F27; --info-bg: #FAEEDA;
+    --warning: #D85A30; --warning-bg: #FAECE7;
+    --block: #E24B4A; --block-bg: #FCEBEB;
+    --white: #FFFFFF; --page: #F1EFE8; --border: #D3D1C7;
+    --text-sec: #888780; --text-sub: #5F5E5A; --text: #2C2C2A;
+  }
+  body { font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif; background: var(--page); color: var(--text); font-size: 14px; line-height: 1.6; overflow: hidden; height: 100vh; }
+  .app { display: flex; height: 100vh; }
+  .sidebar { width: 200px; min-width: 200px; background: var(--primary-800); color: #85B7EB; display: flex; flex-direction: column; overflow-y: auto; }
+  .sidebar-logo { padding: 14px 16px; border-bottom: 1px solid var(--primary-600); display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .sidebar-nav { padding: 8px 0; flex: 1; }
+  .nav-item { padding: 8px 16px 8px 36px; font-size: 12.5px; color: #85B7EB; cursor: pointer; position: relative; transition: all 0.15s; display: flex; align-items: center; gap: 7px; }
+  .nav-item:hover { background: var(--primary-900); color: #B5D4F4; }
+  .nav-item.active { background: var(--primary-600); color: #FFF; font-weight: 500; }
+  .nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--primary-400); }
+  .nav-section-title { padding: 16px 20px 6px; font-size: 11px; color: #378ADD; text-transform: uppercase; letter-spacing: 0.5px; }
+  .sidebar-footer { padding: 12px 20px; border-top: 1px solid var(--primary-600); font-size: 12px; color: #5DCAA5; display: flex; align-items: center; gap: 6px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--normal); }
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { height: 52px; min-height: 52px; background: var(--white); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+  .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-sec); }
+  .breadcrumb .current { color: var(--text); font-weight: 500; }
+  .breadcrumb a { color: var(--text-sec); text-decoration: none; cursor: pointer; }
+  .breadcrumb a:hover { color: var(--primary-600); }
+  .topbar-right { display: flex; align-items: center; gap: 20px; }
+  .user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+  .user-info:hover { background: var(--page); }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-600); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }
+  .user-name { font-size: 13px; color: var(--text); }
+  .user-role { font-size: 11px; color: var(--text-sec); }
+  .content { flex: 1; overflow-y: auto; padding: 14px 28px; }
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+  .page-title { font-size: 22px; font-weight: 500; color: var(--text); }
+  .page-subtitle { font-size: 13px; color: var(--text-sec); margin-top: 2px; }
+  .header-actions { display: flex; gap: 10px; }
+  .btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+  .btn-primary { background: var(--primary-600); color: #fff; }
+  .btn-primary:hover { background: var(--primary-800); }
+  .btn-secondary { background: var(--white); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--primary-400); color: var(--primary-600); }
+  .btn-success { background: var(--normal); color: #fff; }
+  .btn-success:hover { background: #16805e; }
+  .stepper { display: flex; align-items: center; margin-bottom: 20px; background: var(--white); border-radius: 10px; border: 1px solid var(--border); padding: 16px 24px; }
+  .step { display: flex; align-items: center; gap: 10px; flex: 1; }
+  .step-circle { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; font-family: "DIN", monospace; flex-shrink: 0; }
+  .step-circle.active { background: var(--primary-600); color: #fff; }
+  .step-circle.done { background: var(--normal); color: #fff; }
+  .step-circle.pending { background: var(--page); color: var(--text-sec); border: 1px solid var(--border); }
+  .step-info { display: flex; flex-direction: column; }
+  .step-name { font-size: 13px; font-weight: 500; color: var(--text); }
+  .step-name.pending { color: var(--text-sec); }
+  .step-desc { font-size: 11px; color: var(--text-sec); }
+  .step-line { flex: 1; height: 2px; background: var(--border); margin: 0 12px; border-radius: 1px; }
+  .form-card { background: var(--white); border-radius: 12px; border: 1px solid var(--border); margin-bottom: 16px; overflow: hidden; }
+  .form-card-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .form-card-title { font-size: 15px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .form-card-title .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .form-card-title .badge { font-size: 10px; padding: 2px 8px; border-radius: 10px; background: var(--primary-50); color: var(--primary-600); font-weight: 400; }
+  .form-card-body { padding: 20px 24px; }
+  .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px 24px; }
+  .form-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-label { font-size: 12px; color: var(--text-sub); font-weight: 500; display: flex; align-items: center; gap: 4px; }
+  .form-label .required { color: var(--block); }
+  .form-input, .form-select, .form-textarea { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text); background: var(--white); outline: none; font-family: inherit; transition: border-color 0.15s; }
+  .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--primary-400); box-shadow: 0 0 0 3px var(--primary-50); }
+  .form-input::placeholder { color: var(--text-sec); }
+  .form-input.readonly { background: var(--page); color: var(--text-sub); cursor: not-allowed; }
+  .form-textarea { resize: vertical; min-height: 60px; }
+  .form-input-group { display: flex; align-items: center; }
+  .form-input-group .form-input { border-radius: 8px 0 0 8px; }
+  .form-input-group .form-suffix { padding: 8px 12px; background: var(--page); border: 1px solid var(--border); border-left: none; border-radius: 0 8px 8px 0; font-size: 13px; color: var(--text-sec); }
+  .form-hint { font-size: 11px; color: var(--text-sec); }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .data-table th { text-align: left; padding: 8px 12px; background: var(--page); color: var(--text-sec); font-weight: 500; font-size: 11px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .data-table td { padding: 10px 12px; border-bottom: 1px solid var(--page); color: var(--text); }
+  .data-table .num { font-family: "DIN Alternate", "Roboto", monospace; }
+  .mat-status { font-size: 11px; padding: 2px 8px; border-radius: 10px; display: inline-flex; align-items: center; gap: 4px; }
+  .mat-status .dot { width: 5px; height: 5px; border-radius: 50%; }
+  .mat-status.full { background: var(--normal-bg); color: #085041; } .mat-status.full .dot { background: var(--normal); }
+  .mat-status.partial { background: var(--info-bg); color: #633806; } .mat-status.partial .dot { background: var(--info); }
+  .mat-status.short { background: var(--block-bg); color: #501313; } .mat-status.short .dot { background: var(--block); }
+  .check-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: all 0.15s; }
+  .check-item:hover { border-color: var(--primary-400); background: var(--primary-50); }
+  .check-box { width: 18px; height: 18px; border: 2px solid var(--border); border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
+  .check-item.checked .check-box { background: var(--normal); border-color: var(--normal); color: #fff; }
+  .check-item.checked .check-box::after { content: '✓'; font-size: 12px; }
+  .check-content { flex: 1; }
+  .check-title { font-size: 13px; color: var(--text); }
+  .check-desc { font-size: 11px; color: var(--text-sec); }
+  .approver-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; }
+  .approver-step { width: 24px; height: 24px; border-radius: 50%; background: var(--primary-50); color: var(--primary-600); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; font-family: "DIN", monospace; }
+  .approver-info { flex: 1; }
+  .approver-name { font-size: 13px; color: var(--text); font-weight: 500; }
+  .approver-role { font-size: 11px; color: var(--text-sec); }
+  .status-tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 14px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+  .status-tag .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .status-tag.normal { background: var(--normal-bg); color: #085041; } .status-tag.normal .dot { background: var(--normal); }
+  .footer-bar { display: flex; justify-content: space-between; align-items: center; padding: 16px 0 0; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-sec); }
+
+  /* === 侧边栏 v2：分组折叠 + 窄宽 + 新LOGO === */
+  .logo-text { line-height: 1.25; min-width: 0; }
+  .logo-name { font-size: 15px; font-weight: 500; color: #FFFFFF; letter-spacing: 0.3px; }
+  .logo-slogan { font-size: 10.5px; color: #93B5D9; margin-top: 1px; }
+  .nav-group-head { padding: 14px 16px 5px; font-size: 11px; color: #6FA9DA; letter-spacing: 0.6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; transition: color 0.15s; }
+  .nav-group-head:hover { color: #B5D4F4; }
+  .nav-group-head > span:first-child { font-weight: 500; }
+  .nav-caret { font-size: 10px; opacity: 0.75; transition: transform 0.18s; display: inline-block; }
+  .nav-group-items { overflow: hidden; }
+  .nav-group.collapsed .nav-caret { transform: rotate(-90deg); }
+  .nav-group.collapsed .nav-group-items { display: none; }
+  .sidebar-collapse { padding: 10px 16px; font-size: 12px; color: #85B7EB; cursor: pointer; display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--primary-600); transition: all 0.15s; }
+  .sidebar-collapse:hover { background: var(--primary-900); color: #B5D4F4; }
+  .collapse-caret { display: inline-block; transition: transform 0.2s; font-size: 14px; line-height: 1; }
+  .sidebar.collapsed .collapse-caret { transform: rotate(180deg); }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="appSidebar"></aside>
+  <div class="main">
+    <header class="topbar">
+      <div class="breadcrumb">
+        <a onclick="window.location.href='生产执行管理.html'">生产管理</a><span>›</span>
+        <a onclick="window.location.href='生产执行管理.html'">生产执行</a><span>›</span>
+        <span class="current">新建釜次</span>
+      </div>
+      <div class="topbar-right"><div id="plantSwitch"></div>
+        <div id="roleSwitch"></div>
+      <div class="user-info"><div class="avatar">张</div><div><div class="user-name">张明</div><div class="user-role">车间主管</div></div></div></div>
+    </header>
+    <div class="tabbar" id="tabBar"></div>
+      <div class="content">
+    
+      <div class="page-header">
+        <div><div class="page-title">新建釜次</div><div class="page-subtitle">创建生产批次 · 自动关联BOM配方与工艺路线</div></div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="window.location.href='生产执行管理.html'">取消</button>
+          <button class="btn btn-secondary">💾 保存草稿</button>
+          <button class="btn btn-success">✓ 创建并排产</button>
+        </div>
+      </div>
+
+      <div class="stepper">
+        <div class="step"><div class="step-circle active">1</div><div class="step-info"><div class="step-name">基本信息</div><div class="step-desc">批次与排产信息</div></div></div>
+        <div class="step-line"></div>
+        <div class="step"><div class="step-circle pending">2</div><div class="step-info"><div class="step-name pending">物料确认</div><div class="step-desc">BOM物料齐备检查</div></div></div>
+        <div class="step-line"></div>
+        <div class="step"><div class="step-circle pending">3</div><div class="step-info"><div class="step-name pending">安全检查</div><div class="step-desc">生产前安全确认</div></div></div>
+        <div class="step-line"></div>
+        <div class="step"><div class="step-circle pending">4</div><div class="step-info"><div class="step-name pending">确认创建</div><div class="step-desc">提交并排产</div></div></div>
+      </div>
+
+      <!-- 基本信息 -->
+      <div class="form-card">
+        <div class="form-card-header"><div class="form-card-title"><span class="dot" style="background: var(--primary-400);"></span>基本信息 <span class="badge">必填</span></div></div>
+        <div class="form-card-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">釜次编号 <span class="required">*</span></label>
+              <input class="form-input readonly" value="RC-0731-013（自动生成）" readonly />
+              <div class="form-hint">系统按日期+序号自动分配</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">关联BOM <span class="required">*</span></label>
+              <select class="form-select">
+                <option value="">请选择BOM配方</option>
+                <option>BOM-PAR-028 V3.2 · 对乙酰氨基酚片剂</option>
+                <option>BOM-AMO-015 V2.1 · 阿莫西林胶囊</option>
+                <option>BOM-ASP-019 V2.3 · 阿司匹林肠溶片</option>
+                <option>BOM-IBU-012 V1.5 · 布洛芬缓释胶囊</option>
+                <option>BOM-CEF-008 V1.2 · 头孢氨苄胶囊</option>
+                <option>BOM-NIF-006 V1.1 · 硝苯地平片</option>
+              </select>
+              <div class="form-hint">选择后自动带入产品、工艺路线和物料清单</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">产品名称</label>
+              <input class="form-input readonly" value="—（选择BOM后自动填充）" readonly />
+            </div>
+            <div class="form-group">
+              <label class="form-label">产品编码</label>
+              <input class="form-input readonly" value="—（选择BOM后自动填充）" readonly />
+            </div>
+            <div class="form-group">
+              <label class="form-label">所属车间 <span class="required">*</span></label>
+              <select class="form-select"><option>一车间</option><option>二车间</option><option>三车间</option></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">反应釜 <span class="required">*</span></label>
+              <select class="form-select">
+                <option value="">请选择反应釜</option>
+                <option>R-201（500L · 空闲）</option>
+                <option>R-204（500L · 空闲）</option>
+                <option>R-208（300L · 空闲）</option>
+                <option style="color: var(--text-sec);">R-202（运行中）</option>
+                <option style="color: var(--text-sec);">R-203（运行中）</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">计划产量 <span class="required">*</span></label>
+              <div class="form-input-group"><input class="form-input" type="number" placeholder="如：500" /><span class="form-suffix">kg</span></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">班次 <span class="required">*</span></label>
+              <select class="form-select"><option>白班 08:00-20:00</option><option>夜班 20:00-08:00</option></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">计划开始时间 <span class="required">*</span></label>
+              <input class="form-input" type="datetime-local" value="2026-07-31T14:00" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">计划结束时间 <span class="required">*</span></label>
+              <input class="form-input" type="datetime-local" value="2026-07-31T20:00" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">操作员 <span class="required">*</span></label>
+              <select class="form-select"><option>张明</option><option>王芳</option><option>李伟</option><option>赵强</option><option>陈静</option></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">质检员</label>
+              <select class="form-select"><option>刘质检</option><option>孙丽</option><option>周涛</option></select>
+            </div>
+            <div class="form-group full">
+              <label class="form-label">工艺路线</label>
+              <input class="form-input readonly" value="—（选择BOM后自动带入工艺路线）" readonly />
+            </div>
+            <div class="form-group full">
+              <label class="form-label">备注</label>
+              <textarea class="form-textarea" placeholder="补充说明批次特殊要求..."></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 物料确认 -->
+      <div class="form-card">
+        <div class="form-card-header">
+          <div class="form-card-title"><span class="dot" style="background: var(--normal);"></span>物料齐备确认 <span class="badge">从BOM带入</span></div>
+          <span style="font-size: 12px; color: var(--text-sec);">5/7 齐备 · 1 偏低 · 1 缺料</span>
+        </div>
+        <div class="form-card-body">
+          <table class="data-table">
+            <thead><tr><th>投料顺序</th><th>物料编码</th><th>物料名称</th><th>规格</th><th>需求量</th><th>库存量</th><th>齐备状态</th><th>供应商</th></tr></thead>
+            <tbody>
+              <tr><td class="num">1</td><td class="num">MAT-PAR-001</td><td>对乙酰氨基酚原料药</td><td>API / ≥99.5%</td><td class="num">454.5 kg</td><td class="num">425 kg</td><td><span class="mat-status short"><span class="dot"></span>缺料</span></td><td>华海药业</td></tr>
+              <tr><td class="num">2</td><td class="num">MAT-EXC-012</td><td>微晶纤维素</td><td>PH-102 / 80目</td><td class="num">23.0 kg</td><td class="num">140 kg</td><td><span class="mat-status full"><span class="dot"></span>齐备</span></td><td>旭化成</td></tr>
+              <tr><td class="num">3</td><td class="num">MAT-EXC-008</td><td>交联羧甲基纤维素钠</td><td>AC-Di-Sol</td><td class="num">11.5 kg</td><td class="num">55 kg</td><td><span class="mat-status full"><span class="dot"></span>齐备</span></td><td>FMC</td></tr>
+              <tr><td class="num">4</td><td class="num">MAT-EXC-003</td><td>硬脂酸镁</td><td>药用级 / 200目</td><td class="num">5.7 kg</td><td class="num">3.2 kg</td><td><span class="mat-status short"><span class="dot"></span>缺料</span></td><td>湖南尔康</td></tr>
+              <tr><td class="num">5</td><td class="num">MAT-SOL-005</td><td>纯化水</td><td>注射级</td><td class="num">89.3 L</td><td class="num">充足</td><td><span class="mat-status full"><span class="dot"></span>齐备</span></td><td>车间制水</td></tr>
+              <tr><td class="num">6</td><td class="num">MAT-CT-021</td><td>欧巴代包衣粉</td><td>白色 / Y-1-7000</td><td class="num">15.5 kg</td><td class="num">24 kg</td><td><span class="mat-status full"><span class="dot"></span>齐备</span></td><td>卡乐康</td></tr>
+              <tr><td class="num">7</td><td class="num">MAT-EXC-021</td><td>聚维酮K30</td><td>K-30 / 药用级</td><td class="num">8.7 kg</td><td class="num">31 kg</td><td><span class="mat-status full"><span class="dot"></span>齐备</span></td><td>BASF</td></tr>
+            </tbody>
+          </table>
+          <div style="margin-top: 12px; padding: 10px 14px; background: var(--block-bg); border-radius: 8px; font-size: 12px; color: #501313; display: flex; align-items: center; gap: 8px;">
+            <span>⚠️</span><span>2项物料缺料（对乙酰氨基酚原料药缺 29.5kg · 硬脂酸镁缺 2.5kg），请先完成领料或申请采购后再创建釜次。</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 安全检查 -->
+      <div class="form-card">
+        <div class="form-card-header"><div class="form-card-title"><span class="dot" style="background: var(--info);"></span>生产前安全检查</div></div>
+        <div class="form-card-body">
+          <div class="check-item checked"><div class="check-box"></div><div class="check-content"><div class="check-title">设备清洁验证有效</div><div class="check-desc">反应釜清洁验证在有效期内（有效期至 2026-08-15）</div></div></div>
+          <div class="check-item checked"><div class="check-box"></div><div class="check-content"><div class="check-title">计量器具校验有效</div><div class="check-desc">温度计、压力表、称量器具均在校验有效期内</div></div></div>
+          <div class="check-item checked"><div class="check-box"></div><div class="check-content"><div class="check-title">安全阀/泄压阀功能正常</div><div class="check-desc">已确认安全阀和泄压阀功能测试通过</div></div></div>
+          <div class="check-item"><div class="check-box"></div><div class="check-content"><div class="check-title">应急通道畅通</div><div class="check-desc">确认车间应急通道无杂物堆放，疏散路线畅通</div></div></div>
+          <div class="check-item"><div class="check-box"></div><div class="check-content"><div class="check-title">操作员持证上岗</div><div class="check-desc">确认操作员持有有效岗位操作证和安全生产培训证</div></div></div>
+          <div class="check-item"><div class="check-box"></div><div class="check-content"><div class="check-title">环保设施运行正常</div><div class="check-desc">废气处理系统、废水收集系统运行状态确认</div></div></div>
+        </div>
+      </div>
+
+      <!-- 审批配置 -->
+      <div class="form-card">
+        <div class="form-card-header"><div class="form-card-title"><span class="dot" style="background: var(--text-sec);"></span>审批配置</div></div>
+        <div class="form-card-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">审批流程</label>
+              <select class="form-select"><option>标准排产审批（两级）</option><option>加急排产审批（一级）</option></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">通知人</label>
+              <input class="form-input" placeholder="选择需要通知的人员" />
+            </div>
+          </div>
+          <div style="margin-top: 16px;">
+            <div class="form-label" style="margin-bottom: 10px;">审批流程预览</div>
+            <div class="approver-item"><div class="approver-step">1</div><div class="approver-info"><div class="approver-name">车间主管 · 张明</div><div class="approver-role">初审 · 确认排产合理性</div></div><span class="status-tag normal"><span class="dot"></span>当前用户</span></div>
+            <div class="approver-item"><div class="approver-step">2</div><div class="approver-info"><div class="approver-name">生产计划部 · 陈计划</div><div class="approver-role">终审 · 批准排产</div></div><span style="font-size: 11px; color: var(--text-sec);">待审批</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-bar">
+        <div style="font-size: 12px; color: var(--text-sec);"><span style="color: var(--block);">* </span>为必填项 · 存在缺料物料时仍可创建，但投料前需完成领料</div>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn btn-secondary" onclick="window.location.href='生产执行管理.html'">取消</button>
+          <button class="btn btn-secondary">💾 保存草稿</button>
+          <button class="btn btn-success">✓ 创建并排产</button>
+        </div>
+      </div>
+    
+    </div></div>
+  </div>
+
+<script>
+  document.querySelectorAll('.check-item').forEach(item => {
+    item.addEventListener('click', function() { this.classList.toggle('checked'); });
+  });
+</script>
+  <script src="sidebar.js"></script>
+  <script src="plant.js"></script>
+<script src="role.js"></script>
+</body>
+</html>
