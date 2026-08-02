@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MES 精细化工 - 系统集成联调</title>
+  <link rel="stylesheet" href="app.css">
+  <style>
+    :root { --primary-50:#eef5fb; --primary-100:#d8e8f6; --primary-400:#5a9bd8; --primary-600:#2f6fb0; --primary-900:#1a3a5c;
+      --white:#fff; --page:#f4f7fb; --border:#e3e9f1; --text:#1f2d3d; --text-sec:#5b6b7d; --text-sub:#8a99ab;
+      --normal:#2f9e6e; --info:#d99029; --block:#d8453a; --primary-700:#245a92; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; background: var(--page); color: var(--text); font-size: 13px; display: flex; min-height: 100vh; }
+
+    /* ===== 侧边栏 ===== */
+    .sidebar { width: 232px; background: var(--primary-900); color: #cfe1f2; flex-shrink: 0; display: flex; flex-direction: column; }
+    .side-logo { padding: 16px 18px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(255,255,255,.08); }
+    .side-logo .mark { width: 30px; height: 30px; border-radius: 8px; background: linear-gradient(135deg, var(--primary-400), var(--primary-600)); display: flex; align-items: center; justify-content: center; font-size: 15px; }
+    .side-logo .t1 { font-size: 14px; font-weight: 600; color: #fff; line-height: 1.2; }
+    .side-logo .t2 { font-size: 11px; color: #8fb2d6; }
+    .nav-scroll { flex: 1; overflow-y: auto; padding-bottom: 14px; }
+    .nav-group-head { padding: 14px 16px 5px; font-size: 11px; color: #6FA9DA; letter-spacing: .6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; }
+    .nav-item { padding: 8px 16px 8px 36px; font-size: 12.5px; color: #85B7EB; cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 7px; }
+    .nav-item:hover { background: var(--primary-700); color: #B5D4F4; }
+    .nav-item.active { background: var(--primary-600); color: #fff; font-weight: 500; }
+    .nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--primary-400); }
+
+    /* ===== 主区 ===== */
+    .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .topbar { height: 54px; background: var(--white); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; }
+    .topbar-left { display: flex; align-items: center; gap: 12px; }
+    .topbar-left .crumb { font-size: 12px; color: var(--text-sec); }
+    .topbar-left .crumb b { color: var(--text); font-weight: 500; }
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+    .switch-wrap { position: relative; }
+    .switch-btn { display: flex; align-items: center; gap: 6px; background: var(--primary-50); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 12px; color: var(--text); cursor: pointer; }
+    .switch-btn:hover { border-color: var(--primary-400); }
+    .switch-menu { position: absolute; right: 0; top: 42px; background: #fff; border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 24px rgba(20,50,90,.14); padding: 6px; min-width: 200px; z-index: 50; display: none; }
+    .switch-menu.open { display: block; }
+    .switch-opt { padding: 8px 10px; border-radius: 7px; font-size: 12.5px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+    .switch-opt:hover { background: var(--primary-50); }
+    .switch-opt.sel { background: var(--primary-50); color: var(--primary-700); font-weight: 500; }
+
+    .content { padding: 20px 24px 40px; overflow-y: auto; }
+    .page-title { font-size: 22px; font-weight: 500; color: var(--text); }
+    .page-subtitle { font-size: 13px; color: var(--text-sec); margin-top: 2px; }
+    .header-actions { display: flex; gap: 10px; }
+    .btn { border: 1px solid var(--border); background: #fff; border-radius: 8px; padding: 8px 14px; font-size: 12.5px; cursor: pointer; color: var(--text); transition: all .15s; }
+    .btn:hover { border-color: var(--primary-400); }
+    .btn-primary { background: var(--primary-600); border-color: var(--primary-600); color: #fff; }
+    .btn-primary:hover { background: var(--primary-700); }
+    .btn-ghost { background: transparent; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    .metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 18px 0; }
+    .metric-card { background: var(--white); border-radius: 10px; padding: 14px 16px; border: 1px solid var(--border); position: relative; overflow: hidden; }
+    .metric-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+    .metric-card.blue::before { background: var(--primary-400); }
+    .metric-card.green::before { background: var(--normal); }
+    .metric-card.amber::before { background: var(--info); }
+    .metric-card.gray::before { background: var(--text-sec); }
+    .metric-label { font-size: 12px; color: var(--text-sec); }
+    .metric-value { font-size: 24px; font-weight: 600; margin-top: 4px; }
+    .metric-card.blue .metric-value { color: var(--primary-600); }
+    .metric-card.green .metric-value { color: var(--normal); }
+    .metric-card.amber .metric-value { color: var(--info); }
+    .metric-card.gray .metric-value { color: var(--text-sub); }
+    .metric-detail { font-size: 11px; color: var(--text-sub); margin-top: 2px; }
+
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; }
+    .card { background: var(--white); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+    .card-head { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .card-title { font-size: 14.5px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+    .card-tag { font-size: 11px; padding: 3px 9px; border-radius: 20px; font-weight: 500; }
+    .tag-live { background: #e7f6ee; color: var(--normal); }
+    .tag-sim { background: #fdf2e2; color: var(--info); }
+    .card-body { padding: 16px 18px; }
+    .sys-ico { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+    .ico-erp { background: #eaf1fb; color: #2f6fb0; }
+    .ico-lims { background: #eafaf1; color: #2f9e6e; }
+    .ico-wms { background: #f3eefb; color: #7b54c9; }
+
+    label.fld { display: block; font-size: 12px; color: var(--text-sec); margin: 12px 0 5px; }
+    input.inp, select.inp { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 8px 11px; font-size: 13px; color: var(--text); background: #fff; }
+    .intf-line { font-size: 12px; color: var(--text-sec); background: var(--page); border-radius: 7px; padding: 7px 10px; margin-top: 10px; font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; }
+    .intf-line b { color: var(--primary-700); }
+    details.contract { margin-top: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--page); }
+    details.contract > summary { cursor: pointer; padding: 8px 12px; font-size: 12.5px; color: var(--text-sec); font-weight: 500; }
+    details.contract pre { margin: 0; padding: 0 12px 12px; font-size: 11.5px; line-height: 1.5; color: #34465a; overflow-x: auto; white-space: pre; }
+    .res-box { margin-top: 12px; border-radius: 8px; padding: 0; border: 1px solid var(--border); display: none; }
+    .res-box.show { display: block; }
+    .res-head { padding: 8px 12px; font-size: 12px; font-weight: 500; display: flex; justify-content: space-between; align-items: center; background: var(--page); border-bottom: 1px solid var(--border); }
+    .res-head .st-ok { color: var(--normal); } .res-head .st-fail { color: var(--block); }
+    .res-body { padding: 12px; max-height: 260px; overflow-y: auto; }
+    .res-body pre { font-size: 11.5px; line-height: 1.55; color: #34465a; white-space: pre-wrap; word-break: break-all; }
+    .kv { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .chip { font-size: 11.5px; padding: 4px 10px; border-radius: 20px; background: var(--primary-50); color: var(--primary-700); border: 1px solid var(--primary-100); }
+    .chip b { font-weight: 600; }
+
+    .log-card { margin-top: 18px; }
+    .log-list { max-height: 280px; overflow-y: auto; }
+    .log-row { display: flex; align-items: center; gap: 12px; padding: 9px 18px; border-bottom: 1px solid var(--page); font-size: 12.5px; }
+    .log-row:hover { background: var(--page); }
+    .log-time { color: var(--text-sub); font-family: ui-monospace, monospace; font-size: 11.5px; width: 74px; flex-shrink: 0; }
+    .log-sys { width: 54px; font-weight: 600; flex-shrink: 0; }
+    .log-detail { flex: 1; color: var(--text-sec); }
+    .log-ms { color: var(--text-sub); font-family: ui-monospace, monospace; width: 64px; text-align: right; flex-shrink: 0; }
+    .log-st { width: 56px; text-align: right; flex-shrink: 0; font-weight: 500; }
+    .st-ok-t { color: var(--normal); } .st-fail-t { color: var(--block); }
+    .empty { padding: 24px; text-align: center; color: var(--text-sub); font-size: 12.5px; }
+
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1f2d3d; color: #fff; padding: 11px 18px; border-radius: 10px; font-size: 13px; z-index: 200; opacity: 0; transition: opacity .25s, transform .25s; box-shadow: 0 8px 30px rgba(0,0,0,.25); max-width: 90vw; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
+    .toast b { color: #8fd0 a8; }
+    .jump-link { color: var(--primary-600); text-decoration: underline; cursor: pointer; font-weight: 500; }
+
+    .scope-note { font-size: 11.5px; color: var(--text-sub); margin-top: 10px; }
+    .spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid var(--primary-200, #cfe0f0); border-top-color: var(--primary-600); border-radius: 50%; animation: spin .7s linear infinite; vertical-align: -2px; margin-right: 6px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .hidden-by-role { display: none !important; }
+  </style>
+</head>
+<body>
+  <!-- ============ 侧边栏 ============ -->
+  <aside class="sidebar" id="appSidebar"></aside>
+
+  <!-- ============ 主区 ============ -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="crumb">基础配置 / <b>系统集成联调</b></span>
+      </div>
+      <div class="topbar-right">
+        <div class="switch-wrap"><button class="switch-btn" id="plantSwitch">🌐 工厂</button><div class="switch-menu" id="plantMenu"></div></div>
+        <div class="switch-wrap"><button class="switch-btn" id="roleSwitch">👤 角色</button><div class="switch-menu" id="roleMenu"></div></div>
+      </div>
+    </div>
+
+    <div class="tabbar" id="tabBar"></div>
+      <div class="content">
+    
+      <div class="page-title">系统集成联调</div>
+      <div class="page-subtitle">基础配置 · ERP / LIMS / WMS 真实接口联调演示 · 异步调用 → 数据回写跨页闭环（ALCOA+ 审计可追溯）</div>
+      <div class="header-actions" style="margin-top:12px;">
+        <button class="btn btn-secondary" onclick="IT.clearLog()">🧹 清空联调日志</button>
+        <button class="btn btn-secondary" onclick="IT.resetLocal()">↺ 重置回写数据</button>
+        <a class="btn btn-primary" href="数据接口.html">查看接口台账</a>
+      </div>
+
+      <div class="metrics-row">
+        <div class="metric-card blue"><div class="metric-label">已联调接口</div><div class="metric-value" id="mIntf">3 / 7</div><div class="metric-detail">ERP·LIMS·WMS 各 1 项活动演示</div></div>
+        <div class="metric-card green"><div class="metric-label">今日联调调用</div><div class="metric-value" id="mCalls">0</div><div class="metric-detail">本会话累计</div></div>
+        <div class="metric-card amber"><div class="metric-label">成功率</div><div class="metric-value" id="mRate">—</div><div class="metric-detail">含失败重试</div></div>
+        <div class="metric-card gray"><div class="metric-label">平均耗时</div><div class="metric-value" id="mAvg">—</div><div class="metric-detail">模拟网络往返</div></div>
+      </div>
+
+      <div class="grid-3">
+        <!-- ===== ERP ===== -->
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title"><span class="sys-ico ico-erp">🏢</span>ERP 生产工单</div>
+            <span class="card-tag tag-live">实时回写</span>
+          </div>
+          <div class="card-body">
+            <label class="fld">选择模拟生产订单（ERP）</label>
+            <select class="inp" id="erpOrder">
+              <option value="PO-2608-117">PO-2608-117 · 布洛芬颗粒 0.2g · 300万袋</option>
+              <option value="PO-2608-118">PO-2608-118 · 阿莫西林胶囊 0.25g · 80万粒</option>
+              <option value="PO-2608-119">PO-2608-119 · 对乙酰氨基酚片 0.5g · 350万片</option>
+            </select>
+            <div class="intf-line">GET <b>/api/erp/v1/production-order/{no}</b> → 下行生成工单</div>
+            <details class="contract">
+              <summary>查看接口契约（请求/响应样例）</summary>
+              <pre>// 请求头
+Authorization: Bearer &lt;erp_token&gt;
+X-MES-Plant: F-SH01
+
+// 响应 200
+{
+  "orderNo": "PO-2608-117",
+  "product": "布洛芬颗粒",
+  "spec": "0.2g",
+  "planQty": "300万袋",
+  "vessel": "R-208",
+  "workshop": "一车间",
+  "priority": "中",
+  "planNo": "PLAN-2608-004"
+}</pre>
+            </details>
+            <button class="btn btn-primary" style="width:100%;margin-top:12px;" id="erpBtn" onclick="IT.erp()">🔌 联调拉取并下发工单</button>
+            <div class="res-box" id="erpRes">
+              <div class="res-head"><span id="erpResH">响应</span></div>
+              <div class="res-body"><pre id="erpResB"></pre>
+                <div class="kv" id="erpKv"></div>
+              </div>
+            </div>
+            <div class="scope-note">回写目标：<span class="jump-link" onclick="IT.go('生产工单.html')">生产工单.html</span>（顶部 ERP 入站工单条）</div>
+          </div>
+        </div>
+
+        <!-- ===== LIMS ===== -->
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title"><span class="sys-ico ico-lims">🔬</span>LIMS 质检放行</div>
+            <span class="card-tag tag-live">实时回写</span>
+          </div>
+          <div class="card-body">
+            <label class="fld">批次号（如 RC-2608-009，未放行新批）</label>
+            <input class="inp" id="limsBatch" value="RC-2608-009" placeholder="RC-2608-009">
+            <label class="fld">产品</label>
+            <input class="inp" id="limsProd" value="布洛芬颗粒 0.2g">
+            <div class="intf-line">POST <b>/api/lims/v1/sample/result/query</b> → 上行回传</div>
+            <details class="contract">
+              <summary>查看接口契约（请求/响应样例）</summary>
+              <pre>// 请求体
+{ "sampleNo": "RC-2608-009", "type": "release" }
+
+// 响应 200
+{
+  "sampleNo": "RC-2608-009",
+  "items": [
+    {"name":"含量","spec":98.0~102.0,"result":"99.6","unit":"%","judge":"合格"},
+    {"name":"有关物质","spec":"≤0.5","result":"0.21","unit":"%","judge":"合格"},
+    {"name":"微生物","spec":"≤100","result":"<10","unit":"cfu/g","judge":"合格"}
+  ],
+  "conclusion": "合格放行",
+  "qa": "王受权"
+}</pre>
+            </details>
+            <button class="btn btn-primary" style="width:100%;margin-top:12px;" id="limsBtn" onclick="IT.lims()">🔌 联调拉取质检结果</button>
+            <div class="res-box" id="limsRes">
+              <div class="res-head"><span id="limsResH">响应</span></div>
+              <div class="res-body"><pre id="limsResB"></pre>
+                <div class="kv" id="limsKv"></div>
+              </div>
+            </div>
+            <div class="scope-note">回写目标：<span class="jump-link" onclick="IT.go('批次追溯.html')">批次追溯.html</span>（放行单号列 RE-）</div>
+          </div>
+        </div>
+
+        <!-- ===== WMS ===== -->
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title"><span class="sys-ico ico-wms">📦</span>WMS 物料移动</div>
+            <span class="card-tag tag-sim">模拟回写</span>
+          </div>
+          <div class="card-body">
+            <label class="fld">移动类型</label>
+            <select class="inp" id="wmsType">
+              <option value="issue">投料发料（出库 → 车间）</option>
+              <option value="receipt">成品入库（车间 → 仓库）</option>
+            </select>
+            <label class="fld">物料 / 批次</label>
+            <input class="inp" id="wmsMat" value="布洛芬原料 / LOT-2608-031">
+            <div class="intf-line">POST <b>/api/wms/v1/{issue|receipt}</b> → 双向同步</div>
+            <details class="contract">
+              <summary>查看接口契约（请求/响应样例）</summary>
+              <pre>// 请求体（发料）
+{
+  "moveType": "issue",
+  "material": "布洛芬原料",
+  "batch": "LOT-2608-031",
+  "qty": 320.0, "unit": "kg",
+  "srcLoc": "WH-A03", "dstLoc": "WS-一车间"
+}
+
+// 响应 200
+{ "moveNo":"MV-2608-442", "status":"已发料", "ts":"2026-08-02T10:24:11" }</pre>
+            </details>
+            <button class="btn btn-primary" style="width:100%;margin-top:12px;" id="wmsBtn" onclick="IT.wms()">🔌 联调发送移动单</button>
+            <div class="res-box" id="wmsRes">
+              <div class="res-head"><span id="wmsResH">响应</span></div>
+              <div class="res-body"><pre id="wmsResB"></pre>
+                <div class="kv" id="wmsKv"></div>
+              </div>
+            </div>
+            <div class="scope-note">回写目标：<span class="jump-link" onclick="IT.go('称量配料.html')">称量配料.html</span>（发料记录）</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 联调日志 ===== -->
+      <div class="card log-card">
+        <div class="card-head">
+          <div class="card-title"><span class="sys-ico" style="background:var(--primary-50);color:var(--primary-600);">📜</span>联调调用日志</div>
+          <span class="card-tag tag-sim" id="logCount">0 条</span>
+        </div>
+        <div class="log-list" id="logList">
+          <div class="empty">暂无联调调用。点击上方任意「联调」按钮发起一次真实接口请求模拟。</div>
+        </div>
+      </div>
+
+      <div class="scope-note" data-plant-scope="P1" style="margin-top:16px;background:var(--white);border:1px dashed var(--border);border-radius:10px;padding:12px 14px;">
+        🏭 <b>本厂接口域（P1 · 上海一厂）</b>：下方凭证字段仅本厂可见；切换至其他工厂时此面板自动隔离隐藏（与「组织工厂管理」的工厂隔离联动）。
+        <span data-role-min="2" style="display:inline-block;margin-top:6px;color:var(--text-sec);">🔑 接口凭证（仅工厂管理者及以上可见）：<code>erp_token / lims_token / wms_token</code> 由 API 网关统一签发，MES 不持久化明文。</span>
+      </div>
+    
+    </div></div>
+  
+
+  <div class="toast" id="toast"></div>
+
+  <script src="plant.js"></script>
+  <script src="role.js"></script>
+  <script>
+  /* ===================== 系统集成联调 ===================== */
+  (function () {
+    var $ = function (id) { return document.getElementById(id); };
+    var LS = { re: 'mes_re_map', erp: 'mes_erp_wo', wms: 'mes_wms_move' };
+    var calls = 0, ok = 0, totalMs = 0;
+    var log = [];
+
+    function toast(msg) {
+      var t = $('toast'); t.innerHTML = msg; t.classList.add('show');
+      clearTimeout(t._t); t._t = setTimeout(function () { t.classList.remove('show'); }, 3200);
+    }
+    function go(u) { window.location.href = u; }
+    function pad(n) { return n < 10 ? '0' + n : '' + n; }
+    function now() { var d = new Date(); return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()); }
+    function ym() { var d = new Date(); return '' + (d.getFullYear() % 100) + pad(d.getMonth() + 1); }
+
+    // 模拟异步接口调用（真实项目中替换为 fetch，此处用 Promise + 延迟还原网络往返）
+    function call(apiMs) {
+      return new Promise(function (resolve) {
+        var ms = 380 + Math.floor(Math.random() * 520);
+        setTimeout(function () { resolve(ms); }, ms);
+      });
+    }
+    function setRes(boxId, headId, bodyId, okFlag, headTxt, bodyTxt) {
+      var box = $(boxId); box.classList.add('show');
+      $(headId).innerHTML = (okFlag ? '<span class="st-ok">✓ ' : '<span class="st-fail">✗ ') + headTxt + '</span>';
+      $(bodyId).textContent = bodyTxt;
+    }
+    function addLog(sys, intf, ms, okFlag, detail) {
+      calls++; if (okFlag) ok++;
+      totalMs += ms;
+      log.unshift({ t: now(), sys: sys, intf: intf, ms: ms, ok: okFlag, d: detail });
+      $('mCalls').textContent = calls;
+      $('mRate').textContent = (ok ? Math.round(ok / calls * 100) : 0) + '%';
+      $('mAvg').textContent = Math.round(totalMs / calls) + 'ms';
+      renderLog();
+    }
+    function renderLog() {
+      $('logCount').textContent = log.length + ' 条';
+      var el = $('logList');
+      if (!log.length) { el.innerHTML = '<div class="empty">暂无联调调用。</div>'; return; }
+      el.innerHTML = log.map(function (r) {
+        return '<div class="log-row"><span class="log-time">' + r.t + '</span>' +
+          '<span class="log-sys" style="color:' + (r.sys === 'ERP' ? '#2f6fb0' : r.sys === 'LIMS' ? '#2f9e6e' : '#7b54c9') + '">' + r.sys + '</span>' +
+          '<span class="log-detail">' + r.d + '</span>' +
+          '<span class="log-ms">' + r.ms + 'ms</span>' +
+          '<span class="log-st ' + (r.ok ? 'st-ok-t' : 'st-fail-t') + '">' + (r.ok ? '成功' : '失败') + '</span></div>';
+      }).join('');
+    }
+    function getArr(key) { try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) { return []; } }
+    function putArr(key, arr) { try { localStorage.setItem(key, JSON.stringify(arr)); } catch (e) {} }
+
+    var IT = {
+      go: go,
+      clearLog: function () { log = []; calls = ok = totalMs = 0; renderLog(); $('mCalls').textContent = '0'; $('mRate').textContent = '—'; $('mAvg').textContent = '—'; toast('联调日志已清空'); },
+      resetLocal: function () {
+        try { localStorage.removeItem(LS.re); localStorage.removeItem(LS.erp); localStorage.removeItem(LS.wms); } catch (e) {}
+        toast('回写数据已重置（mes_re_map / mes_erp_wo / mes_wms_move）');
+      },
+
+      // ---------- ERP ----------
+      erp: function () {
+        var btn = $('erpBtn'); btn.disabled = true; var old = btn.textContent; btn.innerHTML = '<span class="spinner"></span>联调中…';
+        var no = $('erpOrder').value;
+        call().then(function (ms) {
+          var map = {
+            'PO-2608-117': { product: '布洛芬颗粒', spec: '0.2g', qty: '300万袋', vessel: 'R-208', ws: '一车间', prio: '中', plan: 'PLAN-2608-004' },
+            'PO-2608-118': { product: '阿莫西林胶囊', spec: '0.25g', qty: '80万粒', vessel: 'R-305', ws: '二车间', prio: '高', plan: 'PLAN-2608-002' },
+            'PO-2608-119': { product: '对乙酰氨基酚片', spec: '0.5g', qty: '350万片', vessel: 'R-318', ws: '二车间', prio: '高', plan: 'PLAN-2608-011' }
+          }[no];
+          var wo = 'WO-' + ym() + '-0' + (20 + Math.floor(Math.random() * 80));
+          var resp = { orderNo: no, woNo: wo, product: map.product, spec: map.spec, planQty: map.qty, vessel: map.vessel, workshop: map.ws, priority: map.prio, planNo: map.plan, status: '待下发', src: 'ERP·INT-004' };
+          setRes('erpRes', 'erpResH', 'erpResB', true, '200 OK · 工单已生成', JSON.stringify(resp, null, 2));
+          $('erpKv').innerHTML = '<span class="chip">工单 <b>' + wo + '</b></span><span class="chip">产品 <b>' + map.product + '</b></span><span class="chip">车间 <b>' + map.ws + '</b></span>';
+          // 回写生产工单
+          var arr = getArr(LS.erp); arr.unshift({ wo: wo, order: no, product: map.product, spec: map.spec, qty: map.qty, vessel: map.vessel, ws: map.ws, prio: map.prio, plan: map.plan, ts: new Date().toISOString() });
+          putArr(LS.erp, arr.slice(0, 6));
+          addLog('ERP', 'INT-004 生产工单下发', ms, true, no + ' → 生成 ' + wo);
+          btn.disabled = false; btn.textContent = old;
+          toast('ERP 工单 <b>' + wo + '</b> 已下发 → 生产工单.html');
+        });
+      },
+
+      // ---------- LIMS ----------
+      lims: function () {
+        var btn = $('limsBtn'); btn.disabled = true; var old = btn.textContent; btn.innerHTML = '<span class="spinner"></span>联调中…';
+        var batch = ($('limsBatch').value || '').trim();
+        var prod = ($('limsProd').value || '').trim() || '未知产品';
+        if (!batch) { toast('请填写批次号'); btn.disabled = false; btn.textContent = old; return; }
+        call().then(function (ms) {
+          var judge = Math.random() < 0.78 ? '合格放行' : (Math.random() < 0.6 ? '有条件放行' : '拒收');
+          var items = [
+            { name: '含量', spec: '98.0~102.0', result: '99.6', unit: '%', judge: '合格' },
+            { name: '有关物质', spec: '≤0.5', result: '0.21', unit: '%', judge: '合格' },
+            { name: '微生物限度', spec: '≤100', result: '<10', unit: 'cfu/g', judge: '合格' },
+            { name: '溶出度', spec: '≥80', result: '93', unit: '%', judge: '合格' }
+          ];
+          var re = 'RE-' + ym() + '-' + pad(10 + Math.floor(Math.random() * 89));
+          var resp = { sampleNo: batch, product: prod, items: items, conclusion: judge, releaseNo: re, qa: '王受权', ts: new Date().toISOString() };
+          setRes('limsRes', 'limsResH', 'limsResB', true, '200 OK · 放行结论：' + judge, JSON.stringify(resp, null, 2));
+          $('limsKv').innerHTML = '<span class="chip">放行单号 <b>' + re + '</b></span><span class="chip">结论 <b>' + judge + '</b></span><span class="chip">QA <b>王受权</b></span>';
+          // 回写批次追溯（RE_MAP 合并层）
+          var obj = {}; try { obj = JSON.parse(localStorage.getItem(LS.re) || '{}'); } catch (e) {}
+          obj[batch] = { re: re, dec: judge, owner: '王受权', ebr: '已审核' };
+          try { localStorage.setItem(LS.re, JSON.stringify(obj)); } catch (e) {}
+          addLog('LIMS', 'INT-006 检验回传', ms, true, batch + ' → ' + re + '（' + judge + '）');
+          btn.disabled = false; btn.textContent = old;
+          toast('LIMS 放行 <b>' + re + '</b> 已回写 → 批次追溯.html');
+        });
+      },
+
+      // ---------- WMS ----------
+      wms: function () {
+        var btn = $('wmsBtn'); btn.disabled = true; var old = btn.textContent; btn.innerHTML = '<span class="spinner"></span>联调中…';
+        var type = $('wmsType').value;
+        var mat = ($('wmsMat').value || '').trim();
+        call().then(function (ms) {
+          var mv = 'MV-' + ym() + '-' + (400 + Math.floor(Math.random() * 599));
+          var status = type === 'issue' ? '已发料' : '已入库';
+          var resp = { moveNo: mv, moveType: type, material: mat, status: status, srcLoc: type === 'issue' ? 'WH-A03' : 'WS-一车间', dstLoc: type === 'issue' ? 'WS-一车间' : 'WH-F01', ts: new Date().toISOString(), src: 'WMS' };
+          setRes('wmsRes', 'wmsResH', 'wmsResB', true, '200 OK · ' + status, JSON.stringify(resp, null, 2));
+          $('wmsKv').innerHTML = '<span class="chip">移动单 <b>' + mv + '</b></span><span class="chip">类型 <b>' + (type === 'issue' ? '投料发料' : '成品入库') + '</b></span><span class="chip">状态 <b>' + status + '</b></span>';
+          var arr = getArr(LS.wms); arr.unshift({ mv: mv, type: type, mat: mat, status: status, ts: new Date().toISOString() });
+          putArr(LS.wms, arr.slice(0, 6));
+          addLog('WMS', type === 'issue' ? 'INT-007 投料发料' : 'INT-008 成品入库', ms, true, mv + ' · ' + status);
+          btn.disabled = false; btn.textContent = old;
+          toast('WMS 移动单 <b>' + mv + '</b> 已同步 → 称量配料.html');
+        });
+      }
+    };
+    window.IT = IT;
+    // 暴露给外部（PDA/其他页可触发）
+    window.MES_INT = IT;
+  })();
+  </script>
+  <script src="sidebar.js"></script>
+</body>
+</html>
