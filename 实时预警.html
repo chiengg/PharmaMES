@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MES 精细化工 - 实时预警中心</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary-50: #E6F1FB; --primary-200: #B5D4F4; --primary-400: #378ADD;
+    --primary-600: #185FA5; --primary-800: #0C447C; --primary-900: #042C53;
+    --normal: #1D9E75; --normal-bg: #E1F5EE;
+    --info: #EF9F27; --info-bg: #FAEEDA;
+    --warning: #D85A30; --warning-bg: #FAECE7;
+    --block: #E24B4A; --block-bg: #FCEBEB;
+    --white: #FFFFFF; --page: #F1EFE8; --border: #D3D1C7;
+    --text-sec: #888780; --text-sub: #5F5E5A; --text: #2C2C2A;
+  }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif;
+    background: var(--page); color: var(--text);
+    font-size: 14px; line-height: 1.6; overflow: hidden; height: 100vh;
+  }
+  .app { display: flex; height: 100vh; }
+
+  /* === 侧边栏 === */
+  .sidebar { width: 200px; min-width: 200px; background: var(--primary-800); color: #85B7EB; display: flex; flex-direction: column; overflow-y: auto; }
+  .sidebar-logo { padding: 14px 16px; border-bottom: 1px solid var(--primary-600); display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .sidebar-nav { padding: 8px 0; flex: 1; }
+  .nav-item { padding: 8px 16px 8px 36px; font-size: 12.5px; color: #85B7EB; cursor: pointer; position: relative; transition: all 0.15s; display: flex; align-items: center; gap: 7px; }
+  .nav-item:hover { background: var(--primary-900); color: #B5D4F4; }
+  .nav-item.active { background: var(--primary-600); color: #FFF; font-weight: 500; }
+  .nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--primary-400); }
+  .nav-section-title { padding: 16px 20px 6px; font-size: 11px; color: #378ADD; text-transform: uppercase; letter-spacing: 0.5px; }
+  .sidebar-footer { padding: 12px 20px; border-top: 1px solid var(--primary-600); font-size: 12px; color: #5DCAA5; display: flex; align-items: center; gap: 6px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--normal); }
+
+  /* === 主区域 === */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { height: 52px; min-height: 52px; background: var(--white); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+  .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-sec); }
+  .breadcrumb .current { color: var(--text); font-weight: 500; }
+  .topbar-right { display: flex; align-items: center; gap: 20px; }
+  .notify-btn { position: relative; cursor: pointer; padding: 6px; border-radius: 8px; }
+  .notify-btn:hover { background: var(--page); }
+  .notify-badge { position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; background: var(--block); color: #fff; border-radius: 50%; font-size: 10px; display: flex; align-items: center; justify-content: center; font-weight: 500; }
+  .user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+  .user-info:hover { background: var(--page); }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-600); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }
+  .user-name { font-size: 13px; color: var(--text); }
+  .user-role { font-size: 11px; color: var(--text-sec); }
+
+  /* === 内容区 === */
+  .content { flex: 1; overflow-y: auto; padding: 14px 28px; }
+
+  /* === 页面标题 === */
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+  .page-title { font-size: 22px; font-weight: 500; color: var(--text); }
+  .page-subtitle { font-size: 13px; color: var(--text-sec); margin-top: 2px; }
+  .header-actions { display: flex; gap: 10px; align-items: center; }
+  .btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+  .btn-primary { background: var(--primary-600); color: #fff; }
+  .btn-primary:hover { background: var(--primary-800); }
+  .btn-secondary { background: var(--white); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--primary-400); color: var(--primary-600); }
+  .live-tag { display: flex; align-items: center; gap: 6px; padding: 4px 12px; background: var(--block-bg); border-radius: 20px; font-size: 12px; color: var(--block); font-weight: 500; }
+
+  /* === 指标卡片 === */
+  .metrics-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 18px; }
+  .metric-card { background: var(--white); border-radius: 10px; padding: 14px 16px; border: 1px solid var(--border); position: relative; overflow: hidden; cursor: pointer; transition: all 0.15s; }
+  .metric-card:hover { border-color: var(--primary-400); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .metric-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .metric-card.block::before { background: var(--block); }
+  .metric-card.warning::before { background: var(--warning); }
+  .metric-card.info::before { background: var(--info); }
+  .metric-card.normal::before { background: var(--normal); }
+  .metric-card.blue::before { background: var(--primary-400); }
+  .metric-label { font-size: 11px; color: var(--text-sec); margin-bottom: 6px; }
+  .metric-value { font-family: "DIN Alternate", "Roboto", monospace; font-size: 26px; font-weight: 500; line-height: 1.1; }
+  .metric-card.block .metric-value { color: var(--block); }
+  .metric-card.warning .metric-value { color: var(--warning); }
+  .metric-card.info .metric-value { color: var(--info); }
+  .metric-card.normal .metric-value { color: var(--normal); }
+  .metric-card.blue .metric-value { color: var(--primary-600); }
+  .metric-unit { font-size: 12px; color: var(--text-sec); font-family: inherit; }
+  .metric-detail { font-size: 10px; color: var(--text-sec); margin-top: 4px; }
+
+  /* === 主布局 === */
+  .main-grid { display: grid; grid-template-columns: 1fr 340px; gap: 16px; margin-bottom: 16px; }
+
+  /* === 卡片 === */
+  .card { background: var(--white); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+  .card-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .card-title { font-size: 15px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .card-title .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .card-body { padding: 0; }
+
+  /* === 筛选栏 === */
+  .filter-bar { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--page); flex-wrap: wrap; }
+  .filter-group { display: flex; align-items: center; gap: 6px; }
+  .filter-label { font-size: 12px; color: var(--text-sec); }
+  .filter-select { padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--text); background: var(--white); cursor: pointer; font-family: inherit; outline: none; }
+  .filter-select:focus { border-color: var(--primary-400); }
+  .filter-tabs { display: flex; gap: 4px; background: var(--page); border-radius: 8px; padding: 3px; }
+  .filter-tab { padding: 4px 12px; font-size: 12px; color: var(--text-sec); cursor: pointer; border-radius: 6px; border: none; background: none; font-family: inherit; transition: all 0.15s; }
+  .filter-tab.active { background: var(--white); color: var(--primary-600); font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+  .filter-tab .count { font-family: "DIN", monospace; font-size: 11px; margin-left: 3px; opacity: 0.7; }
+
+  /* === 预警列表表格 === */
+  .alert-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .alert-table th { text-align: left; padding: 10px 16px; background: var(--page); color: var(--text-sec); font-weight: 500; font-size: 12px; border-bottom: 1px solid var(--border); white-space: nowrap; position: sticky; top: 0; }
+  .alert-table td { padding: 12px 16px; border-bottom: 1px solid var(--page); color: var(--text); vertical-align: middle; }
+  .alert-table tbody tr { cursor: pointer; transition: background 0.12s; }
+  .alert-table tbody tr:hover { background: var(--primary-50); }
+  .alert-table .num { font-family: "DIN Alternate", "Roboto", monospace; }
+  .batch-link { font-family: "DIN Alternate", "Roboto", monospace; font-weight: 500; color: var(--primary-600); cursor: pointer; }
+  .batch-link:hover { text-decoration: underline; }
+  .table-scroll { max-height: 440px; overflow-y: auto; }
+
+  /* === 状态标签 === */
+  .status-tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 14px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+  .status-tag .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .status-tag.normal { background: var(--normal-bg); color: #085041; } .status-tag.normal .dot { background: var(--normal); }
+  .status-tag.info { background: var(--info-bg); color: #633806; } .status-tag.info .dot { background: var(--info); }
+  .status-tag.warning { background: var(--warning-bg); color: #712B13; } .status-tag.warning .dot { background: var(--warning); }
+  .status-tag.block { background: var(--block-bg); color: #501313; } .status-tag.block .dot { background: var(--block); }
+  .status-tag.done { background: var(--page); color: var(--text-sub); } .status-tag.done .dot { background: var(--text-sec); }
+  .status-tag.pending { background: var(--primary-50); color: var(--primary-800); } .status-tag.pending .dot { background: var(--primary-400); }
+
+  /* === 预警类型标签 === */
+  .type-tag { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 400; }
+  .type-tag.temp { background: #FCEBEB; color: #712B13; }
+  .type-tag.pressure { background: var(--info-bg); color: #633806; }
+  .type-tag.sequence { background: var(--primary-50); color: var(--primary-800); }
+  .type-tag.weight { background: var(--warning-bg); color: #712B13; }
+  .type-tag.equipment { background: #E8E6DF; color: var(--text-sub); }
+
+  /* === 右侧面板 === */
+  .right-panel { display: flex; flex-direction: column; gap: 16px; }
+
+  /* === 统计卡片 === */
+  .stat-card { padding: 14px 20px; }
+  .stat-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--page); }
+  .stat-item:last-child { border-bottom: none; }
+  .stat-left { display: flex; align-items: center; gap: 8px; }
+  .stat-bar { width: 4px; height: 16px; border-radius: 2px; }
+  .stat-name { font-size: 12px; color: var(--text-sub); }
+  .stat-count { font-family: "DIN", monospace; font-size: 16px; font-weight: 500; }
+  .stat-percent { font-size: 11px; color: var(--text-sec); margin-left: 4px; }
+
+  /* === 处理流程 === */
+  .process-flow { padding: 14px 20px; }
+  .flow-item { display: flex; gap: 12px; padding-bottom: 16px; position: relative; }
+  .flow-item:last-child { padding-bottom: 0; }
+  .flow-item::before { content: ''; position: absolute; left: 13px; top: 28px; bottom: 0; width: 2px; background: var(--border); }
+  .flow-item:last-child::before { display: none; }
+  .flow-item.done::before { background: var(--normal); }
+  .flow-icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; z-index: 1; }
+  .flow-icon.done { background: var(--normal); color: #fff; }
+  .flow-icon.current { background: var(--primary-600); color: #fff; }
+  .flow-icon.pending { background: var(--page); color: var(--text-sec); border: 2px solid var(--border); }
+  .flow-body { flex: 1; padding-top: 3px; }
+  .flow-name { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 2px; }
+  .flow-detail { font-size: 11px; color: var(--text-sec); }
+  .flow-time { font-size: 11px; color: var(--text-sec); font-family: "DIN", monospace; margin-top: 2px; }
+
+  /* === 趋势图区域 === */
+  .bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .chart-area { padding: 16px 20px; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-sec); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .pulse { animation: pulse 1.5s ease-in-out infinite; }
+
+  /* === 处置按钮 === */
+  .warn-handle-btn{background:var(--primary-600,#185FA5);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;font-weight:500;font-family:inherit;transition:all .15s;}
+  .warn-handle-btn:hover{background:var(--primary-800,#0C447C);}
+  .warn-handle-btn.block{background:var(--block,#E5484D);}
+  .warn-handle-btn.block:hover{opacity:.9;}
+
+  /* === 处置抽屉（同生产执行闭环逻辑） === */
+  .kdt-mask{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.3);z-index:9998;display:none;}
+  .kdt-mask.open{display:block;}
+  .kdt-drawer{position:fixed;top:0;right:0;width:460px;height:100vh;background:#fff;box-shadow:-4px 0 24px rgba(0,0,0,.1);z-index:9999;transform:translateX(100%);transition:transform .3s;overflow-y:auto;}
+  .kdt-drawer.open{transform:translateX(0);}
+  .kdt-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);}
+  .kdt-badge{font-size:13px;font-weight:600;color:var(--block,#E5484D);}
+  .kdt-close{background:none;border:none;font-size:20px;color:var(--text-sec);cursor:pointer;}
+  .kdt-body{padding:20px;}
+  .kdt-meta{font-size:12px;color:var(--text-sec);line-height:1.8;background:var(--page);border-radius:8px;padding:12px 14px;margin-bottom:14px;}
+  .kdt-meta b{color:var(--text);}
+  .kdt-evt{font-size:12px;color:var(--text-sub);line-height:1.9;background:var(--block-bg,#FCEBEB);border:1px solid #F6D6D6;border-radius:8px;padding:10px 14px;margin-bottom:16px;}
+  .kdt-evt b{color:var(--text);}
+  .kdt-steps{display:flex;flex-direction:column;gap:0;margin-bottom:16px;}
+  .kdt-step{display:flex;align-items:flex-start;gap:12px;padding:10px 0;position:relative;}
+  .kdt-step:not(:last-child)::after{content:'';position:absolute;left:15px;top:36px;width:2px;height:calc(100% - 26px);background:var(--border);}
+  .kdt-step.done:not(:last-child)::after{background:var(--normal,#16A34A);}
+  .kdt-step .kdt-dot{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex:none;z-index:1;}
+  .kdt-step.done .kdt-dot{background:var(--normal,#16A34A);color:#fff;}
+  .kdt-step.cur .kdt-dot{background:var(--block,#E5484D);color:#fff;box-shadow:0 0 0 4px rgba(229,72,77,.15);}
+  .kdt-step.todo .kdt-dot{background:#fff;border:1.5px solid var(--border);color:var(--text-sec);}
+  .kdt-step .kdt-info b{font-size:13px;font-weight:600;color:var(--text);}
+  .kdt-step .kdt-info span{display:block;font-size:12px;color:var(--text-sec);margin-top:3px;line-height:1.6;}
+  .kdt-act{width:100%;background:var(--primary-600,#2563EB);color:#fff;border:none;border-radius:8px;padding:11px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;}
+  .kdt-closed{font-size:15px;font-weight:600;color:var(--normal,#16A34A);line-height:1.7;text-align:center;padding:20px 0;}
+  .kdt-closed span{display:block;font-size:12.5px;font-weight:400;color:var(--text-sec);margin-top:6px;}
+
+  /* === 侧边栏 v2：分组折叠 + 窄宽 + 新LOGO === */
+  .logo-text { line-height: 1.25; min-width: 0; }
+  .logo-name { font-size: 15px; font-weight: 500; color: #FFFFFF; letter-spacing: 0.3px; }
+  .logo-slogan { font-size: 10.5px; color: #93B5D9; margin-top: 1px; }
+  .nav-group-head { padding: 14px 16px 5px; font-size: 11px; color: #6FA9DA; letter-spacing: 0.6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; transition: color 0.15s; }
+  .nav-group-head:hover { color: #B5D4F4; }
+  .nav-group-head > span:first-child { font-weight: 500; }
+  .nav-caret { font-size: 10px; opacity: 0.75; transition: transform 0.18s; display: inline-block; }
+  .nav-group-items { overflow: hidden; }
+  .nav-group.collapsed .nav-caret { transform: rotate(-90deg); }
+  .nav-group.collapsed .nav-group-items { display: none; }
+  .sidebar-collapse { padding: 10px 16px; font-size: 12px; color: #85B7EB; cursor: pointer; display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--primary-600); transition: all 0.15s; }
+  .sidebar-collapse:hover { background: var(--primary-900); color: #B5D4F4; }
+  .collapse-caret { display: inline-block; transition: transform 0.2s; font-size: 14px; line-height: 1; }
+  .sidebar.collapsed .collapse-caret { transform: rotate(180deg); }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- 侧边栏 -->
+  <aside class="sidebar" id="appSidebar"></aside>
+
+  <!-- 主区域 -->
+  <div class="main">
+    <header class="topbar">
+      <div class="breadcrumb">
+        <span>安质环管控</span><span>›</span>
+        <span class="current">动作监控预警</span>
+      </div>
+      <div class="topbar-right">
+        <div class="live-tag"><span class="pulse" style="width:6px;height:6px;border-radius:50%;background:var(--block);display:inline-block;"></span>实时监控中</div>
+        <div id="plantSwitch"></div>
+        <div id="roleSwitch"></div>
+      <div class="user-info">
+          <div class="avatar">张</div>
+          <div><div class="user-name">张明</div><div class="user-role">车间主管</div></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="tabbar" id="tabBar"></div>
+      <div class="content">
+    
+      <!-- 页面标题 -->
+      <div class="page-header">
+        <div>
+          <div class="page-title">实时预警中心</div>
+          <div class="page-subtitle">2026年7月31日 · 全车间 · 最后更新: 10:28</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="window.location.href='预警规则配置.html'">🔔 预警规则配置</button>
+          <button class="btn btn-secondary" onclick="alert('报表导出功能开发中')">📥 导出报表</button>
+          <button class="btn btn-primary" onclick="window.location.href='自动处置策略.html'">⚙ 自动处置策略</button>
+        </div>
+      </div>
+
+      <!-- 指标卡片 -->
+      <div class="metrics-row">
+        <div class="metric-card block">
+          <div class="metric-label">阻断预警</div>
+          <div class="metric-value">2<span class="metric-unit"> 起</span></div>
+          <div class="metric-detail">需立即处理</div>
+        </div>
+        <div class="metric-card warning">
+          <div class="metric-label">警告预警</div>
+          <div class="metric-value">3<span class="metric-unit"> 起</span></div>
+          <div class="metric-detail">需关注确认</div>
+        </div>
+        <div class="metric-card info">
+          <div class="metric-label">提示预警</div>
+          <div class="metric-value">4<span class="metric-unit"> 起</span></div>
+          <div class="metric-detail">建议核查</div>
+        </div>
+        <div class="metric-card normal">
+          <div class="metric-label">今日已处理</div>
+          <div class="metric-value">12<span class="metric-unit"> 起</span></div>
+          <div class="metric-detail">平均响应 8min</div>
+        </div>
+        <div class="metric-card blue">
+          <div class="metric-label">监控设备数</div>
+          <div class="metric-value">48<span class="metric-unit"> 台</span></div>
+          <div class="metric-detail">在线 46 · 离线 2</div>
+        </div>
+      </div>
+
+      <!-- 主体布局 -->
+      <div class="main-grid">
+        <!-- 左侧：预警列表 -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="dot pulse" style="background: var(--block);"></span>预警事件列表</div>
+            <div class="filter-tabs" id="warnTabs">
+              <button class="filter-tab active" data-k="全部">全部<span class="count" id="cAll">9</span></button>
+              <button class="filter-tab" data-k="阻断">阻断<span class="count" id="cBlock">2</span></button>
+              <button class="filter-tab" data-k="警告">警告<span class="count" id="cWarn">3</span></button>
+              <button class="filter-tab" data-k="提示">提示<span class="count" id="cInfo">4</span></button>
+              <button class="filter-tab" data-k="已处理">已处理<span class="count" id="cDone">0</span></button>
+            </div>
+          </div>
+          <!-- 筛选栏 -->
+          <div class="filter-bar">
+            <div class="filter-group">
+              <span class="filter-label">车间：</span>
+              <select class="filter-select" id="wWorkshop"><option>全部车间</option><option>一车间</option><option>二车间</option><option>三车间</option></select>
+            </div>
+            <div class="filter-group">
+              <span class="filter-label">类型：</span>
+              <select class="filter-select" id="wType"><option>全部类型</option><option>温度异常</option><option>压力异常</option><option>投料偏差</option><option>顺序错误</option><option>设备故障</option><option>设备提示</option></select>
+            </div>
+            <div class="filter-group">
+              <span class="filter-label">时间：</span>
+              <select class="filter-select" id="wTime"><option>今日</option><option>近7天</option><option>近30天</option></select>
+            </div>
+          </div>
+          <!-- 表格 -->
+          <div data-plant-scope="P1" class="table-scroll">
+            <table class="alert-table">
+              <thead>
+                <tr>
+                  <th>级别</th>
+                  <th>釜次编号</th>
+                  <th>预警类型</th>
+                  <th>预警内容</th>
+                  <th>实际值</th>
+                  <th>标准值</th>
+                  <th>工序</th>
+                  <th>时间</th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr id="evt-1" class="alert-row" data-level="block" data-status="待处理" data-type="温度异常" data-workshop="二车间" data-step="1" data-kevt="kevt-1" data-batch="RC-0731-003" data-product="阿司匹林肠溶片" data-proc="投料反应" data-device="反应釜R-205·温度变送器TT-205" data-val="85.6°C" data-std="≤80.0°C" data-dev="+5.6°C（超限7%）" data-impact="投料反应暂停，釜次阻断，需审批后处理" data-wo="WO-2608-004">
+                  <td><span class="status-tag block"><span class="dot pulse"></span>阻断</span></td>
+                  <td><span class="batch-link" onclick="gotoBatchFromEl(this)">RC-0731-003</span></td>
+                  <td><span class="type-tag temp">温度异常</span></td>
+                  <td>投料反应温度超限</td>
+                  <td class="num" style="color: var(--block); font-weight: 500;">85.6°C</td>
+                  <td class="num">≤80.0°C</td>
+                  <td>投料反应</td>
+                  <td class="num">10:15</td>
+                  <td><span class="status-tag pending"><span class="dot pulse"></span>待处理</span></td>
+                  <td><button class="warn-handle-btn block" onclick="WD.open('evt-1')">处置 →</button></td>
+                </tr>
+                <tr id="evt-2" class="alert-row" data-wo="WO-2608-004" data-level="block" data-status="待处理" data-type="顺序错误" data-workshop="二车间" data-step="1" data-kevt="kevt-3" data-batch="RC-0731-003" data-product="阿司匹林肠溶片" data-proc="投料反应" data-device="反应釜R-205·阀门V-203/V-201" data-val="V-203先于V-201" data-std="V-201→V-203" data-dev="顺序错误" data-impact="阀门开启顺序错误，需复核纠正">
+                  <td><span class="status-tag block"><span class="dot"></span>阻断</span></td>
+                  <td><span class="batch-link" onclick="gotoBatchFromEl(this)">RC-0731-003</span></td>
+                  <td><span class="type-tag sequence">顺序错误</span></td>
+                  <td>阀门开启顺序错误</td>
+                  <td class="num" style="color: var(--block);">V-203先于V-201</td>
+                  <td class="num">V-201→V-203</td>
+                  <td>投料反应</td>
+                  <td class="num">09:12</td>
+                  <td><span class="status-tag pending"><span class="dot pulse"></span>待处理</span></td>
+                  <td><button class="warn-handle-btn block" onclick="WD.open('evt-2')">处置 →</button></td>
+                </tr>
+                <tr id="evt-3" class="alert-row" data-level="warning" data-status="待确认" data-type="压力异常" data-workshop="一车间" data-step="2" data-kevt="" data-batch="RC-0731-005" data-product="布洛芬缓释胶囊" data-proc="混合反应" data-device="反应釜R-208·压力变送器PT-208" data-val="2.18 MPa" data-std="≤2.0 MPa" data-dev="+0.18MPa（超限9%）" data-impact="混合反应暂停，需现场隔离排料" data-wo="WO-2608-002">
+                  <td><span class="status-tag warning"><span class="dot"></span>警告</span></td>
+                  <td><span class="batch-link" onclick="gotoBatchFromEl(this)">RC-0731-005</span></td>
+                  <td><span class="type-tag pressure">压力异常</span></td>
+                  <td>釜内压力偏高</td>
+                  <td class="num" style="color: var(--warning); font-weight: 500;">2.18 MPa</td>
+                  <td class="num">≤2.0 MPa</td>
+                  <td>混合反应</td>
+                  <td class="num">10:08</td>
+                  <td><span class="status-tag pending"><span class="dot"></span>待确认</span></td>
+                  <td><button class="warn-handle-btn" onclick="WD.open('evt-3')">确认 →</button></td>
+                </tr>
+                <tr id="evt-4" class="alert-row" data-wo="WO-2608-004" data-level="warning" data-status="待确认" data-type="投料偏差" data-workshop="二车间" data-step="2" data-kevt="" data-batch="RC-0731-003" data-product="阿司匹林肠溶片" data-proc="投料反应" data-device="反应釜R-205·称重模块" data-val="52.3 kg" data-std="50.0 ±1.0 kg" data-dev="+1.3kg（超限1.3%）" data-impact="投料量超差，复核称重记录">
+                  <td><span class="status-tag warning"><span class="dot"></span>警告</span></td>
+                  <td><span class="batch-link" onclick="gotoBatchFromEl(this)">RC-0731-003</span></td>
+                  <td><span class="type-tag weight">投料偏差</span></td>
+                  <td>投料量超出允许偏差</td>
+                  <td class="num" style="color: var(--warning); font-weight: 500;">52.3 kg</td>
+                  <td class="num">50.0 ±1.0 kg</td>
+                  <td>投料反应</td>
+                  <td class="num">09:45</td>
+                  <td><span class="status-tag pending"><span class="dot"></span>待确认</span></td>
+                  <td><button class="warn-handle-btn" onclick="WD.open('evt-4')">确认 →</button></td>
+                </tr>
+                <tr id="evt-5" class="alert-row" data-level="warning" data-status="待确认" data-type="顺序错误" data-workshop="三车间" data-step="2" data-kevt="" data-batch="RC-0731-006" data-product="头孢氨苄胶囊" data-proc="称量配料" data-device="称量釜·顺序控制器" data-val="B先于A" data-std="A→B" data-dev="顺序错误" data-impact="投料顺序错误，需复核纠正" data-wo="WO-2608-010">
+                  <td><span class="status-tag warning"><span class="dot"></span>警告</span></td>
+                  <td><span class="batch-link" onclick="gotoBatchFromEl(this)">RC-0731-006</span></td>
+                  <td><span class="type-tag sequence">顺序偏差</span></td>
+                  <td>催化剂B应在溶媒A之后投料</td>
+                  <td class="num" style="color: var(--warning);">B先于A</td>
+                  <td class="num">A→B</td>
+                  <td>称量配料</td>
+                  <td class="num">09:52</td>
+                  <td><span class="status-tag pending"><span class="dot"></span>待确认</span></td>
+                  <td><button class="warn-handle-btn" onclick="WD.open('evt-5')">确认 →</button></td>
+                </tr>
+                <tr id="evt-6" class="alert-row" data-level="info" data-status="待核查" data-type="温度异常" data-workshop="一车间" data-step="3" data-kevt="" data-batch="RC-0731-004" data-product="盐酸小檗碱片" data-proc="干燥" data-device="干燥机·温度模块" data-val="±3.2°C/min" data-std="≤±2.0°C/min" data-dev="波动偏大" data-impact="干燥温度波动，复核温控曲线" data-wo="WO-2608-006">
+                  <td><span class="status-tag info"><span class="dot"></span>提示</span></td>
+                  <td><span class="batch-link" onclick="gotoBatchFromEl(this)">RC-0731-004</span></td>
+                  <td><span class="type-tag temp">温度波动</span></td>
+                  <td>干燥温度波动幅度偏大</td>
+                  <td class="num" style="color: var(--info);">±3.2°C/min</td>
+                  <td class="num">≤±2.0°C/min</td>
+                  <td>干燥</td>
+                  <td class="num">10:20</td>
+                  <td><span class="status-tag pending"><span class="dot"></span>待核查</span></td>
+                  <td><button class="warn-handle-btn" onclick="WD.open('evt-6')">核查 →</button></td>
+                </tr>
+                <tr id="evt-7" class="alert-row" data-level="info" data-status="待核查" data-type="设备提示" data-workshop="二车间" data-step="3" data-kevt="" data-batch="RC-0731-007" data-product="硝苯地平片" data-proc="溶解" data-device="溶解罐·振动传感器" data-val="2.8mm/s" data-std="≤2.0mm/s" data-dev="偏高" data-impact="搅拌器振动偏高，安排点检" data-wo="WO-2608-007">
+                  <td><span class="status-tag info"><span class="dot"></span>提示</span></td>
+                  <td><span class="batch-link" onclick="gotoBatchFromEl(this)">RC-0731-007</span></td>
+                  <td><span class="type-tag equipment">设备提示</span></td>
+                  <td>搅拌器振动幅度略高</td>
+                  <td class="num" style="color: var(--info);">2.8mm/s</td>
+                  <td class="num">≤2.0mm/s</td>
+                  <td>溶解</td>
+                  <td class="num">10:05</td>
+                  <td><span class="status-tag pending"><span class="dot"></span>待核查</span></td>
+                  <td><button class="warn-handle-btn" onclick="WD.open('evt-7')">核查 →</button></td>
+                </tr>
+                <tr id="evt-8" class="alert-row" data-level="info" data-status="待核查" data-type="投料偏差" data-workshop="三车间" data-step="3" data-kevt="" data-batch="RC-0731-002" data-product="阿莫西林胶囊" data-proc="干燥" data-device="干燥机·称重" data-val="22.8 kg" data-std="23.0 kg" data-dev="接近上限" data-impact="辅料投料接近上限，复核投料量" data-wo="WO-2608-001">
+                  <td><span class="status-tag info"><span class="dot"></span>提示</span></td>
+                  <td><span class="batch-link" onclick="gotoBatchFromEl(this)">RC-0731-002</span></td>
+                  <td><span class="type-tag weight">投料提示</span></td>
+                  <td>辅料投料接近上限</td>
+                  <td class="num" style="color: var(--info);">22.8 kg</td>
+                  <td class="num">23.0 kg</td>
+                  <td>干燥</td>
+                  <td class="num">09:35</td>
+                  <td><span class="status-tag pending"><span class="dot"></span>待核查</span></td>
+                  <td><button class="warn-handle-btn" onclick="WD.open('evt-8')">核查 →</button></td>
+                </tr>
+                <tr id="evt-9" class="alert-row" data-level="info" data-status="待核查" data-type="压力异常" data-workshop="一车间" data-step="3" data-kevt="" data-batch="RC-0731-008" data-product="双氯芬酸钠肠溶片" data-proc="过滤" data-device="过滤机·压力传感器" data-val="0.35 MPa" data-std="≤0.5 MPa" data-dev="缓慢上升" data-impact="过滤压力缓升，关注滤材状态" data-wo="WO-2608-005">
+                  <td><span class="status-tag info"><span class="dot"></span>提示</span></td>
+                  <td><span class="batch-link" onclick="gotoBatchFromEl(this)">RC-0731-008</span></td>
+                  <td><span class="type-tag pressure">压力提示</span></td>
+                  <td>过滤压力缓慢上升</td>
+                  <td class="num" style="color: var(--info);">0.35 MPa</td>
+                  <td class="num">≤0.5 MPa</td>
+                  <td>过滤</td>
+                  <td class="num">09:20</td>
+                  <td><span class="status-tag pending"><span class="dot"></span>待核查</span></td>
+                  <td><button class="warn-handle-btn" onclick="WD.open('evt-9')">核查 →</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <!-- 分页 -->
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-top: 1px solid var(--page); font-size: 12px; color: var(--text-sec);">
+            <span id="warnCount">共 9 条预警</span> · 第 1/1 页
+            <div style="display: flex; gap: 6px;">
+              <button class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px;" disabled>上一页</button>
+              <button class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px; background: var(--primary-600); color: #fff; border: none;">1</button>
+              <button class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px;" disabled>下一页</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右侧面板 -->
+        <div class="right-panel">
+          <!-- 预警分类统计 -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="dot" style="background: var(--info);"></span>预警类型分布</div>
+              <span style="font-size: 11px; color: var(--text-sec);">今日</span>
+            </div>
+            <div class="card-body stat-card">
+              <div class="stat-item">
+                <div class="stat-left"><div class="stat-bar" style="background: var(--block);"></div><span class="stat-name">温度异常</span></div>
+                <div><span class="stat-count" style="color: var(--block);">3</span><span class="stat-percent">33%</span></div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-left"><div class="stat-bar" style="background: var(--warning);"></div><span class="stat-name">投料偏差</span></div>
+                <div><span class="stat-count" style="color: var(--warning);">2</span><span class="stat-percent">22%</span></div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-left"><div class="stat-bar" style="background: var(--primary-400);"></div><span class="stat-name">顺序错误</span></div>
+                <div><span class="stat-count" style="color: var(--primary-600);">2</span><span class="stat-percent">22%</span></div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-left"><div class="stat-bar" style="background: var(--info);"></div><span class="stat-name">压力异常</span></div>
+                <div><span class="stat-count" style="color: var(--info);">1</span><span class="stat-percent">11%</span></div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-left"><div class="stat-bar" style="background: var(--text-sec);"></div><span class="stat-name">设备提示</span></div>
+                <div><span class="stat-count" style="color: var(--text-sub);">1</span><span class="stat-percent">11%</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 处理状态统计 -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="dot" style="background: var(--primary-400);"></span>处理状态</div>
+            </div>
+            <div class="card-body stat-card">
+              <div class="stat-item">
+                <div class="stat-left"><div class="stat-bar" style="background: var(--block);"></div><span class="stat-name">待处理</span></div>
+                <div><span class="stat-count" style="color: var(--block);" id="stPending">2</span></div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-left"><div class="stat-bar" style="background: var(--warning);"></div><span class="stat-name">待确认</span></div>
+                <div><span class="stat-count" style="color: var(--warning);" id="stConfirm">3</span></div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-left"><div class="stat-bar" style="background: var(--info);"></div><span class="stat-name">待核查</span></div>
+                <div><span class="stat-count" style="color: var(--info);" id="stCheck">4</span></div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-left"><div class="stat-bar" style="background: var(--normal);"></div><span class="stat-name">已处理</span></div>
+                <div><span class="stat-count" style="color: var(--normal);" id="stProcessed">0</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- RC-0731-003 阻断事件处置流程 -->
+          <div class="card" id="rcFlowCard">
+            <div class="card-header">
+              <div class="card-title"><span class="dot pulse" style="background: var(--block);"></span>RC-0731-003 处置流程</div>
+              <span class="status-tag block"><span class="dot"></span>阻断</span>
+            </div>
+            <div class="card-body process-flow">
+              <div class="flow-item done">
+                <div class="flow-icon done">!</div>
+                <div class="flow-body">
+                  <div class="flow-name">系统自动阻断</div>
+                  <div class="flow-detail">检测到投料温度超限（85.6°C > 80°C），系统自动暂停投料</div>
+                  <div class="flow-time">10:15:03</div>
+                </div>
+              </div>
+              <div class="flow-item done">
+                <div class="flow-icon done">✓</div>
+                <div class="flow-body">
+                  <div class="flow-name">通知已发送</div>
+                  <div class="flow-detail">已通知操作员(李伟)、车间主管(张明)、QA(刘质检)</div>
+                  <div class="flow-time">10:15:05</div>
+                </div>
+              </div>
+              <div class="flow-item current" id="rcFlowWait">
+                <div class="flow-icon current">→</div>
+                <div class="flow-body">
+                  <div class="flow-name">等待人工处置</div>
+                  <div class="flow-detail">需操作员确认现场情况并提交处置方案</div>
+                  <div class="flow-time">已等待 13min</div>
+                </div>
+              </div>
+              <div class="flow-item">
+                <div class="flow-icon pending">4</div>
+                <div class="flow-body">
+                  <div class="flow-name">QA审核确认</div>
+                  <div class="flow-detail">QA确认处置方案合理性</div>
+                </div>
+              </div>
+              <div class="flow-item">
+                <div class="flow-icon pending">5</div>
+                <div class="flow-body">
+                  <div class="flow-name">恢复生产</div>
+                  <div class="flow-detail">审核通过后解除阻断，恢复生产</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 底部：预警趋势 + 热点釜次 -->
+      <div class="bottom-grid">
+        <!-- 预警趋势 -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="dot" style="background: var(--primary-400);"></span>预警趋势（近7天）</div>
+            <div class="filter-tabs">
+              <button class="filter-tab active">按级别</button>
+              <button class="filter-tab">按类型</button>
+            </div>
+          </div>
+          <div class="card-body chart-area">
+            <div style="display: flex; gap: 12px; height: 160px; align-items: flex-end; padding: 0 10px;">
+              <!-- 每日柱状图 -->
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                <div style="display: flex; flex-direction: column; gap: 2px; width: 100%; align-items: center;">
+                  <div style="width: 60%; height: 12px; background: var(--block); border-radius: 2px 2px 0 0;" title="阻断 1"></div>
+                  <div style="width: 60%; height: 18px; background: var(--warning);" title="警告 1"></div>
+                  <div style="width: 60%; height: 24px; background: var(--info);" title="提示 2"></div>
+                </div>
+                <span style="font-size: 11px; color: var(--text-sec); font-family: DIN, monospace;">07-25</span>
+              </div>
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                <div style="display: flex; flex-direction: column; gap: 2px; width: 100%; align-items: center;">
+                  <div style="width: 60%; height: 0px;"></div>
+                  <div style="width: 60%; height: 24px; background: var(--warning); border-radius: 2px 2px 0 0;" title="警告 2"></div>
+                  <div style="width: 60%; height: 18px; background: var(--info);" title="提示 1"></div>
+                </div>
+                <span style="font-size: 11px; color: var(--text-sec); font-family: DIN, monospace;">07-26</span>
+              </div>
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                <div style="display: flex; flex-direction: column; gap: 2px; width: 100%; align-items: center;">
+                  <div style="width: 60%; height: 24px; background: var(--block); border-radius: 2px 2px 0 0;" title="阻断 2"></div>
+                  <div style="width: 60%; height: 12px; background: var(--warning);" title="警告 1"></div>
+                  <div style="width: 60%; height: 30px; background: var(--info);" title="提示 3"></div>
+                </div>
+                <span style="font-size: 11px; color: var(--text-sec); font-family: DIN, monospace;">07-27</span>
+              </div>
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                <div style="display: flex; flex-direction: column; gap: 2px; width: 100%; align-items: center;">
+                  <div style="width: 60%; height: 0px;"></div>
+                  <div style="width: 60%; height: 18px; background: var(--warning); border-radius: 2px 2px 0 0;" title="警告 1"></div>
+                  <div style="width: 60%; height: 12px; background: var(--info);" title="提示 1"></div>
+                </div>
+                <span style="font-size: 11px; color: var(--text-sec); font-family: DIN, monospace;">07-28</span>
+              </div>
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                <div style="display: flex; flex-direction: column; gap: 2px; width: 100%; align-items: center;">
+                  <div style="width: 60%; height: 12px; background: var(--block); border-radius: 2px 2px 0 0;" title="阻断 1"></div>
+                  <div style="width: 60%; height: 24px; background: var(--warning);" title="警告 2"></div>
+                  <div style="width: 60%; height: 24px; background: var(--info);" title="提示 2"></div>
+                </div>
+                <span style="font-size: 11px; color: var(--text-sec); font-family: DIN, monospace;">07-29</span>
+              </div>
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                <div style="display: flex; flex-direction: column; gap: 2px; width: 100%; align-items: center;">
+                  <div style="width: 60%; height: 0px;"></div>
+                  <div style="width: 60%; height: 12px; background: var(--warning); border-radius: 2px 2px 0 0;" title="警告 1"></div>
+                  <div style="width: 60%; height: 18px; background: var(--info);" title="提示 1"></div>
+                </div>
+                <span style="font-size: 11px; color: var(--text-sec); font-family: DIN, monospace;">07-30</span>
+              </div>
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                <div style="display: flex; flex-direction: column; gap: 2px; width: 100%; align-items: center;">
+                  <div style="width: 60%; height: 24px; background: var(--block); border-radius: 2px 2px 0 0;" title="阻断 2"></div>
+                  <div style="width: 60%; height: 36px; background: var(--warning);" title="警告 3"></div>
+                  <div style="width: 60%; height: 48px; background: var(--info);" title="提示 4"></div>
+                </div>
+                <span style="font-size: 11px; color: var(--text-sec); font-family: DIN, monospace; font-weight: 500; color: var(--primary-600);">07-31</span>
+              </div>
+            </div>
+            <div style="display: flex; gap: 20px; margin-top: 12px; justify-content: center;">
+              <div style="display: flex; align-items: center; gap: 6px;"><div style="width: 10px; height: 10px; border-radius: 2px; background: var(--block);"></div><span style="font-size: 11px; color: var(--text-sub);">阻断</span></div>
+              <div style="display: flex; align-items: center; gap: 6px;"><div style="width: 10px; height: 10px; border-radius: 2px; background: var(--warning);"></div><span style="font-size: 11px; color: var(--text-sub);">警告</span></div>
+              <div style="display: flex; align-items: center; gap: 6px;"><div style="width: 10px; height: 10px; border-radius: 2px; background: var(--info);"></div><span style="font-size: 11px; color: var(--text-sub);">提示</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 热点釜次 -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="dot" style="background: var(--block);"></span>预警热点釜次</div>
+            <span style="font-size: 11px; color: var(--text-sec);">今日</span>
+          </div>
+          <div class="card-body stat-card">
+            <div class="stat-item">
+              <div class="stat-left"><span class="batch-link" onclick="gotoBatchFromEl(this)" style="font-size: 13px;">RC-0731-003</span><span style="font-size: 12px; color: var(--text-sub); margin-left: 8px;">阿司匹林肠溶片</span></div>
+              <div style="display: flex; align-items: center; gap: 4px;"><span class="status-tag block" style="font-size: 10px; padding: 1px 6px;">3起</span></div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-left"><span class="batch-link" onclick="gotoBatchFromEl(this)" style="font-size: 13px;">RC-0731-005</span><span style="font-size: 12px; color: var(--text-sub); margin-left: 8px;">布洛芬缓释胶囊</span></div>
+              <div style="display: flex; align-items: center; gap: 4px;"><span class="status-tag warning" style="font-size: 10px; padding: 1px 6px;">1起</span></div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-left"><span class="batch-link" onclick="gotoBatchFromEl(this)" style="font-size: 13px;">RC-0731-006</span><span style="font-size: 12px; color: var(--text-sub); margin-left: 8px;">头孢氨苄胶囊</span></div>
+              <div style="display: flex; align-items: center; gap: 4px;"><span class="status-tag warning" style="font-size: 10px; padding: 1px 6px;">1起</span></div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-left"><span class="batch-link" onclick="gotoBatchFromEl(this)" style="font-size: 13px;">RC-0731-004</span><span style="font-size: 12px; color: var(--text-sub); margin-left: 8px;">盐酸小檗碱片</span></div>
+              <div style="display: flex; align-items: center; gap: 4px;"><span class="status-tag info" style="font-size: 10px; padding: 1px 6px;">1起</span></div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-left"><span class="batch-link" onclick="gotoBatchFromEl(this)" style="font-size: 13px;">RC-0731-007</span><span style="font-size: 12px; color: var(--text-sub); margin-left: 8px;">硝苯地平片</span></div>
+              <div style="display: flex; align-items: center; gap: 4px;"><span class="status-tag info" style="font-size: 10px; padding: 1px 6px;">1起</span></div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-left"><span class="batch-link" onclick="gotoBatchFromEl(this)" style="font-size: 13px;">RC-0731-002</span><span style="font-size: 12px; color: var(--text-sub); margin-left: 8px;">阿莫西林胶囊</span></div>
+              <div style="display: flex; align-items: center; gap: 4px;"><span class="status-tag info" style="font-size: 10px; padding: 1px 6px;">1起</span></div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-left"><span class="batch-link" onclick="gotoBatchFromEl(this)" style="font-size: 13px;">RC-0731-008</span><span style="font-size: 12px; color: var(--text-sub); margin-left: 8px;">双氯芬酸钠肠溶片</span></div>
+              <div style="display: flex; align-items: center; gap: 4px;"><span class="status-tag info" style="font-size: 10px; padding: 1px 6px;">1起</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    
+    </div></div>
+  </div>
+
+
+<!-- 预警处置 / 闭环抽屉 -->
+<div class="kdt-mask" id="wdMask" onclick="WD.close()"></div>
+<div class="kdt-drawer" id="wdDrawer">
+  <div class="kdt-head">
+    <span class="kdt-badge" id="wdTitle">异常处理</span>
+    <button class="kdt-close" onclick="WD.close()">×</button>
+  </div>
+  <div class="kdt-body" id="wdBody"></div>
+</div>
+
+<script>
+  /* ===== 预警事件列表：Tab + 筛选条件 真实过滤 ===== */
+  (function () {
+    var rows = Array.prototype.slice.call(document.querySelectorAll('.alert-row'));
+    if (!rows.length) return;
+    var tabs = document.getElementById('warnTabs');
+    var wWorkshop = document.getElementById('wWorkshop');
+    var wType = document.getElementById('wType');
+    var wTime = document.getElementById('wTime');
+    var curKey = '全部';
+
+    var emptyRow = document.createElement('tr');
+    emptyRow.innerHTML = '<td colspan="10" style="text-align:center;padding:56px 0;color:var(--text-sec);font-size:13px;">'
+      + '<div style="font-size:28px;opacity:.35;margin-bottom:8px;">▶</div>'
+      + '无符合条件的预警事件<br><span style="font-size:12px;opacity:.75;">请调整状态Tab或筛选条件后重试</span></td>';
+    emptyRow.style.display = 'none';
+    rows[0].parentNode.appendChild(emptyRow);
+
+    function matchKey(d) {
+      if (curKey === '全部') return true;
+      if (curKey === '已处理') return d.status === '已处理';
+      if (curKey === '阻断') return d.level === 'block';
+      if (curKey === '警告') return d.level === 'warning';
+      if (curKey === '提示') return d.level === 'info';
+      return true;
+    }
+    function pass(r) {
+      var d = r.dataset;
+      if (!matchKey(d)) return false;
+      if (wWorkshop && wWorkshop.value !== '全部车间' && d.workshop !== wWorkshop.value) return false;
+      if (wType && wType.value !== '全部类型' && (d.type || '') !== wType.value) return false;
+      return true;
+    }
+    function apply() {
+      var shown = 0;
+      rows.forEach(function (r) {
+        var ok = pass(r);
+        r.style.display = ok ? '' : 'none';
+        if (ok) shown++;
+      });
+      emptyRow.style.display = shown ? 'none' : '';
+      var wc = document.getElementById('warnCount');
+      if (wc) wc.textContent = '共 ' + shown + ' 条预警';
+      updateCounts();
+    }
+    function updateCounts() {
+      var c = { block:0, warning:0, info:0, done:0 };
+      rows.forEach(function (r) {
+        if (r.dataset.status === '已处理') c.done++;
+        else if (r.dataset.level === 'block') c.block++;
+        else if (r.dataset.level === 'warning') c.warning++;
+        else if (r.dataset.level === 'info') c.info++;
+      });
+      var set = function (id, v) { var e = document.getElementById(id); if (e) e.textContent = v; };
+      set('cAll', rows.length); set('cBlock', c.block); set('cWarn', c.warning); set('cInfo', c.info); set('cDone', c.done);
+      set('stPending', c.block); set('stConfirm', c.warning); set('stCheck', c.info); set('stProcessed', c.done);
+    }
+
+    if (tabs) {
+      tabs.querySelectorAll('.filter-tab').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          tabs.querySelectorAll('.filter-tab').forEach(function (b) { b.classList.remove('active'); });
+          btn.classList.add('active');
+          curKey = btn.getAttribute('data-k');
+          apply();
+        });
+      });
+    }
+    [wWorkshop, wType, wTime].forEach(function (sel) { if (sel) sel.addEventListener('change', apply); });
+    apply();
+  })();
+
+  /* ===== 表格行点击 → 跳转釜次详情（排除按钮，避免冒泡） ===== */
+  document.querySelectorAll('.alert-table tbody tr').forEach(function (row) {
+    row.addEventListener('click', function (e) {
+      if (e.target.closest('button')) return;
+      if (e.target.classList.contains('batch-link')) return;
+      window.location.href = '釜次详情.html';
+    });
+  });
+
+  function gotoBatchFromEl(el){ var b=(el.textContent||'').trim(); location.href='生产执行管理.html?fc='+b; }
+  function gotoWo(w){ location.href='生产工单.html?wo='+w; }
+  /* ===== 预警处置抽屉（同生产执行 5 步闭环） ===== */
+  var WD = (function () {
+    var STEP = 0; var ROW = null;
+    var META = [
+      { t:'异常上报', d:'产线发现异常，系统已自动暂停该釜次并生成异常工单。点击「推进」提交工单进入主管审批。' },
+      { t:'主管审批', d:'车间主管收到异常工单，确认并批准现场处理方案（设备隔离 / 物料排料 / 现场清洁）。' },
+      { t:'现场处理', d:'现场人员按 SOP 执行隔离、排料、清洁，消除异常根因，恢复设备可用。' },
+      { t:'质量复核', d:'QA 对处理产物抽样复检，确认关键指标恢复正常、无交叉污染。' },
+      { t:'闭环确认', d:'异常已闭环，釜次恢复可执行状态，生产继续推进。' }
+    ];
+    function levelText(l){ return l==='block'?'阻断':(l==='warning'?'警告':'提示'); }
+    function draw() {
+      var d = ROW.dataset;
+      var h = '';
+      h += '<div class="kdt-meta">批次 <b>'+d.batch+'</b> ｜ 产品：'+d.product+' ｜ 工序：'+d.proc+' ｜ 车间：'+d.workshop+' ｜ 级别：'+levelText(d.level)+'</div>';
+      h += '<div class="kdt-evt"><b>异常详情</b><br>类型：'+d.type+'<br>实际值：<b>'+d.val+'</b> ｜ 标准值：'+d.std+'<br>偏差：'+d.dev+'<br>设备：'+d.device+'<br>影响：'+d.impact+'</div>';
+      if (d.wo) { h += '<div class="kdt-evt" style="margin-top:10px;border-top:1px dashed var(--border);padding-top:10px;"><b>关联工单</b><br>工单号：<span class="batch-link" onclick="gotoWo(' + d.wo + ')">' + d.wo + ' →</span></div>'; }
+      h += '<div class="kdt-steps">';
+      for (var i=0;i<5;i++) {
+        var cls = (STEP>4)?'done':(i===STEP?'cur':(i<STEP?'done':'todo'));
+        var num = (i<STEP||STEP>4)?'✓':(i+1);
+        h += '<div class="kdt-step '+cls+'"><div class="kdt-dot">'+num+'</div><div class="kdt-info"><b>'+META[i].t+'</b><span>'+META[i].d+'</span></div></div>';
+      }
+      h += '</div>';
+      if (STEP<4) h += '<button class="kdt-act" onclick="WD.go()">推进到：「'+META[STEP+1].t+'」 →</button>';
+      else h += '<button class="kdt-act" onclick="WD.done()">确认闭环 →</button>';
+      document.getElementById('wdBody').innerHTML = h;
+    }
+    function open(id) {
+      ROW = document.getElementById(id);
+      if (!ROW) return;
+      STEP = parseInt(ROW.dataset.step, 10) || 0;
+      draw();
+      document.getElementById('wdMask').classList.add('open');
+      document.getElementById('wdDrawer').classList.add('open');
+    }
+    function go() { if (STEP < 4) { STEP++; draw(); } }
+    function done() {
+      if (!ROW) return;
+      var d = ROW.dataset;
+      ROW.setAttribute('data-status', '已处理');
+      ROW.setAttribute('data-step', '5');
+      var tag = ROW.querySelectorAll('td')[8].querySelector('.status-tag');
+      if (tag) { tag.className = 'status-tag normal'; tag.innerHTML = '<span class="dot"></span>已闭环'; }
+      var act = ROW.querySelectorAll('td')[9];
+      if (act) act.innerHTML = '<span style="font-size:12px;color:var(--normal,#16A34A);font-weight:500;">已闭环 ✓</span>';
+      syncToDetail(d);
+      updateFlowCard(d);
+      document.getElementById('wdBody').innerHTML = '<div class="kdt-closed">✓ 异常已闭环<span>预警事件已处理完成，釜次恢复执行状态；已同步至「釜次详情 → 异常事件」。</span></div>';
+      setTimeout(function(){ close(); }, 1600);
+    }
+    function close() {
+      document.getElementById('wdMask').classList.remove('open');
+      document.getElementById('wdDrawer').classList.remove('open');
+    }
+    function syncToDetail(d) {
+      try {
+        var store = JSON.parse(localStorage.getItem('mes_warn_state') || '{}');
+        store[d.batch + '|' + d.type] = { closed:true, kevt:d.kevt, batch:d.batch, type:d.type, val:d.val, std:d.std, dev:d.dev, device:d.device, proc:d.proc };
+        localStorage.setItem('mes_warn_state', JSON.stringify(store));
+      } catch(e) {}
+    }
+    function updateFlowCard(d) {
+      if (d.kevt !== 'kevt-1') return;
+      var card = document.getElementById('rcFlowCard');
+      if (card) {
+        var tg = card.querySelector('.status-tag');
+        if (tg) { tg.className = 'status-tag normal'; tg.innerHTML = '<span class="dot"></span>已闭环'; }
+        var wait = document.getElementById('rcFlowWait');
+        if (wait) { wait.className = 'flow-item done'; wait.querySelector('.flow-name').textContent = '已闭环'; wait.querySelector('.flow-detail').textContent = '异常处理完成，釜次 RC-0731-003 恢复生产'; }
+      }
+    }
+    return { open:open, go:go, done:done, close:close };
+  })();
+</script>
+  <script src="sidebar.js"></script>
+  <script src="plant.js"></script>
+<script src="role.js"></script>
+</body>
+</html>
