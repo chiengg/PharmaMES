@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MES 制药 - 称量配料</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary-50: #E6F1FB; --primary-200: #B5D4F4; --primary-400: #378ADD;
+    --primary-600: #185FA5; --primary-800: #0C447C; --primary-900: #042C53;
+    --normal: #1D9E75; --normal-bg: #E1F5EE;
+    --info: #EF9F27; --info-bg: #FAEEDA;
+    --warning: #D85A30; --warning-bg: #FAECE7;
+    --block: #E24B4A; --block-bg: #FCEBEB;
+    --white: #FFFFFF; --page: #F1EFE8; --border: #D3D1C7;
+    --text-sec: #888780; --text-sub: #5F5E5A; --text: #2C2C2A;
+  }
+  body { font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif; background: var(--page); color: var(--text); font-size: 14px; line-height: 1.6; overflow: hidden; height: 100vh; }
+  .app { display: flex; height: 100vh; }
+  .sidebar { width: 200px; min-width: 200px; background: var(--primary-800); color: #85B7EB; display: flex; flex-direction: column; overflow-y: auto; }
+  .sidebar-logo { padding: 14px 16px; border-bottom: 1px solid var(--primary-600); display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .sidebar-nav { padding: 8px 0; flex: 1; }
+  .nav-item { padding: 8px 16px 8px 36px; font-size: 12.5px; color: #85B7EB; cursor: pointer; position: relative; transition: all 0.15s; display: flex; align-items: center; gap: 7px; }
+  .nav-item:hover { background: var(--primary-900); color: #B5D4F4; }
+  .nav-item.active { background: var(--primary-600); color: #FFF; font-weight: 500; }
+  .nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--primary-400); }
+  .nav-section-title { padding: 16px 20px 6px; font-size: 11px; color: #378ADD; text-transform: uppercase; letter-spacing: 0.5px; }
+  .sidebar-footer { padding: 12px 20px; border-top: 1px solid var(--primary-600); font-size: 12px; color: #5DCAA5; display: flex; align-items: center; gap: 6px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--normal); }
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { height: 52px; min-height: 52px; background: var(--white); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+  .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-sec); }
+  .breadcrumb .current { color: var(--text); font-weight: 500; }
+  .breadcrumb a { color: var(--text-sec); text-decoration: none; cursor: pointer; }
+  .breadcrumb a:hover { color: var(--primary-600); }
+  .topbar-right { display: flex; align-items: center; gap: 20px; }
+  .user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+  .user-info:hover { background: var(--page); }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-600); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }
+  .user-name { font-size: 13px; color: var(--text); }
+  .user-role { font-size: 11px; color: var(--text-sec); }
+  .content { flex: 1; overflow-y: auto; padding: 14px 28px; }
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+  .page-title { font-size: 22px; font-weight: 500; color: var(--text); }
+  .page-subtitle { font-size: 13px; color: var(--text-sec); margin-top: 2px; }
+  .header-actions { display: flex; gap: 10px; }
+  .btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+  .btn-primary { background: var(--primary-600); color: #fff; }
+  .btn-primary:hover { background: var(--primary-800); }
+  .btn-secondary { background: var(--white); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--primary-400); color: var(--primary-600); }
+  .btn-danger { background: var(--block); color: #fff; }
+  .btn-danger:hover { opacity: 0.9; }
+  .btn-ghost { background: var(--page); color: var(--text-sub); border: 1px solid var(--border); }
+  .btn-ghost:hover { color: var(--primary-600); border-color: var(--primary-400); }
+
+  .metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+  .metric-card { background: var(--white); border-radius: 10px; padding: 14px 16px; border: 1px solid var(--border); position: relative; overflow: hidden; }
+  .metric-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .metric-card.blue::before { background: var(--primary-400); }
+  .metric-card.green::before { background: var(--normal); }
+  .metric-card.amber::before { background: var(--info); }
+  .metric-card.gray::before { background: var(--text-sec); }
+  .metric-card.red::before { background: var(--block); }
+  .metric-label { font-size: 11px; color: var(--text-sec); margin-bottom: 6px; }
+  .metric-value { font-family: "DIN Alternate", "Roboto", monospace; font-size: 26px; font-weight: 500; line-height: 1.1; }
+  .metric-card.blue .metric-value { color: var(--primary-600); }
+  .metric-card.green .metric-value { color: var(--normal); }
+  .metric-card.amber .metric-value { color: var(--info); }
+  .metric-card.gray .metric-value { color: var(--text-sub); }
+  .metric-card.red .metric-value { color: var(--block); }
+  .metric-detail { font-size: 10px; color: var(--text-sec); margin-top: 4px; }
+
+  .card { background: var(--white); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; margin-bottom: 16px; }
+  .card-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .card-title { font-size: 15px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .card-title .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .filter-bar { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--page); flex-wrap: wrap; }
+  .filter-group { display: flex; align-items: center; gap: 6px; }
+  .filter-label { font-size: 12px; color: var(--text-sec); }
+  .filter-select { padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--text); background: var(--white); cursor: pointer; font-family: inherit; outline: none; }
+  .filter-select:focus { border-color: var(--primary-400); }
+  .filter-search { flex: 1; min-width: 160px; max-width: 260px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--text); background: var(--white); font-family: inherit; outline: none; }
+  .filter-search:focus { border-color: var(--primary-400); }
+  .filter-tabs { display: flex; gap: 4px; background: var(--page); border-radius: 8px; padding: 3px; }
+  .filter-tab { padding: 4px 12px; font-size: 12px; color: var(--text-sec); cursor: pointer; border-radius: 6px; border: none; background: none; font-family: inherit; transition: all 0.15s; }
+  .filter-tab.active { background: var(--white); color: var(--primary-600); font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+  .filter-tab .count { font-family: "DIN", monospace; font-size: 11px; margin-left: 3px; opacity: 0.7; }
+
+  .exec-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .exec-table th { text-align: left; padding: 10px 16px; background: var(--page); color: var(--text-sec); font-weight: 500; font-size: 12px; border-bottom: 1px solid var(--border); white-space: nowrap; position: sticky; top: 0; }
+  .exec-table td { padding: 12px 16px; border-bottom: 1px solid var(--page); color: var(--text); vertical-align: middle; }
+  .exec-table tbody tr { cursor: pointer; transition: background 0.12s; }
+  .exec-table tbody tr:hover { background: var(--primary-50); }
+  .exec-table .num { font-family: "DIN Alternate", "Roboto", monospace; }
+  .exec-table tbody td.num:first-child { color: var(--primary-600); cursor: pointer; font-weight: 500; }
+  .exec-table tbody td.num:first-child:hover { text-decoration: underline; }
+
+  .status-tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 14px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+  .status-tag .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .status-tag.normal { background: var(--normal-bg); color: #085041; } .status-tag.normal .dot { background: var(--normal); }
+  .status-tag.info { background: var(--info-bg); color: #633806; } .status-tag.info .dot { background: var(--info); }
+  .status-tag.warning { background: var(--warning-bg); color: #712B13; } .status-tag.warning .dot { background: var(--warning); }
+  .status-tag.review { background: var(--primary-50); color: var(--primary-800); } .status-tag.review .dot { background: var(--primary-400); }
+  .status-tag.draft { background: var(--page); color: var(--text-sub); } .status-tag.draft .dot { background: var(--text-sec); }
+  .status-tag.block { background: var(--block-bg); color: #7A1C1B; } .status-tag.block .dot { background: var(--block); }
+
+  .op-link { font-size: 12px; color: var(--primary-600); cursor: pointer; margin-right: 10px; }
+  .op-link:hover { text-decoration: underline; }
+  .deviation-tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; }
+  .deviation-tag.yes { background: var(--block-bg); color: #7A1C1B; }
+  .deviation-tag.no { background: var(--normal-bg); color: #085041; }
+
+  .drawer-mask { position: fixed; inset: 0; background: rgba(15,23,42,0.45); display: none; z-index: 50; }
+  .drawer-mask.show { display: block; }
+  .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 500px; max-width: 94vw; background: var(--white); box-shadow: -8px 0 24px rgba(0,0,0,0.16); transform: translateX(100%); transition: transform 0.25s ease; z-index: 51; display: flex; flex-direction: column; }
+  .drawer-mask.show .drawer { transform: none; }
+  .drawer-head { padding: 18px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .drawer-title { font-size: 16px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .drawer-close { cursor: pointer; color: var(--text-sec); font-size: 18px; line-height: 1; padding: 2px 6px; border-radius: 6px; }
+  .drawer-close:hover { background: var(--page); color: var(--text); }
+  .drawer-body { flex: 1; overflow-y: auto; padding: 20px 24px; }
+  .drawer-foot { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+  .detail-section { margin-bottom: 20px; }
+  .detail-section-title { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .detail-section-title .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
+  .detail-item { display: flex; flex-direction: column; gap: 3px; }
+  .detail-label { font-size: 11px; color: var(--text-sec); }
+  .detail-value { font-size: 13px; color: var(--text); font-weight: 500; }
+  .ingr-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .ingr-table th { text-align: left; padding: 7px 10px; background: var(--page); color: var(--text-sec); font-weight: 500; font-size: 11px; }
+  .ingr-table td { padding: 8px 10px; border-bottom: 1px solid var(--page); }
+  .ingr-table .ok { color: var(--normal); font-weight: 500; }
+  .ingr-table .warn { color: var(--warning); font-weight: 500; }
+  .log-row { display: flex; gap: 8px; padding: 6px 0; font-size: 11px; border-bottom: 1px solid var(--page); font-family: "DIN", monospace; }
+  .log-row:last-child { border-bottom: none; }
+  .log-time { color: var(--text-sec); width: 58px; flex: none; }
+  .log-msg { color: var(--text-sub); }
+  .sign-row { display: flex; gap: 10px; margin-top: 6px; }
+  .sign-box { flex: 1; border: 1px dashed var(--border); border-radius: 8px; padding: 10px 12px; text-align: center; font-size: 11px; color: var(--text-sec); }
+  .sign-box.done { border-style: solid; border-color: var(--normal); color: var(--normal); background: var(--normal-bg); }
+  .toast { position: fixed; top: 18px; left: 50%; transform: translateX(-50%) translateY(-12px); background: var(--text); color: #fff; padding: 10px 20px; border-radius: 10px; font-size: 13px; z-index: 80; opacity: 0; transition: all 0.25s ease; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-sec); }
+
+  /* === 侧边栏 v2：分组折叠 + 窄宽 + 新LOGO === */
+  .logo-text { line-height: 1.25; min-width: 0; }
+  .logo-name { font-size: 15px; font-weight: 500; color: #FFFFFF; letter-spacing: 0.3px; }
+  .logo-slogan { font-size: 10.5px; color: #93B5D9; margin-top: 1px; }
+  .nav-group-head { padding: 14px 16px 5px; font-size: 11px; color: #6FA9DA; letter-spacing: 0.6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; transition: color 0.15s; }
+  .nav-group-head:hover { color: #B5D4F4; }
+  .nav-group-head > span:first-child { font-weight: 500; }
+  .nav-caret { font-size: 10px; opacity: 0.75; transition: transform 0.18s; display: inline-block; }
+  .nav-group-items { overflow: hidden; }
+  .nav-group.collapsed .nav-caret { transform: rotate(-90deg); }
+  .nav-group.collapsed .nav-group-items { display: none; }
+  .sidebar-collapse { padding: 10px 16px; font-size: 12px; color: #85B7EB; cursor: pointer; display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--primary-600); transition: all 0.15s; }
+  .sidebar-collapse:hover { background: var(--primary-900); color: #B5D4F4; }
+  .collapse-caret { display: inline-block; transition: transform 0.2s; font-size: 14px; line-height: 1; }
+  .sidebar.collapsed .collapse-caret { transform: rotate(180deg); }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="appSidebar"></aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="breadcrumb">
+        <a onclick="window.location.href='生产执行管理.html'">生产管理</a>
+        <span>›</span>
+        <span class="current">称量配料</span>
+      </div>
+      <div class="topbar-right">
+        <div id="plantSwitch"></div>
+        <div id="roleSwitch"></div>
+      <div class="user-info"><div class="avatar">刘</div><div><div class="user-name">刘洋</div><div class="user-role">称量班长</div></div></div>
+      </div>
+    </header>
+
+    <div class="tabbar" id="tabBar"></div>
+      <div class="content">
+    
+      <div class="page-header">
+        <div>
+          <div class="page-title">称量配料</div>
+          <div class="page-subtitle">配料单执行 · 双人复核（称量/复核） · 条码防错与电子秤采集 · 偏差与尾料管理 · GMP 留痕</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="toast('已生成今日配料汇总表（含偏差统计）')">⬇ 配料汇总</button>
+          <button class="btn btn-primary" onclick="toast('从已下发的生产工单自动生成配料单，按 BOM 拆分称量任务')">＋ 新建配料单</button>
+        </div>
+      </div>
+
+      <div id="wmsInbound"></div>
+      <div id="aiDoseBanner"></div>
+
+      <div class="metrics-row">
+        <div class="metric-card blue"><div class="metric-label">今日配料单</div><div class="metric-value">14</div><div class="metric-detail">关联工单 6 张 · 涉及物料 23 种</div></div>
+        <div class="metric-card green"><div class="metric-label">待复核</div><div class="metric-value" id="mReview">3</div><div class="metric-detail">已称量，等待第二人复核</div></div>
+        <div class="metric-card amber"><div class="metric-label">进行中 / 待称量</div><div class="metric-value">8</div><div class="metric-detail">已开工 5 · 待开工 3</div></div>
+        <div class="metric-card red"><div class="metric-label">偏差</div><div class="metric-value" id="mDev">2</div><div class="metric-detail">超差 1 · 漏称 1（QA 处理中）</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><span class="dot" style="background: var(--primary-400);"></span>配料单台账</div>
+          <div class="filter-tabs" id="stTabs">
+            <button class="filter-tab active" data-st="全部">全部<span class="count">14</span></button>
+            <button class="filter-tab" data-st="待称量">待称量<span class="count">3</span></button>
+            <button class="filter-tab" data-st="称量中">称量中<span class="count">5</span></button>
+            <button class="filter-tab" data-st="待复核">待复核<span class="count">3</span></button>
+            <button class="filter-tab" data-st="已完成">已完成<span class="count">3</span></button>
+            <button class="filter-tab" data-st="偏差">偏差<span class="count">2</span></button>
+          </div>
+        </div>
+        <div class="filter-bar">
+          <div class="filter-group"><span class="filter-label">车间：</span><select class="filter-select" id="fWs"><option>全部车间</option><option>一车间</option><option>二车间</option><option>称量中心</option></select></div>
+          <div class="filter-group"><span class="filter-label">称量方式：</span><select class="filter-select" id="fMode"><option>全部方式</option><option>条码校验</option><option>人工称量</option><option>自动配料</option></select></div>
+          <div class="filter-group" style="margin-left:auto;"><input class="filter-search" id="fSearch" placeholder="搜索配料单号 / 工单 / 产品…"></div>
+        </div>
+        <div style="overflow-x: auto;">
+          <table class="exec-table" id="wTable">
+            <thead><tr><th>配料单号</th><th>关联工单 / 批次</th><th>产品</th><th>车间</th><th>称量项</th><th>已完成</th><th>称量方式</th><th>偏差</th><th>状态</th><th>称量人 / 复核人</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr class="w-row" data-code="WP-2608-001" data-st="待复核" data-ws="称量中心" data-mode="条码校验" data-dev="无">
+                <td class="num">WP-2608-001</td><td>WO-2608-001 · RC-2608-001</td><td>阿莫西林胶囊</td><td>称量中心</td><td>6 项</td><td>6/6</td><td><span class="status-tag review"><span class="dot"></span>条码校验</span></td><td><span class="deviation-tag no">无</span></td><td><span class="status-tag info"><span class="dot"></span>待复核</span></td><td>王芳 / <b style="color:var(--warning)">待复核</b></td>
+                <td><span class="op-link op-view" data-code="WP-2608-001">查看</span><span class="op-link">复核</span></td>
+              </tr>
+              <tr class="w-row" data-code="WP-2608-002" data-st="待复核" data-ws="一车间" data-mode="条码校验" data-dev="无">
+                <td class="num">WP-2608-002</td><td>WO-2608-002 · RC-2608-002</td><td>布洛芬缓释胶囊</td><td>一车间</td><td>8 项</td><td>8/8</td><td><span class="status-tag review"><span class="dot"></span>条码校验</span></td><td><span class="deviation-tag no">无</span></td><td><span class="status-tag info"><span class="dot"></span>待复核</span></td><td>李伟 / <b style="color:var(--warning)">待复核</b></td>
+                <td><span class="op-link op-view" data-code="WP-2608-002">查看</span><span class="op-link">复核</span></td>
+              </tr>
+              <tr class="w-row" data-code="WP-2608-003" data-st="偏差" data-ws="二车间" data-mode="人工称量" data-dev="超差">
+                <td class="num">WP-2608-003</td><td>WO-2608-005 · RC-2608-005</td><td>头孢氨苄颗粒</td><td>二车间</td><td>5 项</td><td>4/5</td><td><span class="status-tag draft"><span class="dot"></span>人工称量</span></td><td><span class="deviation-tag yes">超差 1</span></td><td><span class="status-tag block"><span class="dot"></span>偏差</span></td><td>赵强 / 周敏</td>
+                <td><span class="op-link op-view" data-code="WP-2608-003">查看</span><span class="op-link">偏差处理</span></td>
+              </tr>
+              <tr class="w-row" data-code="WP-2608-004" data-st="偏差" data-ws="称量中心" data-mode="条码校验" data-dev="漏称">
+                <td class="num">WP-2608-004</td><td>WO-2608-007 · RC-2608-007</td><td>对乙酰氨基酚片</td><td>称量中心</td><td>7 项</td><td>6/7</td><td><span class="status-tag review"><span class="dot"></span>条码校验</span></td><td><span class="deviation-tag yes">漏称 1</span></td><td><span class="status-tag block"><span class="dot"></span>偏差</span></td><td>孙磊 / 王芳</td>
+                <td><span class="op-link op-view" data-code="WP-2608-004">查看</span><span class="op-link">偏差处理</span></td>
+              </tr>
+              <tr class="w-row" data-code="WP-2608-005" data-st="已完成" data-ws="一车间" data-mode="条码校验" data-dev="无">
+                <td class="num">WP-2608-005</td><td>WO-2608-003 · RC-2608-003</td><td>阿司匹林肠溶片</td><td>一车间</td><td>6 项</td><td>6/6</td><td><span class="status-tag review"><span class="dot"></span>条码校验</span></td><td><span class="deviation-tag no">无</span></td><td><span class="status-tag normal"><span class="dot"></span>已完成</span></td><td>王芳 / 刘洋</td>
+                <td><span class="op-link op-view" data-code="WP-2608-005">查看</span><span class="op-link">打印标签</span></td>
+              </tr>
+              <tr class="w-row" data-code="WP-2608-006" data-st="称量中" data-ws="二车间" data-mode="条码校验" data-dev="无">
+                <td class="num">WP-2608-006</td><td>WO-2608-004 · RC-2608-004</td><td>维生素 C 片</td><td>二车间</td><td>5 项</td><td>3/5</td><td><span class="status-tag review"><span class="dot"></span>条码校验</span></td><td><span class="deviation-tag no">无</span></td><td><span class="status-tag info"><span class="dot"></span>称量中</span></td><td>周敏 / —</td>
+                <td><span class="op-link op-view" data-code="WP-2608-006">查看</span><span class="op-link">继续称量</span></td>
+              </tr>
+              <tr class="w-row" data-code="WP-2608-007" data-st="待称量" data-ws="称量中心" data-mode="自动配料" data-dev="无">
+                <td class="num">WP-2608-007</td><td>WO-2608-006 · RC-2608-006</td><td>阿莫西林胶囊</td><td>称量中心</td><td>6 项</td><td>0/6</td><td><span class="status-tag draft"><span class="dot"></span>自动配料</span></td><td><span class="deviation-tag no">无</span></td><td><span class="status-tag draft"><span class="dot"></span>待称量</span></td><td>— / —</td>
+                <td><span class="op-link op-view" data-code="WP-2608-007">查看</span><span class="op-link">开始</span></td>
+              </tr>
+              <tr class="w-row" data-code="WP-2608-008" data-st="待称量" data-ws="一车间" data-mode="人工称量" data-dev="无">
+                <td class="num">WP-2608-008</td><td>WO-2608-008 · RC-2608-008</td><td>布洛芬缓释胶囊</td><td>一车间</td><td>4 项</td><td>0/4</td><td><span class="status-tag draft"><span class="dot"></span>人工称量</span></td><td><span class="deviation-tag no">无</span></td><td><span class="status-tag draft"><span class="dot"></span>待称量</span></td><td>— / —</td>
+                <td><span class="op-link op-view" data-code="WP-2608-008">查看</span><span class="op-link">开始</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    
+    </div></div>
+  </div>
+
+
+<!-- 配料单详情抽屉 -->
+<div class="drawer-mask" id="dm" onclick="if(event.target===this)closeDrawer()">
+  <div class="drawer">
+    <div class="drawer-head">
+      <div class="drawer-title">⚖️ 配料单详情</div>
+      <div class="drawer-close" onclick="closeDrawer()">✕</div>
+    </div>
+    <div class="drawer-body" id="dBody"></div>
+    <div class="drawer-foot">
+      <button class="btn btn-secondary" onclick="closeDrawer()">关闭</button>
+      <button class="btn btn-primary" onclick="toast('进入称量执行界面：扫码领料 → 电子秤采集 → 双人复核 → 打印标签')">▶ 开始称量</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+var WPS = {
+  'WP-2608-001': { wo: 'WO-2608-001', rc: 'RC-2608-001', product: '阿莫西林胶囊', ws: '称量中心', mode: '条码校验', status: '待复核', weigher: '王芳', reviewer: '待复核', ingrs: [
+    ['1', 'RM-2608-002', '阿莫西林（原料药）', '12.500 kg', '12.496 kg', '✓', '✓'],
+    ['2', 'RM-2608-003', '淀粉（辅料）', '8.200 kg', '8.204 kg', '✓', '✓'],
+    ['3', 'RM-2608-004', '硬脂酸镁', '0.450 kg', '0.452 kg', '✓', '✓'],
+    ['4', 'PKG-2608-001', '明胶空心胶囊', '25000 粒', '25000 粒', '✓', '✓'],
+    ['5', 'SLV-2608-001', '纯化水（工艺用水）', '15.000 kg', '15.000 kg', '✓', '✓'],
+    ['6', 'RM-2608-005', '羟丙甲纤维素', '1.800 kg', '1.798 kg', '✓', '✓']
+  ] },
+  'WP-2608-002': { wo: 'WO-2608-002', rc: 'RC-2608-002', product: '布洛芬缓释胶囊', ws: '一车间', mode: '条码校验', status: '待复核', weigher: '李伟', reviewer: '待复核', ingrs: [
+    ['1', 'RM-2608-003', '布洛芬（原料药）', '10.000 kg', '10.003 kg', '✓', '✓'],
+    ['2', 'RM-2608-005', '微晶纤维素', '6.500 kg', '6.498 kg', '✓', '✓'],
+    ['3', 'RM-2608-004', '聚维酮 K30', '1.200 kg', '1.201 kg', '✓', '✓'],
+    ['4', 'SLV-2608-001', '乙醇（95%）', '4.000 kg', '4.002 kg', '✓', '✓']
+  ] },
+  'WP-2608-003': { wo: 'WO-2608-005', rc: 'RC-2608-005', product: '头孢氨苄颗粒', ws: '二车间', mode: '人工称量', status: '偏差', weigher: '赵强', reviewer: '周敏', dev: '超差 1（项3 淀粉实际 9.850 vs 理论 9.200，超 ±5% 上限）', ingrs: [
+    ['1', 'RM-2608-004', '头孢氨苄（原料药）', '9.200 kg', '9.190 kg', '✓', '✓'],
+    ['2', 'RM-2608-005', '蔗糖（辅料）', '10.500 kg', '10.502 kg', '✓', '✓'],
+    ['3', 'RM-2608-002', '淀粉', '9.200 kg', '9.850 kg', '✗', '—'],
+    ['4', 'RM-2608-003', '柠檬香精', '0.050 kg', '0.051 kg', '✓', '✓'],
+    ['5', 'SLV-2608-002', '纯化水', '12.000 kg', '12.000 kg', '✓', '✓']
+  ] },
+  'WP-2608-004': { wo: 'WO-2608-007', rc: 'RC-2608-007', product: '对乙酰氨基酚片', ws: '称量中心', mode: '条码校验', status: '偏差', weigher: '孙磊', reviewer: '王芳', dev: '漏称 1（项6 滑石粉未完成称量，工单中断）', ingrs: [
+    ['1', 'RM-2608-001', '对乙酰氨基酚（原料药）', '15.000 kg', '15.002 kg', '✓', '✓'],
+    ['2', 'RM-2608-005', '玉米淀粉', '7.000 kg', '6.998 kg', '✓', '✓'],
+    ['3', 'RM-2608-003', '羧甲淀粉钠', '1.000 kg', '1.002 kg', '✓', '✓'],
+    ['4', 'RM-2608-004', '微晶纤维素', '3.500 kg', '3.501 kg', '✓', '✓'],
+    ['5', 'SLV-2608-001', '纯化水', '9.000 kg', '9.000 kg', '✓', '✓'],
+    ['6', 'RM-2608-006', '滑石粉', '0.800 kg', '—', '✗', '—']
+  ] },
+  'WP-2608-005': { wo: 'WO-2608-003', rc: 'RC-2608-003', product: '阿司匹林肠溶片', ws: '一车间', mode: '条码校验', status: '已完成', weigher: '王芳', reviewer: '刘洋', ingrs: [
+    ['1', 'RM-2608-001', '阿司匹林（原料药）', '20.000 kg', '19.998 kg', '✓', '✓'],
+    ['2', 'RM-2608-005', '玉米淀粉', '8.000 kg', '8.001 kg', '✓', '✓'],
+    ['3', 'RM-2608-004', '肠溶包衣预混剂', '2.500 kg', '2.502 kg', '✓', '✓']
+  ] },
+  'WP-2608-006': { wo: 'WO-2608-004', rc: 'RC-2608-004', product: '维生素 C 片', ws: '二车间', mode: '条码校验', status: '称量中', weigher: '周敏', reviewer: '—', ingrs: [
+    ['1', 'RM-2608-003', '维生素 C（原料药）', '12.000 kg', '12.002 kg', '✓', '—'],
+    ['2', 'RM-2608-005', '淀粉', '5.000 kg', '5.001 kg', '✓', '—'],
+    ['3', 'RM-2608-004', '硬脂酸镁', '0.300 kg', '0.298 kg', '✓', '—'],
+    ['4', 'RM-2608-006', '滑石粉', '0.500 kg', '—', '—', '—'],
+    ['5', 'SLV-2608-002', '纯化水', '6.000 kg', '—', '—', '—']
+  ] },
+  'WP-2608-007': { wo: 'WO-2608-006', rc: 'RC-2608-006', product: '阿莫西林胶囊', ws: '称量中心', mode: '自动配料', status: '待称量', weigher: '—', reviewer: '—', ingrs: [
+    ['1', 'RM-2608-002', '阿莫西林（原料药）', '12.500 kg', '—', '—', '—'],
+    ['2', 'RM-2608-005', '淀粉', '8.200 kg', '—', '—', '—'],
+    ['3', 'RM-2608-004', '硬脂酸镁', '0.450 kg', '—', '—', '—']
+  ] },
+  'WP-2608-008': { wo: 'WO-2608-008', rc: 'RC-2608-008', product: '布洛芬缓释胶囊', ws: '一车间', mode: '人工称量', status: '待称量', weigher: '—', reviewer: '—', ingrs: [
+    ['1', 'RM-2608-003', '布洛芬（原料药）', '10.000 kg', '—', '—', '—'],
+    ['2', 'RM-2608-005', '微晶纤维素', '6.500 kg', '—', '—', '—']
+  ] }
+};
+
+function $(id){ return document.getElementById(id); }
+function toast(msg){ var t = $('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(function(){ t.classList.remove('show'); }, 2200); }
+
+function openDrawer(code){
+  var d = WPS[code]; if (!d) return;
+  var rows = d.ingrs.map(function(r){
+    var bar = r[4] === '✗' ? '<span class="warn">' + r[4] + '</span>' : (r[4] === '—' ? r[4] : '<span class="ok">' + r[4] + '</span>');
+    var chk = r[5] === '—' ? '—' : (r[5] === '✓' ? '<span class="ok">✓</span>' : r[5]);
+    return '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td><td>' + r[2] + '</td><td>' + r[3] + '</td><td>' + r[4] + '</td><td>' + bar + '</td><td>' + chk + '</td></tr>';
+  }).join('');
+  var devHtml = d.dev ? '<div class="detail-section"><div class="detail-section-title"><span class="dot" style="background:var(--block)"></span>偏差记录</div><div class="log-row"><span class="log-time">QA</span><span class="log-msg">' + d.dev + '</span></div></div>' : '';
+  var signDay = d.status === '已完成' ? '<div class="sign-row"><div class="sign-box done">称量人 ✓ 王芳</div><div class="sign-box done">复核人 ✓ 刘洋</div></div>' :
+               (d.status === '待复核' ? '<div class="sign-row"><div class="sign-box done">称量人 ✓ ' + d.weigher + '</div><div class="sign-box">复核人 待签</div></div>' :
+               '<div class="sign-row"><div class="sign-box">称量人 待签</div><div class="sign-box">复核人 待签</div></div>');
+  $('dBody').innerHTML =
+    '<div class="detail-section"><div class="detail-section-title"><span class="dot" style="background:var(--primary-400)"></span>配料单信息</div>' +
+    '<div class="detail-grid">' +
+    '<div class="detail-item"><div class="detail-label">配料单号</div><div class="detail-value">' + code + '</div></div>' +
+    '<div class="detail-item"><div class="detail-label">关联工单 / 批次</div><div class="detail-value">' + d.wo + ' · ' + d.rc + '</div></div>' +
+    '<div class="detail-item"><div class="detail-label">产品</div><div class="detail-value">' + d.product + '</div></div>' +
+    '<div class="detail-item"><div class="detail-label">称量地点</div><div class="detail-value">' + d.ws + '</div></div>' +
+    '<div class="detail-item"><div class="detail-label">称量方式</div><div class="detail-value">' + d.mode + '</div></div>' +
+    '<div class="detail-item"><div class="detail-label">状态</div><div class="detail-value">' + d.status + '</div></div>' +
+    '</div></div>' +
+    '<div class="detail-section"><div class="detail-section-title"><span class="dot" style="background:var(--normal)"></span>称量明细（理论 / 实际 / 条码校验 / 复核）</div>' +
+    '<table class="ingr-table"><thead><tr><th>#</th><th>物料编码</th><th>物料名称</th><th>理论量</th><th>实际量</th><th>称量校验</th><th>复核</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    devHtml +
+    '<div class="detail-section"><div class="detail-section-title"><span class="dot" style="background:var(--info)"></span>双人复核</div>' + signDay + '</div>' +
+    '<div class="detail-section"><div class="detail-section-title"><span class="dot" style="background:var(--text-sec)"></span>执行留痕</div>' +
+    '<div class="log-row"><span class="log-time">' + (d.status === '已完成' ? '07-31' : '08-01') + '</span><span class="log-msg">电子秤数据上传（秤号 WS-02，去皮/净重均记录）</span></div>' +
+    '<div class="log-row"><span class="log-time">' + (d.status === '已完成' ? '07-31' : '08-01') + '</span><span class="log-msg">' + d.weigher + ' 完成称量，标签已打印</span></div>' +
+    '<div class="log-row"><span class="log-time">07-30</span><span class="log-msg">配料单由工单 ' + d.wo + ' 自动生成（BOM 拆分）</span></div></div>';
+  $('dm').classList.add('show');
+}
+function closeDrawer(){ $('dm').classList.remove('show'); }
+
+(function(){
+  var rows = Array.prototype.slice.call(document.querySelectorAll('.w-row'));
+  var tabs = document.querySelectorAll('#stTabs .filter-tab');
+  var fWs = $('fWs'), fMode = $('fMode'), fSearch = $('fSearch');
+
+  function apply(){
+    var st = document.querySelector('#stTabs .filter-tab.active').getAttribute('data-st');
+    var ws = fWs.value, md = fMode.value, kw = fSearch.value.toLowerCase();
+    rows.forEach(function(r){
+      var ok = (st === '全部' || r.getAttribute('data-st') === st) &&
+               (ws === '全部车间' || r.getAttribute('data-ws') === ws) &&
+               (md === '全部方式' || r.getAttribute('data-mode') === md) &&
+               (kw === '' || r.textContent.toLowerCase().indexOf(kw) >= 0);
+      r.style.display = ok ? '' : 'none';
+    });
+  }
+  tabs.forEach(function(t){ t.addEventListener('click', function(){ tabs.forEach(function(x){ x.classList.remove('active'); }); t.classList.add('active'); apply(); }); });
+  fWs.addEventListener('change', apply);
+  fMode.addEventListener('change', apply);
+  fSearch.addEventListener('input', apply);
+
+  rows.forEach(function(r){
+    r.addEventListener('click', function(e){
+      if (e.target.closest('.op-link')) return;
+      openDrawer(r.getAttribute('data-code'));
+    });
+  });
+  document.querySelectorAll('.op-view').forEach(function(o){
+    o.addEventListener('click', function(e){ e.stopPropagation(); openDrawer(o.getAttribute('data-code')); });
+  });
+})();
+</script>
+  <script src="sidebar.js"></script>
+  <script src="plant.js"></script>
+<script src="role.js"></script>
+<script>
+/* WMS 发料/入库记录（系统集成联调回写：localStorage mes_wms_move）*/
+(function () {
+  function renderWmsInbound() {
+    var el = document.getElementById('wmsInbound'); if (!el) return;
+    var arr = []; try { arr = JSON.parse(localStorage.getItem('mes_wms_move') || '[]'); } catch (e) {}
+    if (!arr.length) { el.innerHTML = ''; return; }
+    el.innerHTML = '<div style="background:#f3eefb;border:1px solid #ddd0f0;border-radius:12px;padding:14px 18px;margin-bottom:16px;">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">'
+      + '<div style="font-size:14px;font-weight:500;display:flex;align-items:center;gap:8px;"><span style="color:#7b54c9;">📦</span>WMS 物料移动记录（INT-007/008 · 双向同步）</div>'
+      + '<span style="font-size:11px;color:#7b54c9;background:#fff;border:1px solid #ddd0f0;padding:2px 9px;border-radius:20px;">' + arr.length + ' 条</span></div>'
+      + '<div style="display:flex;flex-wrap:wrap;gap:10px;">' + arr.map(function (o, i) {
+        var typeTxt = o.type === 'issue' ? '投料发料' : '成品入库';
+        return '<div style="flex:1;min-width:230px;background:#fff;border:1px solid #e3e9f1;border-radius:9px;padding:10px 12px;">'
+          + '<div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-family:ui-monospace,monospace;font-weight:600;color:#7b54c9;">' + o.mv + '</span><span style="font-size:10.5px;color:#8a99ab;">' + typeTxt + '</span></div>'
+          + '<div style="font-size:12px;color:#1f2d3d;margin-top:4px;">' + (o.mat || '—') + '</div>'
+          + '<div style="font-size:11.5px;color:#5b6b7d;margin-top:3px;">状态：' + o.status + '</div>'
+          + '<button class="btn" style="margin-top:8px;padding:5px 12px;font-size:12px;" onclick="(function(){var a=JSON.parse(localStorage.getItem(\'mes_wms_move\')||\'[]\');a.splice(' + i + ',1);localStorage.setItem(\'mes_wms_move\',JSON.stringify(a));renderWmsInbound();})()">✓ 已确认</button>'
+          + '</div>';
+      }).join('') + '</div></div>';
+  }
+  window.renderWmsInbound = renderWmsInbound;
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', renderWmsInbound); else renderWmsInbound();
+  window.addEventListener('focus', renderWmsInbound);
+})();
+</script>
+
+<script>
+/* AI 投料推荐基准 banner：读取 mes_ai_dose 展示已应用的推荐 */
+(function(){
+  function renderAiDose(){
+    var el = document.getElementById('aiDoseBanner');
+    if (!el) return;
+    var raw = localStorage.getItem('mes_ai_dose');
+    if (!raw){ el.innerHTML = ''; return; }
+    try {
+      var d = JSON.parse(raw);
+      var items = (d.items||[]).slice(0,3).map(function(it){
+        return '<span style="font-family:ui-monospace,monospace;font-weight:600;">'+it.name+' '+it.rec+'kg</span>';
+      }).join('、');
+      var more = (d.items||[]).length > 3 ? ' 等 '+d.items.length+' 项' : '';
+      el.innerHTML = '<div style="background:#F1EBFB;border:1px solid #D9C9F2;border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'+
+        '<span style="font-size:18px;">🤖</span>'+
+        '<span style="font-size:13px;color:#5b3e9e;"><b style="color:#6645ad;">AI 投料推荐基准</b>：'+d.product+' · 批次 '+d.batch+'kg</span>'+
+        '<span style="font-size:12.5px;color:#1f2d3d;">'+items+more+'</span>'+
+        '<a href="AI投料推荐.html" style="margin-left:auto;font-size:12px;color:#6645ad;text-decoration:none;border:1px solid #D9C9F2;border-radius:7px;padding:4px 10px;">查看/重算 ➜</a>'+
+        '</div>';
+    } catch(e){ el.innerHTML = ''; }
+  }
+  window.renderAiDose = renderAiDose;
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', renderAiDose); else renderAiDose();
+  window.addEventListener('focus', renderAiDose);
+})();
+</script>
+</body>
+</html>
