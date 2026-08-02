@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MES 制药 - 工艺配方</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary-50: #E6F1FB; --primary-200: #B5D4F4; --primary-400: #378ADD;
+    --primary-600: #185FA5; --primary-800: #0C447C; --primary-900: #042C53;
+    --normal: #1D9E75; --normal-bg: #E1F5EE;
+    --info: #EF9F27; --info-bg: #FAEEDA;
+    --warning: #D85A30; --warning-bg: #FAECE7;
+    --block: #E24B4A; --block-bg: #FCEBEB;
+    --white: #FFFFFF; --page: #F1EFE8; --border: #D3D1C7;
+    --text-sec: #888780; --text-sub: #5F5E5A; --text: #2C2C2A;
+  }
+  body { font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif; background: var(--page); color: var(--text); font-size: 14px; line-height: 1.6; overflow: hidden; height: 100vh; }
+  .app { display: flex; height: 100vh; }
+  .sidebar { width: 200px; min-width: 200px; background: var(--primary-800); color: #85B7EB; display: flex; flex-direction: column; overflow-y: auto; }
+  .sidebar-logo { padding: 14px 16px; border-bottom: 1px solid var(--primary-600); display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .sidebar-nav { padding: 8px 0; flex: 1; }
+  .nav-item { padding: 8px 16px 8px 36px; font-size: 12.5px; color: #85B7EB; cursor: pointer; position: relative; transition: all 0.15s; display: flex; align-items: center; gap: 7px; }
+  .nav-item:hover { background: var(--primary-900); color: #B5D4F4; }
+  .nav-item.active { background: var(--primary-600); color: #FFF; font-weight: 500; }
+  .nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--primary-400); }
+  .nav-section-title { padding: 16px 20px 6px; font-size: 11px; color: #378ADD; text-transform: uppercase; letter-spacing: 0.5px; }
+  .sidebar-footer { padding: 12px 20px; border-top: 1px solid var(--primary-600); font-size: 12px; color: #5DCAA5; display: flex; align-items: center; gap: 6px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--normal); }
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { height: 52px; min-height: 52px; background: var(--white); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+  .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-sec); }
+  .breadcrumb .current { color: var(--text); font-weight: 500; }
+  .breadcrumb a { color: var(--text-sec); text-decoration: none; cursor: pointer; }
+  .breadcrumb a:hover { color: var(--primary-600); }
+  .topbar-right { display: flex; align-items: center; gap: 20px; }
+  .user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+  .user-info:hover { background: var(--page); }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-600); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }
+  .user-name { font-size: 13px; color: var(--text); }
+  .user-role { font-size: 11px; color: var(--text-sec); }
+  .content { flex: 1; overflow-y: auto; padding: 14px 28px; }
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+  .page-title { font-size: 22px; font-weight: 500; color: var(--text); }
+  .page-subtitle { font-size: 13px; color: var(--text-sec); margin-top: 2px; }
+  .header-actions { display: flex; gap: 10px; }
+  .btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+  .btn-primary { background: var(--primary-600); color: #fff; }
+  .btn-primary:hover { background: var(--primary-800); }
+  .btn-secondary { background: var(--white); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--primary-400); color: var(--primary-600); }
+  .btn-danger { background: var(--block); color: #fff; }
+  .btn-danger:hover { opacity: 0.9; }
+  .btn-ghost { background: var(--page); color: var(--text-sub); border: 1px solid var(--border); }
+  .btn-ghost:hover { color: var(--primary-600); border-color: var(--primary-400); }
+  .btn-sm { padding: 4px 12px; font-size: 12px; border-radius: 6px; }
+
+  .metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+  .metric-card { background: var(--white); border-radius: 10px; padding: 14px 16px; border: 1px solid var(--border); position: relative; overflow: hidden; }
+  .metric-card.blue { border-top: 3px solid var(--primary-400); }
+  .metric-card.green { border-top: 3px solid var(--normal); }
+  .metric-card.amber { border-top: 3px solid var(--info); }
+  .metric-card.red { border-top: 3px solid var(--block); }
+  .metric-label { font-size: 12px; color: var(--text-sec); }
+  .metric-value { font-size: 26px; font-weight: 600; color: var(--text); font-family: "DIN", monospace; margin: 2px 0; }
+  .metric-detail { font-size: 11px; color: var(--text-sec); }
+
+  .card { background: var(--white); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 16px; }
+  .card-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--page); }
+  .card-title { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .filter-tabs { display: flex; gap: 4px; }
+  .filter-tab { background: none; border: none; padding: 6px 12px; font-size: 13px; color: var(--text-sub); cursor: pointer; border-radius: 6px; font-family: inherit; display: flex; align-items: center; gap: 6px; }
+  .filter-tab .count { font-size: 11px; color: var(--text-sec); background: var(--page); border-radius: 8px; padding: 0 6px; font-family: "DIN", monospace; }
+  .filter-tab.active { background: var(--primary-50); color: var(--primary-600); font-weight: 500; }
+  .filter-tab.active .count { background: var(--primary-200); color: var(--primary-800); }
+  .filter-bar { display: flex; gap: 14px; padding: 12px 20px; border-bottom: 1px solid var(--page); flex-wrap: wrap; }
+  .filter-group { display: flex; align-items: center; gap: 6px; }
+  .filter-label { font-size: 12px; color: var(--text-sec); white-space: nowrap; }
+  .filter-select { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: var(--white); color: var(--text); font-family: inherit; }
+  .filter-search { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; width: 220px; font-family: inherit; }
+  .filter-search:focus, .filter-select:focus { outline: none; border-color: var(--primary-400); }
+
+  .exec-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .exec-table th { text-align: left; padding: 10px 16px; background: var(--page); color: var(--text-sub); font-weight: 500; font-size: 12px; white-space: nowrap; position: sticky; top: 0; z-index: 1; }
+  .exec-table td { padding: 10px 16px; border-bottom: 1px solid var(--page); font-size: 13px; }
+  .exec-table tbody tr { cursor: pointer; transition: background 0.12s; }
+  .exec-table tbody tr:hover { background: var(--primary-50); }
+  .exec-table tbody tr:last-child td { border-bottom: none; }
+
+  .st-tag { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 12px; font-weight: 500; }
+  .st-正常, .st-已生效 { background: var(--normal-bg); color: var(--normal); }
+  .st-审核中, .st-已批准 { background: var(--info-bg); color: var(--info); }
+  .st-草稿 { background: #EEEDE7; color: var(--text-sec); }
+  .st-已停用, .st-已过期 { background: var(--warning-bg); color: var(--warning); }
+  .ver-tag { font-family: "DIN", monospace; font-weight: 500; color: var(--primary-600); background: var(--primary-50); padding: 1px 8px; border-radius: 6px; font-size: 12px; }
+  .batch-id-link { color: var(--primary-600); cursor: pointer; font-family: "DIN", monospace; }
+  .batch-id-link:hover { text-decoration: underline; }
+  .op-link { color: var(--primary-600); cursor: pointer; }
+  .op-link:hover { text-decoration: underline; }
+  .op-view { margin-right: 10px; }
+
+  /* 对比工具条 + 对比卡片 */
+  .cmp-bar { display: flex; align-items: center; gap: 12px; padding: 10px 20px; border-bottom: 1px solid var(--page); background: var(--primary-50); font-size: 12px; color: var(--primary-800); }
+  .cmp-hint { color: var(--text-sec); }
+  .cmp-card { margin: 12px 20px 16px; border: 1px solid var(--primary-200); border-radius: 10px; overflow: hidden; }
+  .cmp-head { background: var(--primary-50); padding: 12px 16px; font-size: 13px; font-weight: 600; color: var(--primary-800); display: flex; justify-content: space-between; align-items: center; }
+  .cmp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 14px 16px; }
+  .cmp-col { border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+  .cmp-col h4 { font-size: 13px; margin-bottom: 8px; color: var(--text); }
+  .cmp-col h4 .ver-tag { margin-left: 6px; }
+  .cmp-kv { font-size: 12px; color: var(--text-sub); padding: 3px 0; }
+  .cmp-kv b { color: var(--text); font-weight: 500; }
+  .cmp-diff { margin: 0 16px 14px; border-top: 1px dashed var(--border); padding-top: 10px; }
+  .cmp-diff-title { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .diff-row { font-size: 12px; padding: 3px 0; color: var(--text-sub); }
+  .diff-row b { font-weight: 500; }
+  .diff-add { color: var(--normal); }
+  .diff-del { color: var(--block); }
+  .diff-mod { color: var(--info); }
+
+  /* 抽屉 */
+  .drawer-mask { position: fixed; inset: 0; background: rgba(4, 44, 83, 0.35); opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 40; }
+  .drawer-mask.show { opacity: 1; pointer-events: auto; }
+  .drawer { position: fixed; top: 0; right: -560px; width: 560px; max-width: 92vw; height: 100vh; background: var(--white); box-shadow: -8px 0 30px rgba(0,0,0,0.15); transition: right 0.28s ease; z-index: 50; display: flex; flex-direction: column; }
+  .drawer.show { right: 0; }
+  .drawer-head { padding: 18px 22px; border-bottom: 1px solid var(--page); display: flex; justify-content: space-between; align-items: center; }
+  .drawer-title { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+  .drawer-close { width: 30px; height: 30px; border-radius: 50%; border: none; background: var(--page); color: var(--text-sub); font-size: 14px; cursor: pointer; }
+  .drawer-close:hover { background: var(--block-bg); color: var(--block); }
+  .drawer-body { flex: 1; overflow-y: auto; padding: 20px 22px; }
+  .detail-section { margin-bottom: 18px; }
+  .detail-section-title { font-size: 13px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; }
+  .detail-item { padding: 6px 0; }
+  .detail-label { font-size: 11px; color: var(--text-sec); }
+  .detail-value { font-size: 13px; color: var(--text); }
+  /* 审批链 */
+  .approval-flow { border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+  .ap-step { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px dashed var(--page); align-items: flex-start; }
+  .ap-step:last-child { border-bottom: none; }
+  .ap-no { width: 26px; height: 26px; border-radius: 50%; background: var(--primary-50); color: var(--primary-600); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex: none; }
+  .ap-no.done { background: var(--normal-bg); color: var(--normal); }
+  .ap-no.wait { background: #EEEDE7; color: var(--text-sec); }
+  .ap-body { flex: 1; }
+  .ap-title { font-size: 13px; color: var(--text); }
+  .ap-title b { font-weight: 600; }
+  .ap-time { font-size: 11px; color: var(--text-sec); font-family: "DIN", monospace; margin-top: 2px; }
+  .ap-sig { font-size: 11px; color: var(--normal); margin-top: 2px; }
+  .ap-sig.blank { color: var(--info); }
+  /* 版本历史 */
+  .ver-item { border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; }
+  .ver-item.current { border-color: var(--primary-200); background: var(--primary-50); }
+  .ver-top { display: flex; justify-content: space-between; align-items: center; }
+  .ver-no { font-family: "DIN", monospace; font-weight: 600; color: var(--primary-600); }
+  .ver-date { font-size: 11px; color: var(--text-sec); }
+  .ver-note { font-size: 12px; color: var(--text-sub); margin-top: 4px; }
+  .ver-by { font-size: 11px; color: var(--text-sec); margin-top: 2px; }
+  /* 工序步骤 + 物料清单 */
+  .step-row { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px dashed var(--page); align-items: flex-start; }
+  .step-row:last-child { border-bottom: none; }
+  .step-no { width: 26px; height: 26px; border-radius: 6px; background: var(--primary-50); color: var(--primary-600); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex: none; }
+  .step-name { font-size: 13px; font-weight: 500; color: var(--text); }
+  .step-param { font-size: 12px; color: var(--text-sub); margin-top: 2px; }
+  .mat-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px dashed var(--page); font-size: 12px; }
+  .mat-row:last-child { border-bottom: none; }
+  .mat-name { color: var(--text); }
+  .mat-code { font-family: "DIN", monospace; color: var(--primary-600); font-size: 11px; }
+  .mat-qty { color: var(--text-sub); font-family: "DIN", monospace; }
+  .mat-err { color: var(--text-sec); font-size: 11px; }
+  .drawer-foot { padding: 14px 22px; border-top: 1px solid var(--page); display: flex; gap: 10px; justify-content: flex-end; }
+
+  /* 新建 / 新版本 模态框 */
+  .modal-mask { position: fixed; inset: 0; background: rgba(4, 44, 83, 0.45); opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 60; display: flex; align-items: center; justify-content: center; }
+  .modal-mask.show { opacity: 1; pointer-events: auto; }
+  .modal { background: var(--white); border-radius: 14px; width: 520px; max-width: 92vw; max-height: 88vh; display: flex; flex-direction: column; box-shadow: 0 18px 50px rgba(0,0,0,0.25); transform: translateY(14px); transition: transform 0.2s ease; }
+  .modal-mask.show .modal { transform: translateY(0); }
+  .modal-head { padding: 18px 22px; border-bottom: 1px solid var(--page); display: flex; justify-content: space-between; align-items: center; }
+  .modal-title { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+  .modal-body { flex: 1; overflow-y: auto; padding: 20px 22px; }
+  .modal-foot { padding: 14px 22px; border-top: 1px solid var(--page); display: flex; gap: 10px; justify-content: flex-end; }
+  .form-row { margin-bottom: 14px; }
+  .form-label { font-size: 12px; color: var(--text-sub); display: block; margin-bottom: 6px; }
+  .form-label b { color: var(--block); }
+  .form-input, .form-select, .form-textarea { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; font-family: inherit; color: var(--text); background: var(--white); }
+  .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--primary-400); }
+  .form-textarea { resize: vertical; min-height: 76px; line-height: 1.7; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .src-info { background: var(--primary-50); border: 1px solid var(--primary-200); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: var(--primary-800); line-height: 1.9; margin-bottom: 14px; }
+  .src-info b { font-weight: 600; }
+  .ver-preview { display: inline-block; background: var(--info-bg); color: var(--info); font-family: "DIN", monospace; font-weight: 600; padding: 2px 10px; border-radius: 8px; font-size: 13px; margin-left: 6px; }
+  .new-row-flash { animation: rowFlash 2.2s ease; }
+  @keyframes rowFlash { 0% { background: var(--primary-200); } 100% { background: transparent; } }
+  .hint-tip { font-size: 11px; color: var(--text-sec); margin-top: 6px; line-height: 1.6; }
+
+  .toast { position: fixed; top: 18px; left: 50%; transform: translateX(-50%) translateY(-12px); background: var(--text); color: #fff; padding: 10px 20px; border-radius: 10px; font-size: 13px; z-index: 80; opacity: 0; transition: all 0.25s ease; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-sec); }
+
+  /* === 侧边栏 v2：分组折叠 + 窄宽 + 新LOGO === */
+  .logo-text { line-height: 1.25; min-width: 0; }
+  .logo-name { font-size: 15px; font-weight: 500; color: #FFFFFF; letter-spacing: 0.3px; }
+  .logo-slogan { font-size: 10.5px; color: #93B5D9; margin-top: 1px; }
+  .nav-group-head { padding: 14px 16px 5px; font-size: 11px; color: #6FA9DA; letter-spacing: 0.6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; transition: color 0.15s; }
+  .nav-group-head:hover { color: #B5D4F4; }
+  .nav-group-head > span:first-child { font-weight: 500; }
+  .nav-caret { font-size: 10px; opacity: 0.75; transition: transform 0.18s; display: inline-block; }
+  .nav-group-items { overflow: hidden; }
+  .nav-group.collapsed .nav-caret { transform: rotate(-90deg); }
+  .nav-group.collapsed .nav-group-items { display: none; }
+  .sidebar-collapse { padding: 10px 16px; font-size: 12px; color: #85B7EB; cursor: pointer; display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--primary-600); transition: all 0.15s; }
+  .sidebar-collapse:hover { background: var(--primary-900); color: #B5D4F4; }
+  .collapse-caret { display: inline-block; transition: transform 0.2s; font-size: 14px; line-height: 1; }
+  .sidebar.collapsed .collapse-caret { transform: rotate(180deg); }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="appSidebar"></aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="breadcrumb">
+        <a onclick="window.location.href='生产执行管理.html'">生产管理</a>
+        <span>›</span>
+        <span class="current">工艺配方</span>
+      </div>
+      <div class="topbar-right">
+        <div id="plantSwitch"></div>
+        <div id="roleSwitch"></div>
+      <div class="user-info"><div class="avatar">陈</div><div><div class="user-name">陈静</div><div class="user-role">工艺工程师</div></div></div>
+      </div>
+    </header>
+
+    <div class="tabbar" id="tabBar"></div>
+      <div class="content">
+    
+      <div class="page-header">
+        <div>
+          <div class="page-title">工艺配方</div>
+          <div class="page-subtitle">配方主数据 · 版本管理 / 审批流程（电子签名）/ 版本对比 / 生效控制 · GMP 合规</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="toast('已导出配方台账 Excel（含版本与审批状态）')">⬇ 导出配方台账</button>
+          <button class="btn btn-primary" onclick="openForm('create')">＋ 新建配方</button>
+        </div>
+      </div>
+
+      <div class="metrics-row">
+        <div class="metric-card blue"><div class="metric-label">配方总数</div><div class="metric-value" id="mTotal">8</div><div class="metric-detail">产品配方 6 · 中间体/溶剂回收 2</div></div>
+        <div class="metric-card green"><div class="metric-label">已生效</div><div class="metric-value" id="mActive">4</div><div class="metric-detail">可用于生产工单下发</div></div>
+        <div class="metric-card amber"><div class="metric-label">审批中 / 待生效</div><div class="metric-value" id="mPending">3</div><div class="metric-detail">审核中 1 · 已批准待生效 1 · 草稿 1</div></div>
+        <div class="metric-card red"><div class="metric-label">已停用</div><div class="metric-value" id="mStopped">1</div><div class="metric-detail">变更停用 1（乙醇回收 V2.0）</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><span class="dot" style="background: var(--primary-400);"></span>配方台账（含版本与审批状态）</div>
+          <div class="filter-tabs" id="stTabs">
+            <button class="filter-tab active" data-st="全部">全部<span class="count">8</span></button>
+            <button class="filter-tab" data-st="已生效">已生效<span class="count">4</span></button>
+            <button class="filter-tab" data-st="审核中">审核中<span class="count">1</span></button>
+            <button class="filter-tab" data-st="已批准">已批准<span class="count">1</span></button>
+            <button class="filter-tab" data-st="草稿">草稿<span class="count">1</span></button>
+            <button class="filter-tab" data-st="已停用">已停用<span class="count">1</span></button>
+          </div>
+        </div>
+        <div class="filter-bar">
+          <div class="filter-group"><span class="filter-label">剂型：</span><select class="filter-select" id="fDosage"><option>全部剂型</option><option>颗粒剂</option><option>胶囊</option><option>混悬液</option><option>片剂</option><option>中间体</option><option>其他</option></select></div>
+          <div class="filter-group"><span class="filter-label">起草人：</span><select class="filter-select" id="fOwner"><option>全部起草人</option><option>陈静</option><option>周涛</option><option>林晓</option></select></div>
+          <div class="filter-group" style="margin-left:auto;"><input class="filter-search" id="fSearch" placeholder="搜索配方编码 / 名称 / 产品…"></div>
+        </div>
+        <div class="cmp-bar">
+          <input type="checkbox" id="cmpAll" style="cursor:pointer;"> 全选
+          <span class="cmp-hint">勾选 2 个版本进行对比（同一配方不同版本或不同配方均可）</span>
+          <span style="margin-left:auto;color:var(--primary-800);font-family:'DIN',monospace;" id="cmpCount">已选 0 / 2</span>
+          <button class="btn btn-primary btn-sm" onclick="runCompare()">🔍 版本对比</button>
+        </div>
+        <div id="cmpResult"></div>
+        <div style="overflow-x: auto;">
+          <table class="exec-table" id="rcpTable">
+            <thead><tr><th style="width:34px;"><input type="checkbox" id="thAll" style="cursor:pointer;"></th><th>配方编码</th><th>配方名称 / 产品</th><th>剂型</th><th>当前版本</th><th>状态</th><th>生效日期</th><th>起草人</th><th>最近变更</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr class="rcp-row" data-code="RCP-2608-001" data-st="已生效" data-dosage="颗粒剂" data-owner="陈静"><td><input type="checkbox" class="cmp-cb" value="RCP-2608-001"></td><td><span class="batch-id-link">RCP-2608-001</span></td><td>对乙酰氨基酚颗粒剂 <span class="ver-tag">V2.1</span><div style="font-size:11px;color:var(--text-sec);">对乙酰氨基酚颗粒 10g/袋</div></td><td>颗粒剂</td><td><span class="ver-tag">V2.1</span></td><td><span class="st-tag st-已生效">已生效</span></td><td>2026-07-01</td><td>陈静</td><td>07-25 微调干燥温度</td><td><span class="op-link op-view" data-code="RCP-2608-001">详情</span></td></tr>
+              <tr class="rcp-row" data-code="RCP-2608-002" data-st="已生效" data-dosage="胶囊" data-owner="周涛"><td><input type="checkbox" class="cmp-cb" value="RCP-2608-002"></td><td><span class="batch-id-link">RCP-2608-002</span></td><td>阿莫西林胶囊 <span class="ver-tag">V1.3</span><div style="font-size:11px;color:var(--text-sec);">阿莫西林胶囊 0.25g×24粒</div></td><td>胶囊</td><td><span class="ver-tag">V1.3</span></td><td><span class="st-tag st-已生效">已生效</span></td><td>2026-05-20</td><td>周涛</td><td>06-18 崩解时限标准修订</td><td><span class="op-link op-view" data-code="RCP-2608-002">详情</span></td></tr>
+              <tr class="rcp-row" data-code="RCP-2608-003" data-st="审核中" data-dosage="混悬液" data-owner="林晓"><td><input type="checkbox" class="cmp-cb" value="RCP-2608-003"></td><td><span class="batch-id-link">RCP-2608-003</span></td><td>布洛芬混悬液 <span class="ver-tag">V3.0</span><div style="font-size:11px;color:var(--text-sec);">布洛芬混悬液 100ml/瓶</div></td><td>混悬液</td><td><span class="ver-tag">V3.0</span></td><td><span class="st-tag st-审核中">审核中</span></td><td>—</td><td>林晓</td><td>07-28 提交 QA 审核</td><td><span class="op-link op-view" data-code="RCP-2608-003">详情</span></td></tr>
+              <tr class="rcp-row" data-code="RCP-2608-004" data-st="草稿" data-dosage="片剂" data-owner="陈静"><td><input type="checkbox" class="cmp-cb" value="RCP-2608-004"></td><td><span class="batch-id-link">RCP-2608-004</span></td><td>头孢氨苄片 <span class="ver-tag">V1.0</span><div style="font-size:11px;color:var(--text-sec);">头孢氨苄片 0.25g×30片（新注册）</div></td><td>片剂</td><td><span class="ver-tag">V1.0</span></td><td><span class="st-tag st-草稿">草稿</span></td><td>—</td><td>陈静</td><td>07-30 创建</td><td><span class="op-link op-view" data-code="RCP-2608-004">详情</span></td></tr>
+              <tr class="rcp-row" data-code="RCP-2608-005" data-st="已生效" data-dosage="中间体" data-owner="周涛"><td><input type="checkbox" class="cmp-cb" value="RCP-2608-005"></td><td><span class="batch-id-link">RCP-2608-005</span></td><td>对乙酰氨基酚粗品（中间体）<span class="ver-tag">V1.2</span><div style="font-size:11px;color:var(--text-sec);">本厂中间体 · 结晶纯化</div></td><td>中间体</td><td><span class="ver-tag">V1.2</span></td><td><span class="st-tag st-已生效">已生效</span></td><td>2026-04-10</td><td>周涛</td><td>06-02 结晶温度范围收紧</td><td><span class="op-link op-view" data-code="RCP-2608-005">详情</span></td></tr>
+              <tr class="rcp-row" data-code="RCP-2608-006" data-st="已批准" data-dosage="中间体" data-owner="林晓"><td><input type="checkbox" class="cmp-cb" value="RCP-2608-006"></td><td><span class="batch-id-link">RCP-2608-006</span></td><td>阿莫西林湿颗粒（中间体）<span class="ver-tag">V1.1</span><div style="font-size:11px;color:var(--text-sec);">本厂中间体 · 制粒干燥</div></td><td>中间体</td><td><span class="ver-tag">V1.1</span></td><td><span class="st-tag st-已批准">已批准</span></td><td>2026-08-03（计划）</td><td>林晓</td><td>07-29 批准 · 待生效</td><td><span class="op-link op-view" data-code="RCP-2608-006">详情</span></td></tr>
+              <tr class="rcp-row" data-code="RCP-2608-007" data-st="已停用" data-dosage="其他" data-owner="陈静"><td><input type="checkbox" class="cmp-cb" value="RCP-2608-007"></td><td><span class="batch-id-link">RCP-2608-007</span></td><td>乙醇回收工艺 <span class="ver-tag">V2.0</span><div style="font-size:11px;color:var(--text-sec);">回收溶剂 · 精馏提纯</div></td><td>其他</td><td><span class="ver-tag">V2.0</span></td><td><span class="st-tag st-已停用">已停用</span></td><td>2025-11-01</td><td>陈静</td><td>06-20 变更 CC-2608-014 停用</td><td><span class="op-link op-view" data-code="RCP-2608-007">详情</span></td></tr>
+              <tr class="rcp-row" data-code="RCP-2608-008" data-st="已生效" data-dosage="其他" data-owner="周涛"><td><input type="checkbox" class="cmp-cb" value="RCP-2608-008"></td><td><span class="batch-id-link">RCP-2608-008</span></td><td>苯甲酸钠防腐溶液 <span class="ver-tag">V1.4</span><div style="font-size:11px;color:var(--text-sec);">辅料溶液 · 配制工序</div></td><td>其他</td><td><span class="ver-tag">V1.4</span></td><td><span class="st-tag st-已生效">已生效</span></td><td>2026-03-08</td><td>周涛</td><td>05-12 搅拌时间微调</td><td><span class="op-link op-view" data-code="RCP-2608-008">详情</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="background:var(--primary-50);border:1px solid var(--primary-200);border-radius:10px;padding:14px 18px;font-size:12px;color:var(--primary-800);line-height:1.8;">
+        <b>GMP 合规说明：</b>配方为生产执行的唯一处方数据源（Master Data），与 <a style="color:var(--primary-600);cursor:pointer;" onclick="window.location.href='生产工单.html'">生产工单</a> 下发联动 —— 仅「已生效」配方可被工单引用；任何配方参数变更必须经「变更管理 CC」评估后修订版本，审批全程留痕（21 CFR Part 11 电子签名），旧版本不可删除、仅可停用归档。
+      </div>
+    
+    </div></div>
+  </div>
+
+
+<div class="drawer-mask" id="drawerMask" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <div class="drawer-title"><span class="dot" style="background:var(--primary-400)"></span><span id="dTitle">配方详情</span></div>
+    <button class="drawer-close" onclick="closeDrawer()">✕</button>
+  </div>
+  <div class="drawer-body" id="dBody"></div>
+  <div class="drawer-foot">
+    <button class="btn btn-secondary" onclick="closeDrawer()">关闭</button>
+    <button class="btn btn-ghost" onclick="toast('已生成配方 PDF 并盖章归档（含审批链与电子签名）')">⬇ 导出 PDF</button>
+    <button class="btn btn-primary" id="dAct" onclick="dAct()">提交审批</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- 新建配方 / 发起新版本 模态框 -->
+<div class="modal-mask" id="modalMask" onclick="if(event.target===this)closeForm()">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title"><span class="dot" id="mDot" style="background:var(--primary-400)"></span><span id="mTitle">新建配方</span></div>
+      <button class="drawer-close" onclick="closeForm()">✕</button>
+    </div>
+    <div class="modal-body" id="mBody"></div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeForm()">取消</button>
+      <button class="btn btn-primary" id="mSave" onclick="saveForm()">保存草稿</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var RCP = {
+  'RCP-2608-001': {
+    name: '对乙酰氨基酚颗粒剂', prod: '对乙酰氨基酚颗粒 10g/袋', dosage: '颗粒剂', ver: 'V2.1', st: '已生效', effDate: '2026-07-01', owner: '陈静', actText: '发起新版本',
+    steps: [['01 称量', '主药 / 辅料按配方称量（双人复核）'], ['02 制粒', '湿法制粒，搅拌 800rpm × 10min'], ['03 干燥', '流化床 55±2℃ · 水分 ≤ 2.5%'], ['04 整粒总混', '整粒 + 总混 12min'], ['05 包装', '铝箔复合膜 10g/袋']],
+    mats: [['RM-2608-001', '对乙酰氨基酚（原料药）', '80.0 kg', '±1.0%'], ['RM-2608-005', '苯甲酸钠（辅料）', '0.8 kg', '±0.5%'], ['SLV-2608-001', '乙醇（药用级）', '32.0 kg', '±2.0%'], ['PKG-2608-001', '铝箔复合膜', '100 卷', '—']],
+    versions: [['V2.1', '2026-07-25', '干燥温度 50-60℃ → 55±2℃（偏差 CAPA 后修订）', '陈静'], ['V2.0', '2026-03-18', '颗粒粒度筛网 24 目 → 20 目', '周涛'], ['V1.2', '2025-12-02', '初始发布', '陈静']],
+    approval: [['起草 / 修改', '陈静 · 工艺工程师', '2026-07-25 14:02', 'sig'], ['QA 审核', '王芳 · 质量保证', '2026-07-26 10:30', 'sig'], ['批准', '李明 · 生产负责人', '2026-07-28 09:15', 'sig']]
+  },
+  'RCP-2608-002': {
+    name: '阿莫西林胶囊', prod: '阿莫西林胶囊 0.25g×24粒', dosage: '胶囊', ver: 'V1.3', st: '已生效', effDate: '2026-05-20', owner: '周涛', actText: '发起新版本',
+    steps: [['01 称量', '按配方称量（双人复核）'], ['02 制粒干燥', '一步制粒，进风 60℃'], ['03 总混', '总混 15min'], ['04 胶囊填充', '填充量 0.25g/粒，装量差异 ±7.5%'], ['05 泡罩包装', 'PVC 硬片 / 铝箔']],
+    mats: [['RM-2608-002', '阿莫西林（原料药）', '120.0 kg', '±1.0%'], ['RM-2608-005', '苯甲酸钠（辅料）', '1.2 kg', '±0.5%'], ['PKG-2608-002', 'PVC 硬片', '60 卷', '—'], ['PKG-2608-001', '铝箔复合膜', '40 卷', '—']],
+    versions: [['V1.3', '2026-06-18', '崩解时限标准：≤15min → ≤12min（药典修订）', '周涛'], ['V1.2', '2026-02-11', '胶囊填充机参数基准更新', '林晓'], ['V1.0', '2025-09-30', '初始发布', '周涛']],
+    approval: [['起草 / 修改', '周涛 · 工艺工程师', '2026-06-18 11:20', 'sig'], ['QA 审核', '王芳 · 质量保证', '2026-06-19 15:40', 'sig'], ['批准', '李明 · 生产负责人', '2026-06-20 08:50', 'sig']]
+  },
+  'RCP-2608-003': {
+    name: '布洛芬混悬液', prod: '布洛芬混悬液 100ml/瓶', dosage: '混悬液', ver: 'V3.0', st: '审核中', effDate: '—', owner: '林晓', actText: '撤回 / 修改',
+    steps: [['01 称量', '按配方称量（双人复核）'], ['02 配液', '搅拌溶解 30min · 温度 40℃'], ['03 均质', '高剪切均质 15min'], ['04 灌装', '100ml/瓶 · 装量 100.0±2ml'], ['05 灭菌', '115℃ × 30min']],
+    mats: [['RM-2608-003', '布洛芬（原料药）', '20.0 kg', '±1.0%'], ['RM-2608-005', '苯甲酸钠（辅料）', '0.6 kg', '±0.5%'], ['SLV-2608-001', '乙醇（药用级）', '8.0 kg', '±2.0%']],
+    versions: [['V3.0', '2026-07-28', '均质时间 10min → 15min（混悬稳定性提高）', '林晓'], ['V2.1', '2026-01-15', '灭菌参数基准更新', '陈静'], ['V1.0', '2025-08-20', '初始发布', '周涛']],
+    approval: [['起草 / 修改', '林晓 · 工艺工程师', '2026-07-28 16:05', 'sig'], ['QA 审核', '王芳 · 质量保证', '进行中…', 'wait'], ['批准', '李明 · 生产负责人', '待审批', 'blank']]
+  },
+  'RCP-2608-004': {
+    name: '头孢氨苄片', prod: '头孢氨苄片 0.25g×30片（新注册）', dosage: '片剂', ver: 'V1.0', st: '草稿', effDate: '—', owner: '陈静', actText: '提交审批',
+    steps: [['01 称量', '按配方称量（双人复核）'], ['02 制粒干燥', '湿法制粒，干燥 55℃'], ['03 压片', '片重 0.25g · 硬度 6-10kp'], ['04 包衣', '薄膜包衣增重 2-3%'], ['05 铝塑包装', '30片/板']],
+    mats: [['RM-2608-004', '头孢氨苄（原料药）', '60.0 kg', '±1.0%'], ['RM-2608-005', '苯甲酸钠（辅料）', '0.5 kg', '±0.5%'], ['PKG-2608-001', '铝箔复合膜', '30 卷', '—']],
+    versions: [['V1.0', '2026-07-30', '初始草稿（新产品注册）', '陈静']],
+    approval: [['起草 / 修改', '陈静 · 工艺工程师', '2026-07-30 09:40', 'sig'], ['QA 审核', '王芳 · 质量保证', '待提交', 'blank'], ['批准', '李明 · 生产负责人', '待审批', 'blank']]
+  },
+  'RCP-2608-005': {
+    name: '对乙酰氨基酚粗品（中间体）', prod: '本厂中间体 · 结晶纯化', dosage: '中间体', ver: 'V1.2', st: '已生效', effDate: '2026-04-10', owner: '周涛', actText: '发起新版本',
+    steps: [['01 溶解', '粗品溶于乙醇，60℃'], ['02 脱色', '活性炭脱色 30min'], ['03 结晶', '降温结晶 60→5℃ · 2h'], ['04 离心干燥', '离心 + 真空干燥 ≤40℃'], ['05 粉碎过筛', '过 80 目']],
+    mats: [['INT-2608-001', '对乙酰氨基酚粗品', '500.0 kg', '±2.0%'], ['SLV-2608-001', '乙醇（药用级）', '200.0 kg', '±3.0%']],
+    versions: [['V1.2', '2026-06-02', '结晶温度 60-10℃ → 60-5℃，收率 +2.1%', '周涛'], ['V1.0', '2026-04-10', '初始发布', '周涛']],
+    approval: [['起草 / 修改', '周涛 · 工艺工程师', '2026-06-02 14:30', 'sig'], ['QA 审核', '王芳 · 质量保证', '2026-06-03 09:00', 'sig'], ['批准', '李明 · 生产负责人', '2026-06-04 10:20', 'sig']]
+  },
+  'RCP-2608-006': {
+    name: '阿莫西林湿颗粒（中间体）', prod: '本厂中间体 · 制粒干燥', dosage: '中间体', ver: 'V1.1', st: '已批准', effDate: '2026-08-03（计划）', owner: '林晓', actText: '生效配方',
+    steps: [['01 制粒', '湿法制粒，搅拌 600rpm'], ['02 干燥', '流化床 60℃ · 水分 ≤ 3.0%'], ['03 整粒', '20 目整粒'], ['04 暂存', '密闭桶暂存 ≤ 24h']],
+    mats: [['INT-2608-002', '阿莫西林湿颗粒', '380.0 kg', '±1.5%'], ['SLV-2608-001', '乙醇（药用级）', '60.0 kg', '±2.0%']],
+    versions: [['V1.1', '2026-07-29', '干燥水分上限 3.5% → 3.0%（提高中间体稳定性）', '林晓'], ['V1.0', '2026-05-06', '初始发布', '周涛']],
+    approval: [['起草 / 修改', '林晓 · 工艺工程师', '2026-07-29 13:50', 'sig'], ['QA 审核', '王芳 · 质量保证', '2026-07-30 11:00', 'sig'], ['批准', '李明 · 生产负责人', '2026-07-31 16:45', 'sig']]
+  },
+  'RCP-2608-007': {
+    name: '乙醇回收工艺', prod: '回收溶剂 · 精馏提纯', dosage: '其他', ver: 'V2.0', st: '已停用', effDate: '2025-11-01', owner: '陈静', actText: '停用归档（只读）',
+    steps: [['01 收集', '回收乙醇收集至储罐'], ['02 精馏', '塔顶 78.2℃ 恒沸精馏'], ['03 冷凝', '冷凝收集 ≥ 95% v/v'], ['04 检测', '含量 / 水分检测']],
+    mats: [['SLV-2608-002', '乙酸乙酯（回收）', '—', '—']],
+    versions: [['V2.0', '2025-11-01', '初始发布（2026-06-20 变更 CC-2608-014 停用）', '陈静']],
+    approval: [['起草 / 修改', '陈静 · 工艺工程师', '2025-11-01 10:00', 'sig'], ['QA 审核', '王芳 · 质量保证', '2025-11-01 14:00', 'sig'], ['批准', '李明 · 生产负责人', '2025-11-02 09:00', 'sig']]
+  },
+  'RCP-2608-008': {
+    name: '苯甲酸钠防腐溶液', prod: '辅料溶液 · 配制工序', dosage: '其他', ver: 'V1.4', st: '已生效', effDate: '2026-03-08', owner: '周涛', actText: '发起新版本',
+    steps: [['01 称量', '苯甲酸钠 + 纯化水'], ['02 配制', '搅拌溶解 15min · 常温'], ['03 过滤', '0.45μm 过滤'], ['04 分装', '20L 桶分装']],
+    mats: [['RM-2608-005', '苯甲酸钠（辅料）', '25.0 kg', '±0.5%'], ['SLV-2608-001', '乙醇（药用级）', '5.0 kg', '±1.0%']],
+    versions: [['V1.4', '2026-05-12', '搅拌时间 20min → 15min（已验证等效）', '周涛'], ['V1.2', '2026-03-08', '初始发布', '周涛']],
+    approval: [['起草 / 修改', '周涛 · 工艺工程师', '2026-05-12 09:30', 'sig'], ['QA 审核', '王芳 · 质量保证', '2026-05-12 15:10', 'sig'], ['批准', '李明 · 生产负责人', '2026-05-13 08:40', 'sig']]
+  }
+};
+
+function $(id){ return document.getElementById(id); }
+function toast(msg){ var t = $('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(function(){ t.classList.remove('show'); }, 2400); }
+
+var curCode = null;
+function openDrawer(code){
+  var d = RCP[code]; if (!d) return;
+  curCode = code;
+  $('dTitle').textContent = d.name + ' · ' + d.ver;
+  var act = (d.st === '草稿') ? '提交审批' : (d.st === '已批准') ? '生效配方' : '发起新版本';
+  if (d.st === '已停用') act = '已停用（只读）';
+  $('dAct').textContent = act;
+  $('dAct').style.display = (d.st === '已停用') ? 'none' : '';
+
+  var apRows = d.approval.map(function(a){
+    var ic = a[3] === 'sig' ? '<span class="ap-sig">✍ 已电子签名</span>' : (a[3] === 'wait' ? '<span class="ap-sig blank">⏳ 审核进行中…</span>' : '<span class="ap-sig blank">· 待签名</span>');
+    var cls = a[3] === 'sig' ? 'done' : 'wait';
+    return '<div class="ap-step"><div class="ap-no ' + cls + '">' + (a[3] === 'sig' ? '✓' : '·') + '</div><div class="ap-body"><div class="ap-title"><b>' + a[0] + '</b> · ' + a[1] + '</div><div class="ap-time">' + a[2] + '</div>' + ic + '</div></div>';
+  }).join('');
+
+  var stepRows = d.steps.map(function(s, i){
+    return '<div class="step-row"><div class="step-no">' + (i+1) + '</div><div><div class="step-name">' + s[0] + '</div><div class="step-param">' + s[1] + '</div></div></div>';
+  }).join('');
+
+  var matRows = d.mats.map(function(m){
+    return '<div class="mat-row"><div><span class="mat-name">' + m[1] + '</span> <span class="mat-code">' + m[0] + '</span></div><div><span class="mat-qty">' + m[2] + '</span> <span class="mat-err">偏差 ' + m[3] + '</span></div></div>';
+  }).join('');
+
+  var verRows = d.versions.map(function(v, i){
+    var cls = (i === 0) ? 'ver-item current' : 'ver-item';
+    var cur = (i === 0) ? '<span class="ver-tag">当前</span>' : '';
+    return '<div class="' + cls + '"><div class="ver-top"><span class="ver-no">' + v[0] + ' ' + cur + '</span><span class="ver-date">' + v[1] + '</span></div><div class="ver-note">' + v[2] + '</div><div class="ver-by">修改人：' + v[3] + '</div></div>';
+  }).join('');
+
+  $('dBody').innerHTML =
+    '<div class="detail-section"><div class="detail-section-title"><span class="dot" style="background:var(--primary-400)"></span>配方基础信息</div>' +
+    '<div class="detail-grid">' +
+    '<div class="detail-item"><div class="detail-label">配方编码</div><div class="detail-value">' + code + '</div></div>' +
+    '<div class="detail-item"><div class="detail-label">当前版本</div><div class="detail-value"><span class="ver-tag">' + d.ver + '</span> <span class="st-tag st-' + d.st + '">' + d.st + '</span></div></div>' +
+    '<div class="detail-item"><div class="detail-label">产品</div><div class="detail-value">' + d.prod + '</div></div>' +
+    '<div class="detail-item"><div class="detail-label">剂型</div><div class="detail-value">' + d.dosage + '</div></div>' +
+    '<div class="detail-item"><div class="detail-label">生效日期</div><div class="detail-value">' + d.effDate + '</div></div>' +
+    '<div class="detail-item"><div class="detail-label">起草人</div><div class="detail-value">' + d.owner + ' · 工艺工程师</div></div>' +
+    '</div></div>' +
+    '<div class="detail-section"><div class="detail-section-title"><span class="dot" style="background:var(--normal)"></span>审批流程（电子签名 · 21 CFR Part 11）</div>' +
+    '<div class="approval-flow">' + apRows + '</div></div>' +
+    '<div class="detail-section"><div class="detail-section-title"><span class="dot" style="background:var(--info)"></span>工序步骤</div>' +
+    '<div style="border:1px solid var(--border);border-radius:8px;padding:6px 14px;">' + stepRows + '</div></div>' +
+    '<div class="detail-section"><div class="detail-section-title"><span class="dot" style="background:var(--primary-400)"></span>物料清单（理论用量 + 允许偏差）</div>' +
+    '<div style="border:1px solid var(--border);border-radius:8px;padding:6px 14px;">' + matRows + '</div></div>' +
+    '<div class="detail-section"><div class="detail-section-title"><span class="dot" style="background:var(--warning)"></span>版本历史（旧版本仅可归档，不可删除）</div>' +
+    verRows + '</div>';
+  $('drawer').classList.add('show');
+  $('drawerMask').classList.add('show');
+}
+function closeDrawer(){ $('drawer').classList.remove('show'); $('drawerMask').classList.remove('show'); }
+
+function dAct(){
+  var d = RCP[curCode]; if (!d) return;
+  if (d.st === '草稿') { d.st = '审核中'; d.versions[0][1] = today(); toast('已提交审批：配方 ' + curCode + ' 进入 QA 审核（审核人：王芳）'); }
+  else if (d.st === '已批准') { d.st = '已生效'; d.effDate = today(); d.approval[2][2] = today() + ' 08:30'; toast('配方 ' + curCode + ' 已生效，现可被生产工单引用（GMP 生效控制）'); }
+  else { openForm('revise', curCode); return; }
+  renderTable(); openDrawer(curCode);
+}
+function today(){ var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+
+/* ---------- 版本对比 ---------- */
+var cmpSel = [];
+function renderCount(){ $('cmpCount').textContent = '已选 ' + cmpSel.length + ' / 2'; }
+function runCompare(){
+  if (cmpSel.length !== 2) { toast('请先勾选 2 个配方进行对比（当前已选 ' + cmpSel.length + ' 项）'); return; }
+  var a = RCP[cmpSel[0]], b = RCP[cmpSel[1]];
+  var stepsDiff = Math.abs(a.steps.length - b.steps.length);
+  var diffHtml = '<div class="cmp-card"><div class="cmp-head">版本对比结果 · <span style="font-family:\'DIN\',monospace;">' + cmpSel[0] + ' vs ' + cmpSel[1] + '</span><span class="op-link" onclick="closeCmp()">收起 ✕</span></div>' +
+    '<div class="cmp-grid">' +
+    '<div class="cmp-col"><h4>' + a.name + ' <span class="ver-tag">' + a.ver + '</span></h4>' +
+    '<div class="cmp-kv"><b>状态：</b>' + a.st + '</div><div class="cmp-kv"><b>工序步骤：</b>' + a.steps.length + ' 步</div><div class="cmp-kv"><b>物料项数：</b>' + a.mats.length + '</div><div class="cmp-kv"><b>生效日期：</b>' + a.effDate + '</div></div>' +
+    '<div class="cmp-col"><h4>' + b.name + ' <span class="ver-tag">' + b.ver + '</span></h4>' +
+    '<div class="cmp-kv"><b>状态：</b>' + b.st + '</div><div class="cmp-kv"><b>工序步骤：</b>' + b.steps.length + ' 步</div><div class="cmp-kv"><b>物料项数：</b>' + b.mats.length + '</div><div class="cmp-kv"><b>生效日期：</b>' + b.effDate + '</div></div>' +
+    '</div>' +
+    '<div class="cmp-diff"><div class="cmp-diff-title">关键差异摘要</div>' +
+    '<div class="diff-row diff-mod"><b>[差异]</b> 工序步骤数：' + a.steps.length + ' → ' + b.steps.length + '（相差 ' + stepsDiff + ' 步）</div>' +
+    '<div class="diff-row diff-mod"><b>[差异]</b> 物料项数：' + a.mats.length + ' → ' + b.mats.length + '</div>' +
+    (stepsDiff > 0 ? '<div class="diff-row diff-add"><b>[新增/减少]</b> 版本对比需在变更评估 CC 中确认工艺等效性与验证策略</div>' : '') +
+    '<div class="diff-row diff-add"><b>[提示]</b> 仅同产品相邻版本可直连切换，跨产品对比仅作参考</div>' +
+    '</div></div>';
+  $('cmpResult').innerHTML = diffHtml;
+  $('cmpResult').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function closeCmp(){ $('cmpResult').innerHTML = ''; }
+
+/* ---------- 渲染 + 过滤 ---------- */
+function renderTable(){
+  var body = document.querySelector('#rcpTable tbody');
+  var html = '';
+  RCP_ORDER.forEach(function(code){
+    var d = RCP[code];
+    if (!pass(d)) return;
+    html += '<tr class="rcp-row" data-code="' + code + '" data-st="' + d.st + '" data-dosage="' + d.dosage + '" data-owner="' + d.owner + '">' +
+      '<td><input type="checkbox" class="cmp-cb" value="' + code + '"' + (cmpSel.indexOf(code) >= 0 ? ' checked' : '') + '></td>' +
+      '<td><span class="batch-id-link">' + code + '</span></td>' +
+      '<td>' + d.name + ' <span class="ver-tag">' + d.ver + '</span><div style="font-size:11px;color:var(--text-sec);">' + d.prod + '</div></td>' +
+      '<td>' + d.dosage + '</td>' +
+      '<td><span class="ver-tag">' + d.ver + '</span></td>' +
+      '<td><span class="st-tag st-' + d.st + '">' + d.st + '</span></td>' +
+      '<td>' + d.effDate + '</td>' +
+      '<td>' + d.owner + '</td>' +
+      '<td>' + d.versions[0][2].slice(0, 18) + '</td>' +
+      '<td><span class="op-link op-view" data-code="' + code + '">详情</span></td>' +
+      '</tr>';
+  });
+  body.innerHTML = html || '<tr><td colspan="10" style="text-align:center;color:var(--text-sec);padding:24px;">无匹配配方</td></tr>';
+  bindRows();
+}
+function pass(d){
+  var st = $('stTabs').querySelector('.filter-tab.active').getAttribute('data-st');
+  if (st !== '全部' && d.st !== st) return false;
+  var ds = $('fDosage').value;
+  if (ds !== '全部剂型' && d.dosage !== ds) return false;
+  var ow = $('fOwner').value;
+  if (ow !== '全部起草人' && d.owner !== ow) return false;
+  var kw = $('fSearch').value.trim();
+  if (kw) {
+    var hit = Object.keys(RCP).some(function(c){ return c.indexOf(kw) >= 0; });
+    if (!(d.name.indexOf(kw) >= 0 || d.prod.indexOf(kw) >= 0 || hit)) return false;
+  }
+  return true;
+}
+function bindRows(){
+  document.querySelectorAll('.rcp-row').forEach(function(r){
+    r.addEventListener('click', function(e){
+      if (e.target.closest('.op-view') || e.target.closest('.cmp-cb') || e.target.closest('input')) return;
+      openDrawer(r.getAttribute('data-code'));
+    });
+    r.querySelector('.cmp-cb').addEventListener('change', function(){
+      var v = r.getAttribute('data-code');
+      var i = cmpSel.indexOf(v);
+      if (this.checked && i < 0) cmpSel.push(v);
+      if (!this.checked && i >= 0) cmpSel.splice(i, 1);
+      if (cmpSel.length > 2) { toast('最多对比 2 个配方，已忽略第 3 项'); cmpSel = cmpSel.slice(0, 2); r.querySelector('.cmp-cb').checked = false; }
+      renderCount();
+      document.querySelectorAll('.cmp-cb').forEach(function(cb){ cb.checked = (cmpSel.indexOf(cb.value) >= 0); });
+    });
+  });
+  // 详情链接：renderTable 重写 tbody 后必须重新绑定（否则点击无响应）
+  document.querySelectorAll('.op-view').forEach(function(o){
+    o.addEventListener('click', function(e){ e.stopPropagation(); openDrawer(o.getAttribute('data-code')); });
+  });
+}
+
+/* ---------- 新建配方 / 发起新版本 ---------- */
+var formMode = null, formSrc = null;
+function openForm(mode, src){
+  formMode = mode; formSrc = src || null;
+  $('mDot').style.background = (mode === 'create') ? 'var(--primary-400)' : 'var(--info)';
+  $('mTitle').textContent = (mode === 'create') ? '新建配方（创建向导）' : '发起新版本';
+  $('mSave').textContent = (mode === 'create') ? '保存草稿' : '生成新版本';
+
+  if (mode === 'create') {
+    var opts = RCP_ORDER.map(function(c){ return '<option value="' + c + '">' + c + ' ' + RCP[c].name + '（' + RCP[c].ver + '）</option>'; }).join('');
+    $('mBody').innerHTML =
+      '<div class="form-row"><label class="form-label">配方名称 <b>*</b></label><input class="form-input" id="fName" placeholder="如：对乙酰氨基酚颗粒剂"></div>' +
+      '<div class="form-row"><label class="form-label">产品规格 <b>*</b></label><input class="form-input" id="fProd" placeholder="如：对乙酰氨基酚颗粒 10g/袋"></div>' +
+      '<div class="form-grid">' +
+      '<div class="form-row"><label class="form-label">剂型 <b>*</b></label><select class="form-select" id="fDos"><option>颗粒剂</option><option>胶囊</option><option>混悬液</option><option>片剂</option><option>中间体</option><option>其他</option></select></div>' +
+      '<div class="form-row"><label class="form-label">起草人 <b>*</b></label><select class="form-select" id="fOwn"><option>陈静</option><option>周涛</option><option>林晓</option></select></div>' +
+      '</div>' +
+      '<div class="form-row"><label class="form-label">创建方式</label>' +
+      '<select class="form-select" id="fMode" onchange="toggleCopySrc()"><option value="new">全新创建（空工序）</option><option value="copy">复制现有配方为草稿</option></select>' +
+      '<div id="copySrcRow" style="display:none;margin-top:8px;"><label class="form-label">源配方</label><select class="form-select" id="fSrc">' + opts + '</select></div>' +
+      '<div class="hint-tip">新建后配方为「草稿」状态，需提交审批 → QA 审核 → 批准 → 生效后方可被生产工单引用。</div></div>';
+  } else {
+    var d = RCP[src];
+    $('mBody').innerHTML =
+      '<div class="src-info"><b>基于源配方：</b>' + src + ' · ' + d.name + '（当前版本 ' + d.ver + ' · ' + d.st + '）<br>' +
+      '<b>版本变更：</b><span class="ver-tag">' + d.ver + '</span> <span style="color:var(--text-sec);">→</span> <span class="ver-preview" id="newVerPreview"></span>（小版本 +0.1，原版本归档保留）</div>' +
+      '<div class="form-row"><label class="form-label">变更说明（版本修订依据） <b>*</b></label><textarea class="form-textarea" id="fNote" placeholder="如：均质时间 10min → 15min，混悬稳定性提高（需关联变更评估）"></textarea></div>' +
+      '<div class="form-row"><label class="form-label">本版本工序步骤（只读预览，正式调整在草稿编辑中完成）</label>' +
+      '<div style="border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--text-sub);line-height:2;">' +
+      d.steps.map(function(s){ return '· ' + s[0] + '：' + s[1]; }).join('<br>') + '</div></div>' +
+      '<div class="hint-tip">保存后生成新版本草稿（同编码），原版本进入版本历史并标记「历史·归档」；新版本需重新走 审批 → 生效 流程，生效前生产工单仍引用原版本。</div>';
+    $('newVerPreview').textContent = nextVer(d.ver);
+  }
+  $('modalMask').classList.add('show');
+}
+function closeForm(){ $('modalMask').classList.remove('show'); formMode = null; formSrc = null; }
+function toggleCopySrc(){ $('copySrcRow').style.display = ($('fMode').value === 'copy') ? '' : 'none'; }
+function nextVer(v){ var m = v.replace('V','').split('.'); var maj = parseInt(m[0],10), min = parseInt(m[1]||'0',10); return 'V' + maj + '.' + (min+1); }
+function genCode(){
+  var max = 0;
+  RCP_ORDER.forEach(function(c){ var n = parseInt(c.replace('RCP-2608-',''),10); if (n > max) max = n; });
+  return 'RCP-2608-' + String(max + 1).padStart(3, '0');
+}
+function saveForm(){
+  if (formMode === 'create') {
+    var name = $('fName').value.trim(), prod = $('fProd').value.trim();
+    if (!name || !prod) { toast('请填写配方名称与产品规格（必填项）'); return; }
+    var code = genCode();
+    var dos = $('fDos').value, own = $('fOwn').value;
+    var steps, mats;
+    if ($('fMode').value === 'copy' && $('fSrc').value) {
+      var s = RCP[$('fSrc').value];
+      steps = s.steps.map(function(x){ return x.slice(); });
+      mats = s.mats.map(function(x){ return x.slice(); });
+    } else {
+      steps = [['01 称量', '按配方称量（双人复核）'], ['02 待定', '待工艺工程师编制']];
+      mats = [];
+    }
+    RCP[code] = { name: name, prod: prod, dosage: dos, ver: 'V1.0', st: '草稿', effDate: '—', owner: own, actText: '提交审批',
+      steps: steps, mats: mats,
+      versions: [['V1.0', today(), '新建创建（草稿）', own]],
+      approval: [['起草 / 修改', own + ' · 工艺工程师', today() + ' 09:00', 'sig'], ['QA 审核', '王芳 · 质量保证', '待提交', 'blank'], ['批准', '李明 · 生产负责人', '待审批', 'blank']] };
+    RCP_ORDER.unshift(code);
+    closeForm();
+    renderTable();
+    flashRow(code);
+    $('stTabs').querySelectorAll('.filter-tab').forEach(function(t){ t.classList.toggle('active', t.getAttribute('data-st') === '全部'); });
+    toast('新建配方 ' + code + '（V1.0 · 草稿）已创建：点击详情 → 提交审批 → QA 审核 → 批准生效');
+  } else {
+    var d = RCP[formSrc];
+    var note = $('fNote').value.trim();
+    if (!note) { toast('请填写变更说明（版本修订依据）'); return; }
+    var nv = nextVer(d.ver);
+    d.ver = nv; d.st = '草稿'; d.effDate = '—';
+    d.versions[0][0] = d.versions[0][0] + '（历史·归档）';
+    d.versions.unshift([nv, today(), note, '陈静']);
+    d.approval = [['起草 / 修改', '陈静 · 工艺工程师', today() + ' 09:00', 'sig'], ['QA 审核', '王芳 · 质量保证', '待提交', 'blank'], ['批准', '李明 · 生产负责人', '待审批', 'blank']];
+    closeForm(); closeDrawer();
+    renderTable();
+    flashRow(formSrc);
+    toast('已发起新版本 ' + formSrc + ' ' + nv + '（草稿）：原版本已归档，走 提交审批 → QA 审核 → 批准 → 生效 流程');
+  }
+}
+function flashRow(code){
+  var row = document.querySelector('#rcpTable tr[data-code="' + code + '"]');
+  if (row) { row.classList.add('new-row-flash'); row.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+}
+
+var RCP_ORDER = ['RCP-2608-001','RCP-2608-002','RCP-2608-003','RCP-2608-004','RCP-2608-005','RCP-2608-006','RCP-2608-007','RCP-2608-008'];
+
+(function(){
+  // 指标统计
+  var total = 0, active = 0, pending = 0, stopped = 0;
+  RCP_ORDER.forEach(function(c){ total++; var s = RCP[c].st; if (s === '已生效') active++; if (s === '审核中' || s === '已批准' || s === '草稿') pending++; if (s === '已停用') stopped++; });
+  $('mTotal').textContent = total; $('mActive').textContent = active; $('mPending').textContent = pending; $('mStopped').textContent = stopped;
+
+  // tabs
+  var tabs = document.querySelectorAll('#stTabs .filter-tab');
+  tabs.forEach(function(t){ t.addEventListener('click', function(){ tabs.forEach(function(x){ x.classList.remove('active'); }); t.classList.add('active'); renderTable(); }); });
+  $('fDosage').addEventListener('change', renderTable);
+  $('fOwner').addEventListener('change', renderTable);
+  $('fSearch').addEventListener('input', renderTable);
+  // 表头全选
+  $('thAll').addEventListener('change', function(){
+    cmpSel = this.checked ? RCP_ORDER.slice(0, 2) : [];
+    renderCount(); renderTable();
+  });
+  $('cmpAll').addEventListener('change', function(){
+    cmpSel = this.checked ? RCP_ORDER.slice(0, 2) : [];
+    renderCount(); renderTable();
+  });
+  renderTable();
+})();
+</script>
+  <script src="sidebar.js"></script>
+  <script src="plant.js"></script>
+<script src="role.js"></script>
+</body>
+</html>
