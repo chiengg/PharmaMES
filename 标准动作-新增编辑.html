@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MES 精细化工 - 新增标准动作</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary-50: #E6F1FB; --primary-200: #B5D4F4; --primary-400: #378ADD;
+    --primary-600: #185FA5; --primary-800: #0C447C; --primary-900: #042C53;
+    --normal: #1D9E75; --normal-bg: #E1F5EE;
+    --info: #EF9F27; --info-bg: #FAEEDA;
+    --warning: #D85A30; --warning-bg: #FAECE7;
+    --block: #E24B4A; --block-bg: #FCEBEB;
+    --white: #FFFFFF; --page: #F1EFE8; --border: #D3D1C7;
+    --text-sec: #888780; --text-sub: #5F5E5A; --text: #2C2C2A;
+  }
+  body { font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif; background: var(--page); color: var(--text); font-size: 14px; line-height: 1.6; overflow: hidden; height: 100vh; }
+  .app { display: flex; height: 100vh; }
+
+  /* 侧边栏 */
+  .sidebar { width: 200px; min-width: 200px; background: var(--primary-800); color: #85B7EB; display: flex; flex-direction: column; overflow-y: auto; }
+  .sidebar-logo { padding: 14px 16px; border-bottom: 1px solid var(--primary-600); display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .sidebar-nav { padding: 8px 0; flex: 1; }
+  .nav-item { padding: 8px 16px 8px 36px; font-size: 12.5px; color: #85B7EB; cursor: pointer; position: relative; transition: all 0.15s; display: flex; align-items: center; gap: 7px; }
+  .nav-item:hover { background: var(--primary-900); color: #B5D4F4; }
+  .nav-item.active { background: var(--primary-600); color: #FFF; font-weight: 500; }
+  .nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--primary-400); }
+  .nav-section-title { padding: 16px 20px 6px; font-size: 11px; color: #378ADD; letter-spacing: 0.5px; }
+  .sidebar-footer { padding: 12px 20px; border-top: 1px solid var(--primary-600); font-size: 12px; color: #5DCAA5; display: flex; align-items: center; gap: 6px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--normal); }
+
+  /* 主区 */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { height: 52px; min-height: 52px; background: var(--white); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+  .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-sec); }
+  .breadcrumb .current { color: var(--text); font-weight: 500; }
+  .breadcrumb a { color: var(--text-sec); text-decoration: none; cursor: pointer; }
+  .breadcrumb a:hover { color: var(--primary-600); }
+  .user-info { display: flex; align-items: center; gap: 10px; padding: 4px 8px; border-radius: 8px; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-600); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }
+  .user-name { font-size: 13px; color: var(--text); }
+  .user-role { font-size: 11px; color: var(--text-sec); }
+
+  .content { flex: 1; overflow-y: auto; padding: 14px 28px 96px; }
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .page-title { font-size: 22px; font-weight: 500; }
+  .page-subtitle { font-size: 13px; color: var(--text-sec); margin-top: 2px; }
+  .header-actions { display: flex; gap: 10px; }
+  .btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px; }
+  .btn-primary { background: var(--primary-600); color: #fff; }
+  .btn-primary:hover { background: var(--primary-800); }
+  .btn-secondary { background: var(--white); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--primary-400); color: var(--primary-600); }
+  .btn-mini { padding: 4px 10px; font-size: 12px; border-radius: 6px; }
+  .btn-danger { background: var(--white); color: var(--block); border: 1px solid var(--border); }
+  .btn-danger:hover { border-color: var(--block); }
+
+  /* 步骤条 */
+  .steps { display: flex; align-items: center; background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 14px 20px; margin-bottom: 16px; gap: 6px; }
+  .step { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 4px 10px; border-radius: 8px; transition: all .15s; }
+  .step:hover { background: var(--page); }
+  .step-no { width: 22px; height: 22px; border-radius: 50%; background: var(--page); color: var(--text-sec); font-size: 12px; display: flex; align-items: center; justify-content: center; font-family: "DIN Alternate", monospace; border: 1px solid var(--border); }
+  .step-name { font-size: 13px; color: var(--text-sec); }
+  .step.active .step-no { background: var(--primary-600); color: #fff; border-color: var(--primary-600); }
+  .step.active .step-name { color: var(--text); font-weight: 500; }
+  .step.done .step-no { background: var(--normal-bg); color: var(--normal); border-color: var(--normal); }
+  .step-line { flex: 1; height: 1px; background: var(--border); min-width: 20px; }
+
+  .layout { display: grid; grid-template-columns: 1fr 320px; gap: 16px; align-items: start; }
+  .card { background: var(--white); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; margin-bottom: 16px; }
+  .card-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .card-title { font-size: 15px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .card-title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary-400); }
+  .card-body { padding: 18px 20px; }
+
+  /* 表单 */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 20px; }
+  .form-item.full { grid-column: 1 / -1; }
+  .form-label { font-size: 12px; color: var(--text-sub); margin-bottom: 6px; display: flex; align-items: center; gap: 4px; }
+  .req { color: var(--block); }
+  .hint { font-size: 11px; color: var(--text-sec); margin-top: 4px; }
+  .input, .select, .textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; font-family: inherit; color: var(--text); background: var(--white); outline: none; transition: border-color .15s; }
+  .input:focus, .select:focus, .textarea:focus { border-color: var(--primary-400); }
+  .input.readonly { background: var(--page); color: var(--text-sec); }
+  .input.error, .select.error { border-color: var(--block); background: var(--block-bg); }
+  .textarea { resize: vertical; min-height: 76px; line-height: 1.7; }
+
+  /* 设备多选 chips */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { padding: 5px 12px; border: 1px solid var(--border); border-radius: 16px; font-size: 12px; cursor: pointer; background: var(--white); color: var(--text-sub); transition: all .15s; user-select: none; }
+  .chip:hover { border-color: var(--primary-400); }
+  .chip.on { background: var(--primary-50); border-color: var(--primary-400); color: var(--primary-600); font-weight: 500; }
+
+  /* 参数表 */
+  .p-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .p-table th { text-align: left; padding: 9px 12px; background: var(--page); color: var(--text-sec); font-size: 12px; font-weight: 500; border-bottom: 1px solid var(--border); }
+  .p-table td { padding: 8px 12px; border-bottom: 1px solid var(--page); vertical-align: middle; }
+  .p-table input, .p-table select { width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; font-family: inherit; outline: none; background: var(--white); }
+  .p-table input:focus, .p-table select:focus { border-color: var(--primary-400); }
+  .p-table .num-in { font-family: "DIN Alternate", monospace; }
+  .row-del { color: var(--block); cursor: pointer; font-size: 12px; white-space: nowrap; }
+
+  /* 开关 */
+  .switch { width: 36px; height: 20px; border-radius: 10px; background: var(--border); position: relative; cursor: pointer; transition: background .15s; display: inline-block; }
+  .switch::after { content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left .15s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+  .switch.on { background: var(--block); }
+  .switch.on::after { left: 18px; }
+
+  /* SOP 步骤 */
+  .sop-item { display: flex; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; background: var(--white); }
+  .sop-no { width: 26px; height: 26px; min-width: 26px; border-radius: 50%; background: var(--primary-50); color: var(--primary-600); display: flex; align-items: center; justify-content: center; font-size: 12px; font-family: "DIN Alternate", monospace; font-weight: 500; }
+  .sop-main { flex: 1; }
+  .sop-row { display: grid; grid-template-columns: 1fr 96px 130px 40px; gap: 8px; align-items: center; }
+  .sop-extra { margin-top: 8px; display: flex; gap: 8px; align-items: center; }
+
+  /* 安全合规 */
+  .check-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .check { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; cursor: pointer; user-select: none; transition: all .15s; }
+  .check:hover { border-color: var(--primary-400); }
+  .check.on { background: var(--primary-50); border-color: var(--primary-400); color: var(--primary-600); }
+  .box { width: 15px; height: 15px; border: 1px solid var(--border); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: transparent; background: #fff; }
+  .check.on .box { background: var(--primary-600); border-color: var(--primary-600); color: #fff; }
+
+  .switch-row { display: flex; align-items: center; justify-content: space-between; padding: 11px 0; border-bottom: 1px solid var(--page); }
+  .switch-row:last-child { border-bottom: none; }
+  .switch-label { font-size: 13px; }
+  .switch-desc { font-size: 11px; color: var(--text-sec); }
+  .switch.blue.on { background: var(--primary-600); }
+
+  /* 右侧 */
+  .side-card { background: var(--white); border-radius: 12px; border: 1px solid var(--border); margin-bottom: 16px; overflow: hidden; }
+  .side-body { padding: 14px 16px; }
+  .ears { background: var(--page); border: 1px dashed var(--border); border-radius: 8px; padding: 12px 14px; font-size: 12px; line-height: 1.9; color: var(--text-sub); }
+  .ears b { color: var(--primary-600); font-weight: 500; }
+  .ears-type { display: inline-block; font-size: 10px; padding: 1px 7px; border-radius: 8px; background: var(--primary-50); color: var(--primary-600); margin-right: 6px; }
+  .chk-list { list-style: none; }
+  .chk-list li { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--text-sub); padding: 6px 0; }
+  .chk-ico { width: 15px; height: 15px; min-width: 15px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; margin-top: 3px; }
+  .chk-ico.ok { background: var(--normal-bg); color: var(--normal); }
+  .chk-ico.no { background: var(--page); color: var(--text-sec); border: 1px solid var(--border); }
+  .tip { font-size: 12px; color: var(--text-sub); line-height: 1.9; }
+  .tip .warn { color: var(--warning); }
+
+  /* 底部操作栏 */
+  .footbar { position: fixed; left: 240px; right: 0; bottom: 0; height: 64px; background: var(--white); border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 28px; z-index: 20; }
+  .foot-info { font-size: 12px; color: var(--text-sec); display: flex; align-items: center; gap: 10px; }
+  .foot-actions { display: flex; gap: 10px; }
+
+  /* Toast */
+  .toast { position: fixed; top: 70px; left: 50%; transform: translateX(-50%) translateY(-14px); background: var(--text); color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 13px; opacity: 0; pointer-events: none; transition: all .25s; z-index: 50; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.ok { background: #14795C; }
+  .toast.err { background: var(--block); }
+
+  .sec { display: none; }
+  .sec.on { display: block; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* === 侧边栏 v2：分组折叠 + 窄宽 + 新LOGO === */
+  .logo-text { line-height: 1.25; min-width: 0; }
+  .logo-name { font-size: 15px; font-weight: 500; color: #FFFFFF; letter-spacing: 0.3px; }
+  .logo-slogan { font-size: 10.5px; color: #93B5D9; margin-top: 1px; }
+  .nav-group-head { padding: 14px 16px 5px; font-size: 11px; color: #6FA9DA; letter-spacing: 0.6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; transition: color 0.15s; }
+  .nav-group-head:hover { color: #B5D4F4; }
+  .nav-group-head > span:first-child { font-weight: 500; }
+  .nav-caret { font-size: 10px; opacity: 0.75; transition: transform 0.18s; display: inline-block; }
+  .nav-group-items { overflow: hidden; }
+  .nav-group.collapsed .nav-caret { transform: rotate(-90deg); }
+  .nav-group.collapsed .nav-group-items { display: none; }
+  .sidebar-collapse { padding: 10px 16px; font-size: 12px; color: #85B7EB; cursor: pointer; display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--primary-600); transition: all 0.15s; }
+  .sidebar-collapse:hover { background: var(--primary-900); color: #B5D4F4; }
+  .collapse-caret { display: inline-block; transition: transform 0.2s; font-size: 14px; line-height: 1; }
+  .sidebar.collapsed .collapse-caret { transform: rotate(180deg); }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="appSidebar"></aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="breadcrumb">
+        <a onclick="location.href='生产监控大屏.html'">首页</a>
+        <span>›</span>
+        <a onclick="location.href='工序动作管理.html'">工序动作管理</a>
+        <span>›</span>
+        <span class="current">新增标准动作</span>
+      </div>
+      <div id="plantSwitch"></div>
+        <div id="roleSwitch"></div>
+      <div class="user-info">
+        <div class="avatar">张</div>
+        <div><div class="user-name">张明</div><div class="user-role">车间主管</div></div>
+      </div>
+    </header>
+
+    <div class="tabbar" id="tabBar"></div>
+      <div class="content">
+    
+      <div class="page-header">
+        <div>
+          <div class="page-title">新增标准动作</div>
+          <div class="page-subtitle">动作编号 <b id="codePreview">ACT-013</b> · 创建人 张明 · 提交后进入工艺审批流</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="location.href='工序动作管理.html'">← 返回列表</button>
+          <button class="btn btn-secondary" onclick="saveDraft()">存为草稿</button>
+          <button class="btn btn-primary" onclick="submitForm()">提交审批</button>
+        </div>
+      </div>
+
+      <!-- 步骤条 -->
+      <div class="steps" id="steps">
+        <div class="step active" data-step="1"><div class="step-no">1</div><div class="step-name">基本信息</div></div>
+        <div class="step-line"></div>
+        <div class="step" data-step="2"><div class="step-no">2</div><div class="step-name">参数与限值</div></div>
+        <div class="step-line"></div>
+        <div class="step" data-step="3"><div class="step-no">3</div><div class="step-name">作业步骤 SOP</div></div>
+        <div class="step-line"></div>
+        <div class="step" data-step="4"><div class="step-no">4</div><div class="step-name">安全与合规</div></div>
+      </div>
+
+      <div class="layout">
+        <!-- 左：表单 -->
+        <div>
+          <!-- STEP 1 -->
+          <div class="sec on" data-sec="1">
+            <div class="card">
+              <div class="card-header"><div class="card-title"><span class="dot"></span>基本信息</div></div>
+              <div class="card-body">
+                <div class="form-grid">
+                  <div class="form-item">
+                    <div class="form-label">动作编号</div>
+                    <input class="input readonly" id="fCode" value="ACT-013" readonly>
+                    <div class="hint">按分类规则自动生成，保存后不可修改</div>
+                  </div>
+                  <div class="form-item">
+                    <div class="form-label">动作名称 <span class="req">*</span></div>
+                    <input class="input" id="fName" placeholder="例：真空抽滤" maxlength="20">
+                    <div class="hint">建议 2–10 字，动宾结构，避免与现有动作重名</div>
+                  </div>
+                  <div class="form-item">
+                    <div class="form-label">所属工序分类 <span class="req">*</span></div>
+                    <select class="select" id="fCat">
+                      <option value="">请选择</option>
+                      <option>前处理</option><option>反应工序</option><option>后处理</option><option>包装工序</option>
+                    </select>
+                  </div>
+                  <div class="form-item">
+                    <div class="form-label">动作类型 <span class="req">*</span></div>
+                    <select class="select" id="fType">
+                      <option value="">请选择</option>
+                      <option>手工作业</option><option>设备自动</option><option>人机协同</option><option>检验取样</option>
+                    </select>
+                  </div>
+                  <div class="form-item">
+                    <div class="form-label">标准时长（min） <span class="req">*</span></div>
+                    <input class="input" id="fDur" type="number" min="1" placeholder="例：20">
+                    <div class="hint">用于排产节拍计算与超时预警基线</div>
+                  </div>
+                  <div class="form-item">
+                    <div class="form-label">超时预警阈值</div>
+                    <select class="select" id="fOvertime">
+                      <option>超标准时长 10%</option><option selected>超标准时长 20%</option><option>超标准时长 30%</option><option>不预警</option>
+                    </select>
+                  </div>
+                  <div class="form-item">
+                    <div class="form-label">初始状态</div>
+                    <select class="select" id="fStatus">
+                      <option>培训中</option><option>待复核</option><option>启用</option>
+                    </select>
+                    <div class="hint">新动作默认「培训中」，培训认证完成后方可启用</div>
+                  </div>
+                  <div class="form-item">
+                    <div class="form-label">岗位资质要求</div>
+                    <select class="select" id="fQual">
+                      <option>初级操作工</option><option selected>中级操作工</option><option>高级操作工 / 班长</option><option>需工艺员在场</option>
+                    </select>
+                  </div>
+                  <div class="form-item full">
+                    <div class="form-label">适用设备 <span class="req">*</span></div>
+                    <div class="chips" id="equipChips">
+                      <div class="chip">配料釜</div><div class="chip">反应釜 R-201</div><div class="chip">反应釜 R-203</div>
+                      <div class="chip">结晶釜 R-205</div><div class="chip">过滤机组</div><div class="chip">烘箱 D-105</div>
+                      <div class="chip">混合机</div><div class="chip">制粒机</div><div class="chip">压片机 T-302</div>
+                      <div class="chip">包衣锅</div><div class="chip">铝塑包装机</div><div class="chip">CIP 站</div>
+                    </div>
+                    <div class="hint">可多选；未选设备的产线在排产时不会调用该动作</div>
+                  </div>
+                  <div class="form-item full">
+                    <div class="form-label">动作描述</div>
+                    <textarea class="textarea" id="fDesc" placeholder="描述该动作的作业目的、适用场景与关键控制要求"></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 2 -->
+          <div class="sec" data-sec="2">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title"><span class="dot"></span>工艺参数与限值</div>
+                <button class="btn btn-secondary btn-mini" onclick="addParam()">＋ 添加参数</button>
+              </div>
+              <div class="card-body" style="padding: 0;">
+                <table class="p-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 18%;">参数名称</th>
+                      <th style="width: 12%;">标准值</th>
+                      <th style="width: 11%;">下限</th>
+                      <th style="width: 11%;">上限</th>
+                      <th style="width: 10%;">单位</th>
+                      <th style="width: 15%;">采集方式</th>
+                      <th style="width: 13%;">超限动作</th>
+                      <th style="width: 10%;">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="paramBody"></tbody>
+                </table>
+                <div style="padding: 12px 20px; font-size: 12px; color: var(--text-sec); border-top: 1px solid var(--page);">
+                  共 <b id="paramCount" style="color: var(--primary-600); font-family: 'DIN Alternate', monospace;">0</b> 项参数 ·
+                  其中阻断项 <b id="blockCount" style="color: var(--block); font-family: 'DIN Alternate', monospace;">0</b> 项
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 3 -->
+          <div class="sec" data-sec="3">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title"><span class="dot"></span>作业步骤 SOP</div>
+                <button class="btn btn-secondary btn-mini" onclick="addSop()">＋ 添加步骤</button>
+              </div>
+              <div class="card-body">
+                <div id="sopList"></div>
+                <div class="hint" style="margin-top: 8px;">步骤将按顺序下发至车间终端「动作指引」页面，关键控制点会强制拍照或双人确认。</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 4 -->
+          <div class="sec" data-sec="4">
+            <div class="card">
+              <div class="card-header"><div class="card-title"><span class="dot"></span>安全防护要求</div></div>
+              <div class="card-body">
+                <div class="form-label">个人防护用品（PPE）</div>
+                <div class="check-grid" id="ppeGrid">
+                  <div class="check"><span class="box">✓</span>防护眼镜</div>
+                  <div class="check"><span class="box">✓</span>耐酸碱手套</div>
+                  <div class="check"><span class="box">✓</span>防毒面具</div>
+                  <div class="check"><span class="box">✓</span>防静电服</div>
+                  <div class="check"><span class="box">✓</span>安全鞋</div>
+                  <div class="check"><span class="box">✓</span>听力防护</div>
+                </div>
+                <div class="form-item" style="margin-top: 16px;">
+                  <div class="form-label">危险源与应急提示</div>
+                  <textarea class="textarea" id="fRisk" placeholder="例：物料具腐蚀性，接触皮肤立即用大量清水冲洗并上报班长"></textarea>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header"><div class="card-title"><span class="dot"></span>合规与管控规则</div></div>
+              <div class="card-body" style="padding: 6px 20px 14px;">
+                <div class="switch-row">
+                  <div><div class="switch-label">双人复核</div><div class="switch-desc">关键动作需第二人确认后方可继续</div></div>
+                  <div class="switch blue" data-sw="dual"></div>
+                </div>
+                <div class="switch-row">
+                  <div><div class="switch-label">电子签名</div><div class="switch-desc">执行完成需操作人电子签名留痕（GMP）</div></div>
+                  <div class="switch blue on" data-sw="sign"></div>
+                </div>
+                <div class="switch-row">
+                  <div><div class="switch-label">偏差强制上报</div><div class="switch-desc">参数超限时自动生成偏差单并通知质量部</div></div>
+                  <div class="switch blue on" data-sw="dev"></div>
+                </div>
+                <div class="switch-row">
+                  <div><div class="switch-label">纳入变更控制</div><div class="switch-desc">后续修改需走变更管理审批流</div></div>
+                  <div class="switch blue on" data-sw="change"></div>
+                </div>
+                <div class="switch-row">
+                  <div><div class="switch-label">培训认证前置</div><div class="switch-desc">未通过认证的人员不可执行该动作</div></div>
+                  <div class="switch blue on" data-sw="train"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右：辅助面板 -->
+        <div>
+          <div class="side-card">
+            <div class="card-header"><div class="card-title" style="font-size: 14px;"><span class="dot"></span>填写完整度</div></div>
+            <div class="side-body">
+              <ul class="chk-list" id="chkList"></ul>
+            </div>
+          </div>
+
+          <div class="side-card">
+            <div class="card-header"><div class="card-title" style="font-size: 14px;"><span class="dot" style="background: var(--info);"></span>EARS 需求表述预览</div></div>
+            <div class="side-body">
+              <div class="ears" id="earsBox"></div>
+              <div class="hint" style="margin-top: 8px;">该表述将同步写入 PRD 功能条目，供研发与测试对齐验收标准。</div>
+            </div>
+          </div>
+
+          <div class="side-card">
+            <div class="card-header"><div class="card-title" style="font-size: 14px;"><span class="dot" style="background: var(--warning);"></span>影响范围提示</div></div>
+            <div class="side-body">
+              <div class="tip">
+                · 新增动作提交后进入 <b>工艺审批流</b>（工艺员 → 质量 → 生产经理）。<br>
+                · 审批通过后可被 <b>釜次BOM</b> 与 <b>排产工单</b> 引用。<br>
+                · <span class="warn">在制釜次不会自动套用新动作</span>，需下一批次生效。<br>
+                · 阻断类参数将同步至 <b>动作监控预警</b> 规则库。
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    
+    </div></div>
+
+    <!-- 底部操作栏 -->
+    <div class="footbar">
+      <div class="foot-info">
+        <span>当前步骤 <b id="stepInfo" style="color: var(--text);">1 / 4 基本信息</b></span>
+        <span>·</span>
+        <span>草稿自动保存于 <span id="saveTime">--:--</span></span>
+      </div>
+      <div class="foot-actions">
+        <button class="btn btn-secondary" id="btnPrev" onclick="go(-1)">上一步</button>
+        <button class="btn btn-secondary" onclick="saveDraft()">存为草稿</button>
+        <button class="btn btn-primary" id="btnNext" onclick="go(1)">下一步</button>
+      </div>
+    </div>
+  </div>
+
+
+<div class="toast" id="toast"></div>
+
+<script>
+  /* ============ 步骤切换 ============ */
+  var cur = 1, TOTAL = 4;
+  var STEP_NAME = { 1: '基本信息', 2: '参数与限值', 3: '作业步骤 SOP', 4: '安全与合规' };
+
+  function render() {
+    document.querySelectorAll('.step').forEach(function (s) {
+      var n = +s.dataset.step;
+      s.classList.toggle('active', n === cur);
+      s.classList.toggle('done', n < cur);
+    });
+    document.querySelectorAll('.sec').forEach(function (sec) {
+      sec.classList.toggle('on', +sec.dataset.sec === cur);
+    });
+    document.getElementById('stepInfo').textContent = cur + ' / ' + TOTAL + ' ' + STEP_NAME[cur];
+    document.getElementById('btnPrev').style.visibility = cur === 1 ? 'hidden' : 'visible';
+    document.getElementById('btnNext').textContent = cur === TOTAL ? '提交审批' : '下一步';
+    document.querySelector('.content').scrollTop = 0;
+  }
+  function go(d) {
+    if (cur === TOTAL && d === 1) { submitForm(); return; }
+    cur = Math.min(TOTAL, Math.max(1, cur + d));
+    render(); updateAll();
+  }
+  document.querySelectorAll('.step').forEach(function (s) {
+    s.addEventListener('click', function () { cur = +this.dataset.step; render(); updateAll(); });
+  });
+
+  /* ============ 编号自动生成 ============ */
+  var CODE_PREFIX = { '前处理': 'ACT-1', '反应工序': 'ACT-2', '后处理': 'ACT-3', '包装工序': 'ACT-4' };
+  function refreshCode() {
+    var cat = document.getElementById('fCat').value;
+    var code = cat ? (CODE_PREFIX[cat] + '13') : 'ACT-013';
+    document.getElementById('fCode').value = code;
+    document.getElementById('codePreview').textContent = code;
+  }
+
+  /* ============ 设备多选 ============ */
+  document.querySelectorAll('#equipChips .chip').forEach(function (c) {
+    c.addEventListener('click', function () { this.classList.toggle('on'); updateAll(); });
+  });
+  function equips() {
+    return Array.prototype.slice.call(document.querySelectorAll('#equipChips .chip.on')).map(function (c) { return c.textContent; });
+  }
+
+  /* ============ PPE ============ */
+  document.querySelectorAll('#ppeGrid .check').forEach(function (c) {
+    c.addEventListener('click', function () { this.classList.toggle('on'); });
+  });
+
+  /* ============ 开关 ============ */
+  document.querySelectorAll('.switch').forEach(function (s) {
+    s.addEventListener('click', function () { this.classList.toggle('on'); updateAll(); });
+  });
+
+  /* ============ 参数表 ============ */
+  var PARAM_SEED = [
+    { n: '反应温度', v: '78', lo: '75', hi: '82', u: '℃', src: 'DCS 自动采集', act: '阻断' },
+    { n: '搅拌转速', v: '120', lo: '110', hi: '130', u: 'rpm', src: 'DCS 自动采集', act: '预警' },
+    { n: '投料量', v: '250', lo: '248', hi: '252', u: 'kg', src: '称重自动回传', act: '阻断' }
+  ];
+  function paramRow(p) {
+    p = p || { n: '', v: '', lo: '', hi: '', u: '', src: '手工录入', act: '预警' };
+    var tr = document.createElement('tr');
+    tr.className = 'param-row';
+    tr.innerHTML =
+      '<td><input class="p-name" placeholder="参数名称" value="' + p.n + '"></td>' +
+      '<td><input class="num-in p-val" placeholder="标准值" value="' + p.v + '"></td>' +
+      '<td><input class="num-in p-lo" placeholder="下限" value="' + p.lo + '"></td>' +
+      '<td><input class="num-in p-hi" placeholder="上限" value="' + p.hi + '"></td>' +
+      '<td><input class="p-unit" placeholder="单位" value="' + p.u + '"></td>' +
+      '<td><select class="p-src">' +
+        opt(['手工录入', 'DCS 自动采集', '称重自动回传', 'LIMS 回传'], p.src) + '</select></td>' +
+      '<td><select class="p-act">' + opt(['提示', '预警', '阻断'], p.act) + '</select></td>' +
+      '<td><span class="row-del">删除</span></td>';
+    tr.querySelector('.row-del').addEventListener('click', function () { tr.remove(); updateAll(); });
+    tr.querySelectorAll('input,select').forEach(function (el) { el.addEventListener('input', updateAll); });
+    return tr;
+  }
+  function opt(list, sel) {
+    return list.map(function (t) { return '<option' + (t === sel ? ' selected' : '') + '>' + t + '</option>'; }).join('');
+  }
+  function addParam(p) { document.getElementById('paramBody').appendChild(paramRow(p)); updateAll(); }
+
+  /* ============ SOP 步骤 ============ */
+  var SOP_SEED = [
+    { t: '确认设备状态与清场记录，核对物料批号', m: '2', k: '双人核对' },
+    { t: '按标准值设定工艺参数并启动设备', m: '3', k: '拍照留证' },
+    { t: '过程巡检，记录关键参数并观察异常', m: '10', k: '无' }
+  ];
+  function sopItem(d) {
+    d = d || { t: '', m: '', k: '无' };
+    var wrap = document.createElement('div');
+    wrap.className = 'sop-item';
+    wrap.innerHTML =
+      '<div class="sop-no"></div>' +
+      '<div class="sop-main">' +
+        '<div class="sop-row">' +
+          '<input class="input sop-text" placeholder="步骤描述，例：确认阀门 V-102 处于关闭状态" value="' + d.t + '">' +
+          '<input class="input sop-min" type="number" min="0" placeholder="耗时(min)" value="' + d.m + '">' +
+          '<select class="select sop-key">' + opt(['无', '拍照留证', '双人核对', '扫码确认', '取样送检'], d.k) + '</select>' +
+          '<span class="row-del sop-del" style="text-align:center;">删除</span>' +
+        '</div>' +
+      '</div>';
+    wrap.querySelector('.sop-del').addEventListener('click', function () { wrap.remove(); renumberSop(); updateAll(); });
+    wrap.querySelectorAll('input,select').forEach(function (el) { el.addEventListener('input', updateAll); });
+    return wrap;
+  }
+  function addSop(d) { document.getElementById('sopList').appendChild(sopItem(d)); renumberSop(); updateAll(); }
+  function renumberSop() {
+    document.querySelectorAll('#sopList .sop-item').forEach(function (it, i) {
+      it.querySelector('.sop-no').textContent = i + 1;
+    });
+  }
+
+  /* ============ 完整度校验 + EARS 预览 ============ */
+  function val(id) { return (document.getElementById(id).value || '').trim(); }
+
+  function checkList() {
+    var params = document.querySelectorAll('#paramBody .param-row').length;
+    var sops = document.querySelectorAll('#sopList .sop-item').length;
+    return [
+      { t: '动作名称已填写', ok: !!val('fName') },
+      { t: '工序分类已选择', ok: !!val('fCat') },
+      { t: '动作类型已选择', ok: !!val('fType') },
+      { t: '标准时长已填写', ok: !!val('fDur') },
+      { t: '适用设备已选择（' + equips().length + '）', ok: equips().length > 0 },
+      { t: '工艺参数已配置（' + params + '）', ok: params > 0 },
+      { t: '作业步骤已配置（' + sops + '）', ok: sops > 0 },
+      { t: '危险源提示已填写', ok: !!val('fRisk') }
+    ];
+  }
+
+  function updateAll() {
+    // 参数统计
+    var rows = document.querySelectorAll('#paramBody .param-row');
+    var blocked = 0;
+    rows.forEach(function (r) { if (r.querySelector('.p-act').value === '阻断') blocked++; });
+    document.getElementById('paramCount').textContent = rows.length;
+    document.getElementById('blockCount').textContent = blocked;
+
+    // 完整度
+    var list = checkList();
+    document.getElementById('chkList').innerHTML = list.map(function (i) {
+      return '<li><span class="chk-ico ' + (i.ok ? 'ok' : 'no') + '">' + (i.ok ? '✓' : '') + '</span><span style="' +
+        (i.ok ? '' : 'color:var(--text-sec);') + '">' + i.t + '</span></li>';
+    }).join('');
+
+    // EARS
+    var name = val('fName') || '［动作名称］';
+    var cat = val('fCat') || '［工序分类］';
+    var dur = val('fDur') || 'N';
+    var over = document.getElementById('fOvertime').value;
+    var firstP = rows.length ? rows[0].querySelector('.p-name').value || '［参数］' : '［参数］';
+    var lo = rows.length ? (rows[0].querySelector('.p-lo').value || '下限') : '下限';
+    var hi = rows.length ? (rows[0].querySelector('.p-hi').value || '上限') : '上限';
+    var dual = document.querySelector('[data-sw="dual"]').classList.contains('on');
+    var sign = document.querySelector('[data-sw="sign"]').classList.contains('on');
+
+    var html = '';
+    html += '<div><span class="ears-type">Ubiquitous</span>系统应在' + cat + '工序中提供「<b>' + name + '</b>」标准动作，标准时长为 <b>' + dur + '</b> 分钟。</div>';
+    html += '<div style="margin-top:8px;"><span class="ears-type">Event-driven</span>当操作人在终端启动「<b>' + name + '</b>」时，系统应按顺序下发作业步骤并开始计时。</div>';
+    html += '<div style="margin-top:8px;"><span class="ears-type">Unwanted</span>若 <b>' + firstP + '</b> 超出 [' + lo + ', ' + hi + '] 区间，则系统应' + (blocked ? '<b>阻断后续步骤</b>并生成偏差单' : '发出预警提示') + '。</div>';
+    html += '<div style="margin-top:8px;"><span class="ears-type">State-driven</span>在执行时长超过标准值' + over.replace('超标准时长 ', '') + '期间，系统应向班组长推送超时提醒。</div>';
+    if (dual || sign) {
+      html += '<div style="margin-top:8px;"><span class="ears-type">Optional</span>在启用' +
+        (dual ? '<b>双人复核</b>' : '') + (dual && sign ? '与' : '') + (sign ? '<b>电子签名</b>' : '') +
+        '的场景下，系统应在动作完成前强制校验确认信息。</div>';
+    }
+    document.getElementById('earsBox').innerHTML = html;
+  }
+
+  /* ============ 提交 / 草稿 ============ */
+  function toast(msg, type) {
+    var t = document.getElementById('toast');
+    t.className = 'toast show ' + (type || '');
+    t.textContent = msg;
+    setTimeout(function () { t.className = 'toast ' + (type || ''); }, 2200);
+  }
+  function saveDraft() {
+    var d = new Date();
+    document.getElementById('saveTime').textContent =
+      ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+    toast('草稿已保存，可在动作库「草稿」筛选中找到', 'ok');
+  }
+  function submitForm() {
+    ['fName', 'fCat', 'fType', 'fDur'].forEach(function (id) {
+      document.getElementById(id).classList.remove('error');
+    });
+    var miss = checkList().filter(function (i) { return !i.ok; });
+    if (miss.length) {
+      if (!val('fName')) document.getElementById('fName').classList.add('error');
+      if (!val('fCat')) document.getElementById('fCat').classList.add('error');
+      if (!val('fType')) document.getElementById('fType').classList.add('error');
+      if (!val('fDur')) document.getElementById('fDur').classList.add('error');
+      toast('还有 ' + miss.length + ' 项未完成：' + miss[0].t.replace(/（.*）/, ''), 'err');
+      return;
+    }
+    toast('已提交工艺审批，审批人：工艺员 李工', 'ok');
+    setTimeout(function () { location.href = '工序动作管理.html'; }, 1400);
+  }
+
+  /* ============ 初始化 ============ */
+  document.getElementById('fCat').addEventListener('change', function () { refreshCode(); updateAll(); });
+  ['fName', 'fType', 'fDur', 'fOvertime', 'fStatus', 'fQual', 'fDesc', 'fRisk'].forEach(function (id) {
+    var el = document.getElementById(id);
+    el.addEventListener('input', updateAll);
+    el.addEventListener('change', updateAll);
+  });
+  PARAM_SEED.forEach(function (p) { addParam(p); });
+  SOP_SEED.forEach(function (s) { addSop(s); });
+  ['防护眼镜', '耐酸碱手套'].forEach(function (t) {
+    document.querySelectorAll('#ppeGrid .check').forEach(function (c) {
+      if (c.textContent.indexOf(t) > -1) c.classList.add('on');
+    });
+  });
+  render();
+  updateAll();
+  saveDraft();
+</script>
+  <script src="sidebar.js"></script>
+  <script src="plant.js"></script>
+<script src="role.js"></script>
+</body>
+</html>
