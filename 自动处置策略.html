@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MES 精细化工 - 自动处置策略</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary-50: #E6F1FB; --primary-200: #B5D4F4; --primary-400: #378ADD;
+    --primary-600: #185FA5; --primary-800: #0C447C; --primary-900: #042C53;
+    --normal: #1D9E75; --normal-bg: #E1F5EE;
+    --info: #EF9F27; --info-bg: #FAEEDA;
+    --warning: #D85A30; --warning-bg: #FAECE7;
+    --block: #E24B4A; --block-bg: #FCEBEB;
+    --white: #FFFFFF; --page: #F1EFE8; --border: #D3D1C7;
+    --text-sec: #888780; --text-sub: #5F5E5A; --text: #2C2C2A;
+  }
+  body { font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif; background: var(--page); color: var(--text); font-size: 14px; line-height: 1.6; overflow: hidden; height: 100vh; }
+  .app { display: flex; height: 100vh; }
+
+  .sidebar { width: 200px; min-width: 200px; background: var(--primary-800); color: #85B7EB; display: flex; flex-direction: column; overflow-y: auto; }
+  .sidebar-logo { padding: 14px 16px; border-bottom: 1px solid var(--primary-600); display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .sidebar-nav { padding: 8px 0; flex: 1; }
+  .nav-item { padding: 8px 16px 8px 36px; font-size: 12.5px; color: #85B7EB; cursor: pointer; position: relative; transition: all 0.15s; display: flex; align-items: center; gap: 7px; }
+  .nav-item:hover { background: var(--primary-900); color: #B5D4F4; }
+  .nav-item.active { background: var(--primary-600); color: #FFF; font-weight: 500; }
+  .nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--primary-400); }
+  .nav-section-title { padding: 16px 20px 6px; font-size: 11px; color: #378ADD; text-transform: uppercase; letter-spacing: 0.5px; }
+  .sidebar-footer { padding: 12px 20px; border-top: 1px solid var(--primary-600); font-size: 12px; color: #5DCAA5; display: flex; align-items: center; gap: 6px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--normal); }
+
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { height: 52px; min-height: 52px; background: var(--white); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+  .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-sec); }
+  .breadcrumb .current { color: var(--text); font-weight: 500; }
+  .topbar-right { display: flex; align-items: center; gap: 20px; }
+  .user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+  .user-info:hover { background: var(--page); }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-600); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }
+  .user-name { font-size: 13px; color: var(--text); }
+  .user-role { font-size: 11px; color: var(--text-sec); }
+
+  .content { flex: 1; overflow-y: auto; padding: 14px 28px; }
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; gap: 12px; flex-wrap: wrap; }
+  .page-title { font-size: 22px; font-weight: 500; color: var(--text); }
+  .page-subtitle { font-size: 13px; color: var(--text-sec); margin-top: 2px; }
+  .header-actions { display: flex; gap: 10px; align-items: center; }
+  .btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+  .btn-primary { background: var(--primary-600); color: #fff; }
+  .btn-primary:hover { background: var(--primary-800); }
+  .btn-secondary { background: var(--white); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--primary-400); color: var(--primary-600); }
+  .back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--primary-600); cursor: pointer; text-decoration: none; margin-right: 14px; }
+  .back-link:hover { text-decoration: underline; }
+
+  .card { background: var(--white); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+  .card-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .card-title { font-size: 15px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .card-title .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  .metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+  .metric-card { background: var(--white); border-radius: 10px; padding: 14px 16px; border: 1px solid var(--border); }
+  .metric-card::before { content: ''; display: block; width: 100%; height: 3px; border-radius: 3px; margin-bottom: 10px; }
+  .metric-card.normal::before { background: var(--normal); }
+  .metric-card.primary::before { background: var(--primary-400); }
+  .metric-card.info::before { background: var(--info); }
+  .metric-card.block::before { background: var(--block); }
+  .metric-label { font-size: 11px; color: var(--text-sec); margin-bottom: 6px; }
+  .metric-value { font-family: "DIN Alternate", "Roboto", monospace; font-size: 24px; font-weight: 500; line-height: 1.1; }
+  .metric-card.normal .metric-value { color: var(--normal); }
+  .metric-card.primary .metric-value { color: var(--primary-600); }
+  .metric-card.info .metric-value { color: var(--info); }
+  .metric-card.block .metric-value { color: var(--block); }
+
+  .status-tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 14px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+  .status-tag .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .status-tag.normal { background: var(--normal-bg); color: #085041; } .status-tag.normal .dot { background: var(--normal); }
+  .status-tag.info { background: var(--info-bg); color: #633806; } .status-tag.info .dot { background: var(--info); }
+  .status-tag.block { background: var(--block-bg); color: #501313; } .status-tag.block .dot { background: var(--block); }
+
+  .cfg-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .cfg-table th { text-align: left; padding: 11px 16px; background: var(--page); color: var(--text-sec); font-weight: 500; font-size: 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .cfg-table td { padding: 12px 16px; border-bottom: 1px solid var(--page); color: var(--text); vertical-align: middle; }
+  .cfg-table tbody tr:hover { background: var(--primary-50); }
+  .link-btn { color: var(--primary-600); cursor: pointer; font-size: 12px; margin-right: 10px; }
+  .link-btn:hover { text-decoration: underline; }
+  .link-del { color: var(--block); cursor: pointer; font-size: 12px; }
+  .link-del:hover { text-decoration: underline; }
+
+  .switch { position: relative; display: inline-block; width: 40px; height: 22px; vertical-align: middle; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch .slider { position: absolute; cursor: pointer; inset: 0; background: var(--border); border-radius: 22px; transition: .2s; }
+  .switch .slider:before { content: ''; position: absolute; height: 16px; width: 16px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: .2s; }
+  .switch input:checked + .slider { background: var(--normal); }
+  .switch input:checked + .slider:before { transform: translateX(18px); }
+  .switch-label { font-size: 12px; color: var(--text-sec); margin-left: 8px; }
+  .switch-label.on { color: var(--normal); }
+  .switch-label.off { color: var(--text-sec); }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-sec); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .pulse { animation: pulse 1.5s ease-in-out infinite; }
+
+  .kdt-mask { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.3); z-index: 9998; display: none; }
+  .kdt-mask.open { display: block; }
+  .kdt-drawer { position: fixed; top: 0; right: 0; width: 460px; height: 100vh; background: #fff; box-shadow: -4px 0 24px rgba(0,0,0,.1); z-index: 9999; transform: translateX(100%); transition: transform .3s; overflow-y: auto; }
+  .kdt-drawer.open { transform: translateX(0); }
+  .kdt-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .kdt-badge { font-size: 14px; font-weight: 600; color: var(--primary-600); }
+  .kdt-close { background: none; border: none; font-size: 20px; color: var(--text-sec); cursor: pointer; }
+  .kdt-body { padding: 20px; }
+  .form-row { margin-bottom: 14px; }
+  .form-label { display: block; font-size: 12px; color: var(--text-sec); margin-bottom: 6px; }
+  .form-input, .form-select { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; color: var(--text); background: #fff; font-family: inherit; outline: none; }
+  .form-input:focus, .form-select:focus { border-color: var(--primary-400); }
+  .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+  /* === 侧边栏 v2：分组折叠 + 窄宽 + 新LOGO === */
+  .logo-text { line-height: 1.25; min-width: 0; }
+  .logo-name { font-size: 15px; font-weight: 500; color: #FFFFFF; letter-spacing: 0.3px; }
+  .logo-slogan { font-size: 10.5px; color: #93B5D9; margin-top: 1px; }
+  .nav-group-head { padding: 14px 16px 5px; font-size: 11px; color: #6FA9DA; letter-spacing: 0.6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; transition: color 0.15s; }
+  .nav-group-head:hover { color: #B5D4F4; }
+  .nav-group-head > span:first-child { font-weight: 500; }
+  .nav-caret { font-size: 10px; opacity: 0.75; transition: transform 0.18s; display: inline-block; }
+  .nav-group-items { overflow: hidden; }
+  .nav-group.collapsed .nav-caret { transform: rotate(-90deg); }
+  .nav-group.collapsed .nav-group-items { display: none; }
+  .sidebar-collapse { padding: 10px 16px; font-size: 12px; color: #85B7EB; cursor: pointer; display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--primary-600); transition: all 0.15s; }
+  .sidebar-collapse:hover { background: var(--primary-900); color: #B5D4F4; }
+  .collapse-caret { display: inline-block; transition: transform 0.2s; font-size: 14px; line-height: 1; }
+  .sidebar.collapsed .collapse-caret { transform: rotate(180deg); }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="appSidebar"></aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="breadcrumb">
+        <span>安质环管控</span><span>›</span>
+        <span>动作监控预警</span><span>›</span>
+        <span class="current">自动处置策略</span>
+      </div>
+      <div class="topbar-right">
+        <div id="plantSwitch"></div>
+        <div id="roleSwitch"></div>
+      <div class="user-info">
+          <div class="avatar">张</div>
+          <div><div class="user-name">张明</div><div class="user-role">车间主管</div></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="tabbar" id="tabBar"></div>
+      <div class="content">
+    
+      <div class="page-header">
+        <div>
+          <div class="page-title">
+            <a class="back-link" onclick="window.location.href='实时预警.html'">← 返回预警中心</a>自动处置策略
+          </div>
+          <div class="page-subtitle">预警命中后由系统按策略自动执行处置动作（暂停 / 隔离 / 降负荷 / 锁定），无需人工介入，处置结果回流预警事件</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-primary" onclick="Strat.open()">＋ 新增策略</button>
+        </div>
+      </div>
+
+      <div class="metrics-row">
+        <div class="metric-card normal"><div class="metric-label">已启用策略</div><div class="metric-value" id="sOn">5</div></div>
+        <div class="metric-card primary"><div class="metric-label">系统自动</div><div class="metric-value">5</div></div>
+        <div class="metric-card info"><div class="metric-label">人工确认</div><div class="metric-value">0</div></div>
+        <div class="metric-card block"><div class="metric-label">已停用</div><div class="metric-value" id="sOff">1</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><span class="dot" style="background: var(--primary-400);"></span>自动处置策略列表</div>
+          <span style="font-size: 12px; color: var(--text-sec);" id="stratTotal">共 6 条策略</span>
+        </div>
+        <div style="overflow-x: auto;">
+          <table class="cfg-table">
+            <thead>
+              <tr>
+                <th>策略名称</th>
+                <th>触发事件</th>
+                <th>自动动作</th>
+                <th>适用范围</th>
+                <th>执行方式</th>
+                <th>状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="stratBody">
+              <tr data-id="st-1">
+                <td>超温自动暂停投料</td>
+                <td>温度 ＞ 上限</td>
+                <td>自动暂停投料 + 隔离排料</td>
+                <td>投料反应</td>
+                <td>系统自动</td>
+                <td><label class="switch"><input type="checkbox" checked onchange="Strat.toggle(this,'st-1')"><span class="slider"></span></label><span class="switch-label on">启用</span></td>
+                <td><span class="link-btn" onclick="Strat.open('st-1')">编辑</span><span class="link-del" onclick="Strat.del('st-1')">删除</span></td>
+              </tr>
+              <tr data-id="st-2">
+                <td>超压自动泄压</td>
+                <td>压力 ＞ 上限</td>
+                <td>开安全阀 + 降负荷</td>
+                <td>混合反应</td>
+                <td>系统自动</td>
+                <td><label class="switch"><input type="checkbox" checked onchange="Strat.toggle(this,'st-2')"><span class="slider"></span></label><span class="switch-label on">启用</span></td>
+                <td><span class="link-btn" onclick="Strat.open('st-2')">编辑</span><span class="link-del" onclick="Strat.del('st-2')">删除</span></td>
+              </tr>
+              <tr data-id="st-3">
+                <td>顺序错误自动锁定</td>
+                <td>阀门顺序错误</td>
+                <td>锁定阀门 + 告警</td>
+                <td>投料反应</td>
+                <td>系统自动</td>
+                <td><label class="switch"><input type="checkbox" checked onchange="Strat.toggle(this,'st-3')"><span class="slider"></span></label><span class="switch-label on">启用</span></td>
+                <td><span class="link-btn" onclick="Strat.open('st-3')">编辑</span><span class="link-del" onclick="Strat.del('st-3')">删除</span></td>
+              </tr>
+              <tr data-id="st-4">
+                <td>投料偏差暂停通知</td>
+                <td>投料量超差</td>
+                <td>暂停并通知主管</td>
+                <td>投料反应</td>
+                <td>系统自动</td>
+                <td><label class="switch"><input type="checkbox" checked onchange="Strat.toggle(this,'st-4')"><span class="slider"></span></label><span class="switch-label on">启用</span></td>
+                <td><span class="link-btn" onclick="Strat.open('st-4')">编辑</span><span class="link-del" onclick="Strat.del('st-4')">删除</span></td>
+              </tr>
+              <tr data-id="st-5">
+                <td>振动超限降速</td>
+                <td>振动 ＞ 阈值</td>
+                <td>降搅拌转速 + 工单</td>
+                <td>溶解</td>
+                <td>系统自动</td>
+                <td><label class="switch"><input type="checkbox" onchange="Strat.toggle(this,'st-5')"><span class="slider"></span></label><span class="switch-label off">停用</span></td>
+                <td><span class="link-btn" onclick="Strat.open('st-5')">编辑</span><span class="link-del" onclick="Strat.del('st-5')">删除</span></td>
+              </tr>
+              <tr data-id="st-6">
+                <td>过滤压力预警</td>
+                <td>压力缓升</td>
+                <td>提示巡检滤材</td>
+                <td>过滤</td>
+                <td>系统自动</td>
+                <td><label class="switch"><input type="checkbox" checked onchange="Strat.toggle(this,'st-6')"><span class="slider"></span></label><span class="switch-label on">启用</span></td>
+                <td><span class="link-btn" onclick="Strat.open('st-6')">编辑</span><span class="link-del" onclick="Strat.del('st-6')">删除</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    
+    </div></div>
+  </div>
+
+
+<!-- 新增/编辑策略抽屉 -->
+<div class="kdt-mask" id="stratMask" onclick="Strat.close()"></div>
+<div class="kdt-drawer" id="stratDrawer">
+  <div class="kdt-head">
+    <span class="kdt-badge" id="stratDrawerTitle">新增策略</span>
+    <button class="kdt-close" onclick="Strat.close()">×</button>
+  </div>
+  <div class="kdt-body">
+    <div class="form-row">
+      <label class="form-label">策略名称</label>
+      <input class="form-input" id="sName" placeholder="如：超温自动暂停投料">
+    </div>
+    <div class="form-row">
+      <label class="form-label">触发事件</label>
+      <input class="form-input" id="sTrig" placeholder="如：温度 ＞ 上限">
+    </div>
+    <div class="form-row">
+      <label class="form-label">自动动作</label>
+      <input class="form-input" id="sAct" placeholder="如：自动暂停投料 + 隔离排料">
+    </div>
+    <div class="form-row">
+      <label class="form-label">适用范围</label>
+      <select class="form-select" id="sScope">
+        <option>投料反应</option>
+        <option>混合反应</option>
+        <option>溶解</option>
+        <option>干燥</option>
+        <option>过滤</option>
+        <option>称量配料</option>
+        <option>全部工序</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">执行方式</label>
+      <select class="form-select" id="sMode">
+        <option>系统自动</option>
+        <option>人工确认</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label class="form-label">启用状态</label>
+      <label class="switch"><input type="checkbox" id="sOn" checked><span class="slider"></span></label>
+      <span class="switch-label on" id="sOnLabel">启用</span>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-secondary" onclick="Strat.close()">取消</button>
+      <button class="btn btn-primary" onclick="Strat.save()">保存</button>
+    </div>
+  </div>
+</div>
+
+  <script src="sidebar.js"></script>
+<script>
+  var Strat = (function () {
+    var editId = null;
+    function open(id) {
+      editId = id || null;
+      document.getElementById('stratDrawerTitle').textContent = id ? '编辑策略' : '新增策略';
+      var f = function (k, v) { var e = document.getElementById(k); if (e) e.value = v || ''; };
+      if (id) {
+        var tr = document.querySelector('tr[data-id="' + id + '"]');
+        var td = tr.children;
+        f('sName', td[0].textContent);
+        f('sTrig', td[1].textContent);
+        f('sAct', td[2].textContent);
+        f('sScope', td[3].textContent);
+        f('sMode', td[4].textContent);
+        var on = tr.querySelector('.switch input').checked;
+        document.getElementById('sOn').checked = on;
+        setOnLabel(on);
+      } else {
+        f('sName', ''); f('sTrig', ''); f('sAct', ''); f('sScope', '投料反应'); f('sMode', '系统自动');
+        document.getElementById('sOn').checked = true; setOnLabel(true);
+      }
+      document.getElementById('stratMask').classList.add('open');
+      document.getElementById('stratDrawer').classList.add('open');
+    }
+    function setOnLabel(on) {
+      var l = document.getElementById('sOnLabel');
+      l.textContent = on ? '启用' : '停用';
+      l.className = 'switch-label ' + (on ? 'on' : 'off');
+    }
+    function save() {
+      var name = document.getElementById('sName').value.trim();
+      if (!name) { alert('请填写策略名称'); return; }
+      var trig = document.getElementById('sTrig').value.trim();
+      var act = document.getElementById('sAct').value.trim();
+      var scope = document.getElementById('sScope').value;
+      var mode = document.getElementById('sMode').value;
+      var on = document.getElementById('sOn').checked;
+      var rowHtml = '<td>' + name + '</td><td>' + (trig || '—') + '</td><td>' + (act || '—') + '</td><td>' + scope + '</td><td>' + mode + '</td>'
+        + '<td><label class="switch"><input type="checkbox" ' + (on ? 'checked' : '') + ' onchange="Strat.toggle(this,\'' + (editId || 'NEW') + '\')"><span class="slider"></span></label><span class="switch-label ' + (on ? 'on' : 'off') + '">' + (on ? '启用' : '停用') + '</span></td>'
+        + '<td><span class="link-btn" onclick="Strat.open(\'' + (editId || 'NEW') + '\')">编辑</span><span class="link-del" onclick="Strat.del(\'' + (editId || 'NEW') + '\')">删除</span></td>';
+      if (editId) {
+        var tr = document.querySelector('tr[data-id="' + editId + '"]');
+        tr.innerHTML = rowHtml;
+      } else {
+        var nid = 'st-' + (Date.now());
+        var ntr = document.createElement('tr');
+        ntr.setAttribute('data-id', nid);
+        ntr.innerHTML = rowHtml.replace(/'NEW'/g, "'" + nid + "'");
+        ntr.querySelectorAll('.link-btn,.link-del').forEach(function (el) {
+          el.setAttribute('onclick', el.getAttribute('onclick').replace(/NEW/g, nid));
+        });
+        document.getElementById('stratBody').appendChild(ntr);
+      }
+      refresh();
+      close();
+    }
+    function toggle(box, id) {
+      var label = box.parentNode.nextElementSibling;
+      label.textContent = box.checked ? '启用' : '停用';
+      label.className = 'switch-label ' + (box.checked ? 'on' : 'off');
+      refresh();
+    }
+    function del(id) {
+      if (!confirm('确认删除该策略？')) return;
+      var tr = document.querySelector('tr[data-id="' + id + '"]');
+      if (tr) tr.parentNode.removeChild(tr);
+      refresh();
+    }
+    function close() {
+      document.getElementById('stratMask').classList.remove('open');
+      document.getElementById('stratDrawer').classList.remove('open');
+    }
+    function refresh() {
+      var rows = document.querySelectorAll('#stratBody tr');
+      var on = 0, off = 0;
+      rows.forEach(function (r) { if (r.querySelector('.switch input').checked) on++; else off++; });
+      var set = function (id, v) { var e = document.getElementById(id); if (e) e.textContent = v; };
+      set('sOn', on); set('sOff', off);
+      set('stratTotal', '共 ' + rows.length + ' 条策略');
+    }
+    document.getElementById('sOn').addEventListener('change', function () { setOnLabel(this.checked); });
+    refresh();
+    return { open: open, save: save, toggle: toggle, del: del, close: close };
+  })();
+</script>
+  <script src="plant.js"></script>
+<script src="role.js"></script>
+</body>
+</html>
