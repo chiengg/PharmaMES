@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MES 精细化工 - 生产工单</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary-50: #E6F1FB; --primary-200: #B5D4F4; --primary-400: #378ADD;
+    --primary-600: #185FA5; --primary-800: #0C447C; --primary-900: #042C53;
+    --normal: #1D9E75; --normal-bg: #E1F5EE;
+    --info: #EF9F27; --info-bg: #FAEEDA;
+    --warning: #D85A30; --warning-bg: #FAECE7;
+    --block: #E24B4A; --block-bg: #FCEBEB;
+    --white: #FFFFFF; --page: #F1EFE8; --border: #D3D1C7;
+    --text-sec: #888780; --text-sub: #5F5E5A; --text: #2C2C2A;
+  }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif;
+    background: var(--page); color: var(--text);
+    font-size: 14px; line-height: 1.6; overflow: hidden; height: 100vh;
+  }
+  .app { display: flex; height: 100vh; }
+  .sidebar { width: 200px; min-width: 200px; background: var(--primary-800); color: #85B7EB; display: flex; flex-direction: column; overflow-y: auto; }
+  .sidebar-logo { padding: 14px 16px; border-bottom: 1px solid var(--primary-600); display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .sidebar-nav { padding: 8px 0; flex: 1; }
+  .nav-item { padding: 8px 16px 8px 36px; font-size: 12.5px; color: #85B7EB; cursor: pointer; position: relative; transition: all 0.15s; display: flex; align-items: center; gap: 7px; }
+  .nav-item:hover { background: var(--primary-900); color: #B5D4F4; }
+  .nav-item.active { background: var(--primary-600); color: #FFF; font-weight: 500; }
+  .nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--primary-400); }
+  .nav-section-title { padding: 16px 20px 6px; font-size: 11px; color: #378ADD; text-transform: uppercase; letter-spacing: 0.5px; }
+  .sidebar-footer { padding: 12px 20px; border-top: 1px solid var(--primary-600); font-size: 12px; color: #5DCAA5; display: flex; align-items: center; gap: 6px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--normal); }
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { height: 52px; min-height: 52px; background: var(--white); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+  .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-sec); }
+  .breadcrumb .current { color: var(--text); font-weight: 500; }
+  .breadcrumb a { color: var(--text-sec); text-decoration: none; cursor: pointer; }
+  .breadcrumb a:hover { color: var(--primary-600); }
+  .topbar-right { display: flex; align-items: center; gap: 20px; }
+  .user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+  .user-info:hover { background: var(--page); }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-600); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }
+  .user-name { font-size: 13px; color: var(--text); }
+  .user-role { font-size: 11px; color: var(--text-sec); }
+  .content { flex: 1; overflow-y: auto; padding: 14px 28px; }
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+  .page-title { font-size: 22px; font-weight: 500; color: var(--text); }
+  .page-subtitle { font-size: 13px; color: var(--text-sec); margin-top: 2px; }
+  .header-actions { display: flex; gap: 10px; }
+  .btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+  .btn-primary { background: var(--primary-600); color: #fff; }
+  .btn-primary:hover { background: var(--primary-800); }
+  .btn-secondary { background: var(--white); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--primary-400); color: var(--primary-600); }
+  .btn-danger { background: var(--block); color: #fff; }
+  .btn-danger:hover { opacity: 0.9; }
+  .btn-ghost { background: var(--page); color: var(--text-sub); border: 1px solid var(--border); }
+  .btn-ghost:hover { color: var(--primary-600); border-color: var(--primary-400); }
+
+  .metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+  .metric-card { background: var(--white); border-radius: 10px; padding: 14px 16px; border: 1px solid var(--border); position: relative; overflow: hidden; }
+  .metric-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .metric-card.blue::before { background: var(--primary-400); }
+  .metric-card.green::before { background: var(--normal); }
+  .metric-card.amber::before { background: var(--info); }
+  .metric-card.gray::before { background: var(--text-sec); }
+  .metric-label { font-size: 11px; color: var(--text-sec); margin-bottom: 6px; }
+  .metric-value { font-family: "DIN Alternate", "Roboto", monospace; font-size: 26px; font-weight: 500; line-height: 1.1; }
+  .metric-card.blue .metric-value { color: var(--primary-600); }
+  .metric-card.green .metric-value { color: var(--normal); }
+  .metric-card.amber .metric-value { color: var(--info); }
+  .metric-card.gray .metric-value { color: var(--text-sub); }
+  .metric-unit { font-size: 12px; color: var(--text-sec); font-family: inherit; }
+  .metric-detail { font-size: 10px; color: var(--text-sec); margin-top: 4px; }
+
+  .main-grid { display: grid; grid-template-columns: 1fr 320px; gap: 16px; margin-bottom: 16px; }
+  .card { background: var(--white); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+  .card-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .card-title { font-size: 15px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .card-title .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .card-body { padding: 0; }
+
+  .filter-bar { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--page); flex-wrap: wrap; }
+  .filter-group { display: flex; align-items: center; gap: 6px; }
+  .filter-label { font-size: 12px; color: var(--text-sec); }
+  .filter-select { padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--text); background: var(--white); cursor: pointer; font-family: inherit; outline: none; }
+  .filter-select:focus { border-color: var(--primary-400); }
+  .filter-search { flex: 1; min-width: 160px; max-width: 260px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--text); background: var(--white); font-family: inherit; outline: none; }
+  .filter-search:focus { border-color: var(--primary-400); }
+  .filter-tabs { display: flex; gap: 4px; background: var(--page); border-radius: 8px; padding: 3px; }
+  .filter-tab { padding: 4px 12px; font-size: 12px; color: var(--text-sec); cursor: pointer; border-radius: 6px; border: none; background: none; font-family: inherit; transition: all 0.15s; }
+  .filter-tab.active { background: var(--white); color: var(--primary-600); font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+  .filter-tab .count { font-family: "DIN", monospace; font-size: 11px; margin-left: 3px; opacity: 0.7; }
+
+  .wo-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .wo-table th { text-align: left; padding: 10px 16px; background: var(--page); color: var(--text-sec); font-weight: 500; font-size: 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .wo-table td { padding: 12px 16px; border-bottom: 1px solid var(--page); color: var(--text); vertical-align: middle; }
+  .wo-table tbody tr { transition: background 0.12s; }
+  .wo-table tbody tr:hover { background: var(--primary-50); }
+  .wo-table .num { font-family: "DIN Alternate", "Roboto", monospace; font-weight: 500; color: var(--primary-600); }
+  .wo-table .op-link { margin-right: 10px; }
+  .wo-table .op-link:last-child { margin-right: 0; }
+  .type-tag.normal { color: var(--primary-600); background: var(--primary-50); padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+  .prio-high { color: #DC2626; font-size: 12px; }
+  .prio-mid  { color: #D97706; font-size: 12px; }
+  .prio-low  { color: var(--text-sec); font-size: 12px; }
+
+  .exec-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .exec-table th { text-align: left; padding: 10px 16px; background: var(--page); color: var(--text-sec); font-weight: 500; font-size: 12px; border-bottom: 1px solid var(--border); white-space: nowrap; position: sticky; top: 0; }
+  .exec-table td { padding: 12px 16px; border-bottom: 1px solid var(--page); color: var(--text); vertical-align: middle; }
+  .exec-table tbody tr { cursor: pointer; transition: background 0.12s; }
+  .exec-table tbody tr:hover { background: var(--primary-50); }
+  .exec-table .num { font-family: "DIN Alternate", "Roboto", monospace; }
+  .if-code { font-family: "DIN Alternate", "Roboto", monospace; font-weight: 500; color: var(--primary-600); }
+  .exec-table tbody td.num:first-child { color: var(--primary-600); cursor: pointer; font-weight: 500; }
+  .exec-table tbody td.num:first-child:hover { text-decoration: underline; }
+
+  .status-tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 14px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+  .status-tag .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .status-tag.normal { background: var(--normal-bg); color: #085041; } .status-tag.normal .dot { background: var(--normal); }
+  .status-tag.info { background: var(--info-bg); color: #633806; } .status-tag.info .dot { background: var(--info); }
+  .status-tag.warning { background: var(--warning-bg); color: #712B13; } .status-tag.warning .dot { background: var(--warning); }
+  .status-tag.review { background: var(--primary-50); color: var(--primary-800); } .status-tag.review .dot { background: var(--primary-400); }
+  .status-tag.draft { background: var(--page); color: var(--text-sub); } .status-tag.draft .dot { background: var(--text-sec); }
+  .status-tag.block { background: var(--block-bg); color: #7A1C1B; } .status-tag.block .dot { background: var(--block); }
+
+  .op-link { font-size: 12px; color: var(--primary-600); cursor: pointer; margin-right: 10px; }
+  .op-link:hover { text-decoration: underline; }
+  .op-toggle { font-size: 12px; cursor: pointer; margin-right: 10px; }
+  .op-toggle.disable { color: var(--block); }
+  .op-toggle.enable { color: var(--normal); }
+  .op-toggle:hover { text-decoration: underline; }
+  .type-tag { font-size: 11px; padding: 2px 9px; border-radius: 10px; font-weight: 500; }
+  .type-tag.normal { background: var(--primary-50); color: var(--primary-800); }
+  .type-tag.rework { background: var(--warning-bg); color: #712B13; }
+  .type-tag.add { background: var(--info-bg); color: #633806; }
+  .prio-high { color: var(--block); font-weight: 500; }
+  .prio-mid { color: var(--info); font-weight: 500; }
+  .prio-low { color: var(--normal); font-weight: 500; }
+
+  .right-panel { display: flex; flex-direction: column; gap: 16px; }
+
+  .cap-row { display: flex; align-items: center; gap: 10px; padding: 9px 20px; font-size: 12px; }
+  .cap-name { width: 56px; color: var(--text-sub); }
+  .cap-track { flex: 1; height: 6px; background: var(--page); border-radius: 3px; overflow: hidden; }
+  .cap-fill { height: 100%; border-radius: 3px; }
+  .cap-pct { width: 40px; text-align: right; font-family: "DIN", monospace; font-weight: 500; }
+
+  .board-row { display: flex; align-items: center; gap: 12px; padding: 10px 20px; }
+  .board-num { font-family: "DIN Alternate", "Roboto", monospace; font-size: 24px; font-weight: 500; }
+  .board-num.green { color: var(--normal); }
+  .board-num.blue { color: var(--primary-600); }
+  .board-sub { font-size: 11px; color: var(--text-sec); }
+
+  .mini-list { padding: 6px 0; }
+  .mini-item { display: flex; align-items: center; justify-content: space-between; padding: 9px 20px; border-bottom: 1px solid var(--page); font-size: 12px; }
+  .mini-item:last-child { border-bottom: none; }
+  .mini-name { font-weight: 500; color: var(--text); }
+  .mini-meta { font-size: 11px; color: var(--text-sec); margin-top: 2px; }
+  .mini-go { font-size: 12px; color: var(--primary-600); cursor: pointer; }
+  .mini-go:hover { text-decoration: underline; }
+
+  /* 抽屉 */
+  .drawer-mask { position: fixed; inset: 0; background: rgba(15,23,42,0.45); display: none; z-index: 50; }
+  .drawer-mask.show { display: block; }
+  .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 460px; max-width: 94vw; background: var(--white); box-shadow: -8px 0 24px rgba(0,0,0,0.16); transform: translateX(100%); transition: transform 0.25s ease; z-index: 51; display: flex; flex-direction: column; }
+  .drawer-mask.show .drawer { transform: none; }
+  .drawer-head { padding: 18px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .drawer-title { font-size: 16px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .drawer-close { cursor: pointer; color: var(--text-sec); font-size: 18px; line-height: 1; padding: 2px 6px; border-radius: 6px; }
+  .drawer-close:hover { background: var(--page); color: var(--text); }
+  .drawer-body { flex: 1; overflow-y: auto; padding: 20px 24px; }
+  .drawer-foot { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+  .field { margin-bottom: 16px; }
+  .field-label { font-size: 12px; color: var(--text-sub); margin-bottom: 6px; display: flex; align-items: center; gap: 4px; }
+  .field-req { color: var(--block); }
+  .field-input, .field-area, .field-select { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text); background: var(--white); font-family: inherit; outline: none; }
+  .field-input:focus, .field-area:focus, .field-select:focus { border-color: var(--primary-400); }
+  .field-area { resize: vertical; min-height: 70px; line-height: 1.6; }
+  .info-banner-mini { background: var(--page); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
+  .ibm-item { display: flex; flex-direction: column; gap: 2px; }
+  .ibm-label { font-size: 11px; color: var(--text-sec); }
+  .ibm-value { font-size: 13px; color: var(--text); font-weight: 500; }
+  .sign-note { font-size: 11px; color: var(--text-sec); background: var(--info-bg); border: 1px solid #F0D9B0; border-radius: 8px; padding: 8px 12px; line-height: 1.6; }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+  .detail-item { display: flex; flex-direction: column; gap: 3px; }
+  .detail-label { font-size: 11px; color: var(--text-sec); }
+  .detail-value { font-size: 13px; color: var(--text); }
+  .log-row { display: flex; gap: 8px; padding: 6px 0; font-size: 11px; border-bottom: 1px solid var(--page); font-family: "DIN", monospace; }
+  .log-row:last-child { border-bottom: none; }
+  .log-time { color: var(--text-sec); width: 58px; flex: none; }
+  .log-msg { color: var(--text-sub); }
+  .toast { position: fixed; top: 18px; left: 50%; transform: translateX(-50%) translateY(-12px); background: var(--text); color: #fff; padding: 10px 20px; border-radius: 10px; font-size: 13px; z-index: 80; opacity: 0; transition: all 0.25s ease; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .gantt { height: 24px; border-radius: 6px; background: linear-gradient(90deg, var(--primary-400), var(--primary-600)); display: flex; align-items: center; padding: 0 12px; color: #fff; font-size: 11px; font-family: "DIN", monospace; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-sec); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .pulse { animation: pulse 1.5s ease-in-out infinite; }
+
+  /* === 侧边栏 v2：分组折叠 + 窄宽 + 新LOGO === */
+  .logo-text { line-height: 1.25; min-width: 0; }
+  .logo-name { font-size: 15px; font-weight: 500; color: #FFFFFF; letter-spacing: 0.3px; }
+  .logo-slogan { font-size: 10.5px; color: #93B5D9; margin-top: 1px; }
+  .nav-group-head { padding: 14px 16px 5px; font-size: 11px; color: #6FA9DA; letter-spacing: 0.6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; transition: color 0.15s; }
+  .nav-group-head:hover { color: #B5D4F4; }
+  .nav-group-head > span:first-child { font-weight: 500; }
+  .nav-caret { font-size: 10px; opacity: 0.75; transition: transform 0.18s; display: inline-block; }
+  .nav-group-items { overflow: hidden; }
+  .nav-group.collapsed .nav-caret { transform: rotate(-90deg); }
+  .nav-group.collapsed .nav-group-items { display: none; }
+  .sidebar-collapse { padding: 10px 16px; font-size: 12px; color: #85B7EB; cursor: pointer; display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--primary-600); transition: all 0.15s; }
+  .sidebar-collapse:hover { background: var(--primary-900); color: #B5D4F4; }
+  .collapse-caret { display: inline-block; transition: transform 0.2s; font-size: 14px; line-height: 1; }
+  .sidebar.collapsed .collapse-caret { transform: rotate(180deg); }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- 侧边栏 -->
+  <aside class="sidebar" id="appSidebar"></aside>
+
+  <!-- 主区域 -->
+  <div class="main">
+    <header class="topbar">
+      <div class="breadcrumb">
+        <a onclick="window.location.href='釜次BOM管理.html'">生产管理</a>
+        <span>›</span>
+        <span class="current">生产工单</span>
+      </div>
+      <div class="topbar-right">
+        <div id="plantSwitch"></div>
+        <div id="roleSwitch"></div>
+      <div class="user-info">
+          <div class="avatar">张</div>
+          <div><div class="user-name">张明</div><div class="user-role">车间主管</div></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="tabbar" id="tabBar"></div>
+      <div class="content">
+    
+      <div class="page-header">
+        <div>
+          <div class="page-title">生产工单</div>
+          <div class="page-subtitle">生产管理 · 计划下达生成工单（WO） · 工单下发与釜次分解 · 执行进度跟踪与闭环</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary">📊 工单看板</button>
+          <button class="btn btn-secondary">📥 导出工单</button>
+          <button class="btn btn-primary" onclick="WO.open()">＋ 新增工单</button>
+        </div>
+      </div>
+
+      <div id="erpInbound"></div>
+
+      <div class="metrics-row">
+        <div class="metric-card blue">
+          <div class="metric-label">工单总数</div>
+          <div class="metric-value" id="mTotal">10</div>
+          <div class="metric-detail">本月工单批次</div>
+        </div>
+        <div class="metric-card green">
+          <div class="metric-label">已下发</div>
+          <div class="metric-value" id="mDispatched">2</div>
+          <div class="metric-detail">釜次已分解</div>
+        </div>
+        <div class="metric-card amber">
+          <div class="metric-label">执行中</div>
+          <div class="metric-value" id="mRunning">2</div>
+          <div class="metric-detail">车间正在生产</div>
+        </div>
+        <div class="metric-card gray">
+          <div class="metric-label">待下发</div>
+          <div class="metric-value" id="mPending">3</div>
+          <div class="metric-detail">等待下发执行</div>
+        </div>
+      </div>
+
+      <div class="main-grid">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="dot" style="background: var(--primary-400);"></span>生产工单台账</div>
+            <div class="filter-tabs" id="woTabs">
+              <button class="filter-tab active" data-wostatus="全部">全部<span class="count" id="cAll">10</span></button>
+              <button class="filter-tab" data-wostatus="待下发">待下发<span class="count" id="cPending">3</span></button>
+              <button class="filter-tab" data-wostatus="已下发">已下发<span class="count" id="cDispatched">2</span></button>
+              <button class="filter-tab" data-wostatus="执行中">执行中<span class="count" id="cRunning">2</span></button>
+              <button class="filter-tab" data-wostatus="已完成">已完成<span class="count" id="cDone">2</span></button>
+              <button class="filter-tab" data-wostatus="已取消">已取消<span class="count" id="cCancel">1</span></button>
+            </div>
+          </div>
+          <div class="filter-bar">
+            <div class="filter-group">
+              <span class="filter-label">产品：</span>
+              <select class="filter-select" id="fProduct">
+                <option>全部产品</option>
+                <option>对乙酰氨基酚</option>
+                <option>阿莫西林</option>
+                <option>阿司匹林肠溶片</option>
+                <option>布洛芬</option>
+                <option>头孢氨苄</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <span class="filter-label">车间：</span>
+              <select class="filter-select" id="fWs">
+                <option>全部车间</option>
+                <option>一车间</option>
+                <option>二车间</option>
+                <option>三车间</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <span class="filter-label">类型：</span>
+              <select class="filter-select" id="fType">
+                <option>全部类型</option>
+                <option>正常</option>
+                <option>返工</option>
+                <option>补料</option>
+              </select>
+            </div>
+            <div class="filter-group" style="margin-left:auto;">
+              <input class="filter-search" id="fSearch" placeholder="搜索工单编号 / 关联计划…">
+            </div>
+          </div>
+          <div data-plant-scope="P1" style="overflow-x: auto;">
+            <table class="wo-table" style="width:100%;border-collapse:collapse;font-size:13px;">
+              <thead>
+                <tr>
+                  <th>工单编号</th>
+                  <th>关联计划</th>
+                  <th>产品</th>
+                  <th>类型</th>
+                  <th>优先级</th>
+                  <th>关联釜次</th>
+                  <th>车间</th>
+                  <th>状态</th>
+                  <th>负责人</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="wo-row" data-code="WO-2608-001" data-plan="PLAN-2608-002" data-product="阿莫西林" data-spec="胶囊 0.25g" data-qty="80万粒" data-type="正常" data-prio="高" data-vessel="R-305" data-ws="二车间" data-rc="RC-2608-001" data-owner="李伟" data-wostatus="已下发">
+                  <td class="num">WO-2608-001</td>
+                  <td><span class="op-link op-plan" data-plan="PLAN-2608-002">PLAN-2608-002</span></td>
+                  <td>阿莫西林</td>
+                  <td><span class="type-tag normal">正常</span></td>
+                  <td><span class="prio-high">● 高</span></td>
+                  <td><span class="op-link op-rc" data-rc="RC-2608-001">RC-2608-001</span></td>
+                  <td>二车间</td>
+                  <td><span class="status-tag review"><span class="dot"></span>已下发</span></td>
+                  <td>李伟</td>
+                  <td><span class="op-link op-view" data-code="WO-2608-001">查看</span><span class="op-link op-edit" data-code="WO-2608-001">编辑</span><span class="op-link op-cancel" data-code="WO-2608-001">取消</span></td>
+                </tr>
+                <tr class="wo-row" data-code="WO-2608-002" data-plan="PLAN-2608-004" data-product="布洛芬" data-spec="颗粒 0.2g" data-qty="300万袋" data-type="正常" data-prio="中" data-vessel="R-208" data-ws="一车间" data-rc="RC-2608-002" data-owner="赵强" data-wostatus="执行中">
+                  <td class="num">WO-2608-002</td>
+                  <td><span class="op-link op-plan" data-plan="PLAN-2608-004">PLAN-2608-004</span></td>
+                  <td>布洛芬</td>
+                  <td><span class="type-tag normal">正常</span></td>
+                  <td><span class="prio-mid">● 中</span></td>
+                  <td><span class="op-link op-rc" data-rc="RC-2608-002">RC-2608-002</span></td>
+                  <td>一车间</td>
+                  <td><span class="status-tag normal"><span class="dot"></span>执行中</span></td>
+                  <td>赵强</td>
+                  <td><span class="op-link op-view" data-code="WO-2608-002">查看</span></td>
+                </tr>
+                <tr class="wo-row" data-code="WO-2608-003" data-plan="PLAN-2608-007" data-product="阿莫西林" data-spec="原料药 50kg/批" data-qty="900 kg" data-type="正常" data-prio="中" data-vessel="R-203" data-ws="一车间" data-rc="" data-owner="周涛" data-wostatus="待下发">
+                  <td class="num">WO-2608-003</td>
+                  <td><span class="op-link op-plan" data-plan="PLAN-2608-007">PLAN-2608-007</span></td>
+                  <td>阿莫西林</td>
+                  <td><span class="type-tag normal">正常</span></td>
+                  <td><span class="prio-mid">● 中</span></td>
+                  <td>—</td>
+                  <td>一车间</td>
+                  <td><span class="status-tag info"><span class="dot"></span>待下发</span></td>
+                  <td>周涛</td>
+                  <td><span class="op-link op-view" data-code="WO-2608-003">查看</span><span class="op-link op-edit" data-code="WO-2608-003">编辑</span><span class="op-link op-release" data-code="WO-2608-003">下发</span><span class="op-link op-cancel" data-code="WO-2608-003">取消</span></td>
+                </tr>
+                <tr class="wo-row" data-code="WO-2608-004" data-plan="PLAN-2608-008" data-product="阿司匹林肠溶片" data-spec="原料药 30kg/批" data-qty="1500 kg" data-type="正常" data-prio="高" data-vessel="R-309" data-ws="二车间" data-rc="RC-2608-004" data-owner="张明" data-wostatus="执行中">
+                  <td class="num">WO-2608-004</td>
+                  <td><span class="op-link op-plan" data-plan="PLAN-2608-008">PLAN-2608-008</span></td>
+                  <td>阿司匹林肠溶片</td>
+                  <td><span class="type-tag normal">正常</span></td>
+                  <td><span class="prio-high">● 高</span></td>
+                  <td><span class="op-link op-rc" data-rc="RC-2608-004">RC-2608-004</span></td>
+                  <td>二车间</td>
+                  <td><span class="status-tag normal"><span class="dot"></span>执行中</span></td>
+                  <td>张明</td>
+                  <td><span class="op-link op-view" data-code="WO-2608-004">查看</span></td>
+                </tr>
+                <tr class="wo-row" data-code="WO-2608-005" data-plan="PLAN-2608-010" data-product="头孢氨苄" data-spec="原料药 40kg/批" data-qty="1100 kg" data-type="正常" data-prio="中" data-vessel="R-205" data-ws="一车间" data-rc="RC-2608-005" data-owner="王芳" data-wostatus="已下发">
+                  <td class="num">WO-2608-005</td>
+                  <td><span class="op-link op-plan" data-plan="PLAN-2608-010">PLAN-2608-010</span></td>
+                  <td>头孢氨苄</td>
+                  <td><span class="type-tag normal">正常</span></td>
+                  <td><span class="prio-mid">● 中</span></td>
+                  <td><span class="op-link op-rc" data-rc="RC-2608-005">RC-2608-005</span></td>
+                  <td>一车间</td>
+                  <td><span class="status-tag review"><span class="dot"></span>已下发</span></td>
+                  <td>王芳</td>
+                  <td><span class="op-link op-view" data-code="WO-2608-005">查看</span><span class="op-link op-edit" data-code="WO-2608-005">编辑</span><span class="op-link op-cancel" data-code="WO-2608-005">取消</span></td>
+                </tr>
+                <tr class="wo-row" data-code="WO-2608-006" data-plan="PLAN-2608-011" data-product="对乙酰氨基酚" data-spec="片剂 0.5g" data-qty="350万片" data-type="正常" data-prio="高" data-vessel="R-318" data-ws="二车间" data-rc="RC-2608-006" data-owner="赵强" data-wostatus="已完成">
+                  <td class="num">WO-2608-006</td>
+                  <td><span class="op-link op-plan" data-plan="PLAN-2608-011">PLAN-2608-011</span></td>
+                  <td>对乙酰氨基酚</td>
+                  <td><span class="type-tag normal">正常</span></td>
+                  <td><span class="prio-high">● 高</span></td>
+                  <td><span class="op-link op-rc" data-rc="RC-2608-006">RC-2608-006</span></td>
+                  <td>二车间</td>
+                  <td><span class="status-tag normal"><span class="dot"></span>已完成</span></td>
+                  <td>赵强</td>
+                  <td><span class="op-link op-view" data-code="WO-2608-006">查看</span></td>
+                </tr>
+                <tr class="wo-row" data-code="WO-2608-007" data-plan="PLAN-2608-001" data-product="对乙酰氨基酚" data-spec="原料药 25kg/批" data-qty="1200 kg" data-type="正常" data-prio="高" data-vessel="R-201" data-ws="一车间" data-rc="" data-owner="张明" data-wostatus="待下发">
+                  <td class="num">WO-2608-007</td>
+                  <td><span class="op-link op-plan" data-plan="PLAN-2608-001">PLAN-2608-001</span></td>
+                  <td>对乙酰氨基酚</td>
+                  <td><span class="type-tag normal">正常</span></td>
+                  <td><span class="prio-high">● 高</span></td>
+                  <td>—</td>
+                  <td>一车间</td>
+                  <td><span class="status-tag info"><span class="dot"></span>待下发</span></td>
+                  <td>张明</td>
+                  <td><span class="op-link op-view" data-code="WO-2608-007">查看</span><span class="op-link op-edit" data-code="WO-2608-007">编辑</span><span class="op-link op-release" data-code="WO-2608-007">下发</span><span class="op-link op-cancel" data-code="WO-2608-007">取消</span></td>
+                </tr>
+                <tr class="wo-row" data-code="WO-2608-008" data-plan="PLAN-2608-003" data-product="阿司匹林肠溶片" data-spec="100mg" data-qty="500万片" data-type="正常" data-prio="中" data-vessel="P-201" data-ws="三车间" data-rc="RC-2608-008" data-owner="王芳" data-wostatus="已完成">
+                  <td class="num">WO-2608-008</td>
+                  <td><span class="op-link op-plan" data-plan="PLAN-2608-003">PLAN-2608-003</span></td>
+                  <td>阿司匹林肠溶片</td>
+                  <td><span class="type-tag normal">正常</span></td>
+                  <td><span class="prio-mid">● 中</span></td>
+                  <td><span class="op-link op-rc" data-rc="RC-2608-008">RC-2608-008</span></td>
+                  <td>三车间</td>
+                  <td><span class="status-tag normal"><span class="dot"></span>已完成</span></td>
+                  <td>王芳</td>
+                  <td><span class="op-link op-view" data-code="WO-2608-008">查看</span></td>
+                </tr>
+                <tr class="wo-row" data-code="WO-2608-009" data-plan="PLAN-2608-012" data-product="阿莫西林" data-spec="颗粒 0.125g" data-qty="250万袋" data-type="返工" data-prio="低" data-vessel="P-210" data-ws="三车间" data-rc="" data-owner="陈静" data-wostatus="已取消">
+                  <td class="num">WO-2608-009</td>
+                  <td><span class="op-link op-plan" data-plan="PLAN-2608-012">PLAN-2608-012</span></td>
+                  <td>阿莫西林</td>
+                  <td><span class="type-tag rework">返工</span></td>
+                  <td><span class="prio-low">● 低</span></td>
+                  <td>—</td>
+                  <td>三车间</td>
+                  <td><span class="status-tag draft"><span class="dot"></span>已取消</span></td>
+                  <td>陈静</td>
+                  <td><span class="op-link op-view" data-code="WO-2608-009">查看</span><span class="op-link op-copy" data-code="WO-2608-009">复制</span></td>
+                </tr>
+                <tr class="wo-row" data-code="WO-2608-010" data-plan="PLAN-2608-005" data-product="头孢氨苄" data-spec="胶囊 0.25g" data-qty="60万粒" data-type="正常" data-prio="低" data-vessel="R-312" data-ws="二车间" data-rc="" data-owner="陈静" data-wostatus="待下发">
+                  <td class="num">WO-2608-010</td>
+                  <td><span class="op-link op-plan" data-plan="PLAN-2608-005">PLAN-2608-005</span></td>
+                  <td>头孢氨苄</td>
+                  <td><span class="type-tag normal">正常</span></td>
+                  <td><span class="prio-low">● 低</span></td>
+                  <td>—</td>
+                  <td>二车间</td>
+                  <td><span class="status-tag info"><span class="dot"></span>待下发</span></td>
+                  <td>陈静</td>
+                  <td><span class="op-link op-view" data-code="WO-2608-010">查看</span><span class="op-link op-edit" data-code="WO-2608-010">编辑</span><span class="op-link op-release" data-code="WO-2608-010">下发</span><span class="op-link op-cancel" data-code="WO-2608-010">取消</span></td>
+                </tr>
+                <tr id="emptyRow" style="display:none;"><td colspan="10" style="text-align:center;padding:32px;color:var(--text-sec);">无匹配的生产工单</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-top:1px solid var(--page);font-size:12px;color:var(--text-sec);">
+            <span>当前筛选结果 <b id="woCount" style="color:var(--primary-600);font-family:'DIN',monospace;">10</b> 个工单</span>
+            <span id="woFilterDesc" style="opacity:.85;">状态：全部 · 产品：全部产品 · 车间：全部车间 · 类型：全部类型</span>
+          </div>
+        </div>
+
+        <div class="right-panel">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="dot" style="background: var(--primary-400);"></span>车间负荷看板</div>
+              <span style="font-size: 11px; color: var(--text-sec);">按车间</span>
+            </div>
+            <div class="card-body">
+              <div class="cap-row"><span class="cap-name">一车间</span><div class="cap-track"><div class="cap-fill" style="width:72%;background:var(--info);"></div></div><span class="cap-pct">72%</span></div>
+              <div class="cap-row"><span class="cap-name">二车间</span><div class="cap-track"><div class="cap-fill" style="width:60%;background:var(--normal);"></div></div><span class="cap-pct">60%</span></div>
+              <div class="cap-row"><span class="cap-name">三车间</span><div class="cap-track"><div class="cap-fill" style="width:55%;background:var(--info);"></div></div><span class="cap-pct">55%</span></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="dot" style="background: var(--info);"></span>月度工单达成</div>
+            </div>
+            <div class="board-row">
+              <div><div class="board-num green" id="bRate">92%</div><div class="board-sub">工单达成率</div></div>
+              <div style="width:1px;height:36px;background:var(--border);"></div>
+              <div><div class="board-num blue" id="bOnTime">9/10</div><div class="board-sub">按期下发</div></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="dot" style="background: var(--block);"></span>待下发任务</div>
+              <span style="font-size: 11px; color: var(--text-sec);">待处理</span>
+            </div>
+            <div class="mini-list" id="pendingList"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="dot" style="background: var(--warning);"></span>下发预警</div>
+            </div>
+            <div class="mini-list">
+              <div class="mini-item"><div><div class="mini-name">WO-2608-007 物料待确认</div><div class="mini-meta">对乙酰氨基酚 · 硬脂酸镁预警</div></div><span class="mini-go" onclick="woTab('待下发')">查看</span></div>
+              <div class="mini-item"><div><div class="mini-name">一车间负荷偏高</div><div class="mini-meta">72% · 建议错峰下发</div></div><span class="mini-go" onclick="woTab('已下发')">查看</span></div>
+              <div class="mini-item"><div><div class="mini-name">WO-2608-003 交期临近</div><div class="mini-meta">关联 PLAN-2608-007 · 待下发</div></div><span class="mini-go" onclick="woTab('待下发')">查看</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    
+    </div></div>
+  </div>
+
+
+<!-- 新增 / 编辑工单 抽屉 -->
+<div class="drawer-mask" id="woMask">
+  <div class="drawer" id="woDrawer">
+    <div class="drawer-head">
+      <div class="drawer-title" id="woTitle"><span style="color:var(--primary-600);">＋</span> 新增生产工单</div>
+      <span class="drawer-close" onclick="WO.close()">✕</span>
+    </div>
+    <div class="drawer-body">
+      <div class="info-banner-mini">
+        <div class="ibm-item"><div class="ibm-label">工单编号</div><div class="ibm-value num" id="woCode">WO-2608-011</div></div>
+        <div class="ibm-item"><div class="ibm-label">状态</div><div class="ibm-value" id="woStatusPreview">待下发</div></div>
+      </div>
+      <div class="field">
+        <div class="field-label"><span class="field-req">*</span> 关联生产计划</div>
+        <select class="field-select" id="woPlan">
+          <option>PLAN-2608-001</option>
+          <option>PLAN-2608-002</option>
+          <option>PLAN-2608-004</option>
+          <option>PLAN-2608-005</option>
+          <option>PLAN-2608-007</option>
+          <option>PLAN-2608-010</option>
+          <option>PLAN-2608-012</option>
+        </select>
+      </div>
+      <div class="field">
+        <div class="field-label"><span class="field-req">*</span> 产品</div>
+        <select class="field-select" id="woProduct">
+          <option>对乙酰氨基酚</option>
+          <option>阿莫西林</option>
+          <option>阿司匹林肠溶片</option>
+          <option>布洛芬</option>
+          <option>头孢氨苄</option>
+        </select>
+      </div>
+      <div class="filter-bar" style="padding:0 0 16px;border:none;">
+        <div class="filter-group" style="flex:1;">
+          <span class="field-label" style="margin:0;">规格</span>
+          <input class="field-input" id="woSpec" placeholder="如：原料药 25kg/批">
+        </div>
+        <div class="filter-group" style="flex:1;">
+          <span class="field-label" style="margin:0;">计划产量</span>
+          <input class="field-input" id="woQty" placeholder="如：1200 kg">
+        </div>
+      </div>
+      <div class="filter-bar" style="padding:0 0 16px;border:none;">
+        <div class="filter-group" style="flex:1;">
+          <span class="field-label" style="margin:0;">类型</span>
+          <select class="field-select" id="woType"><option>正常</option><option>返工</option><option>补料</option></select>
+        </div>
+        <div class="filter-group" style="flex:1;">
+          <span class="field-label" style="margin:0;">优先级</span>
+          <select class="field-select" id="woPrio"><option>高</option><option>中</option><option>低</option></select>
+        </div>
+      </div>
+      <div class="filter-bar" style="padding:0 0 16px;border:none;">
+        <div class="filter-group" style="flex:1;">
+          <span class="field-label" style="margin:0;">车间</span>
+          <select class="field-select" id="woWs"><option>一车间</option><option>二车间</option><option>三车间</option></select>
+        </div>
+        <div class="filter-group" style="flex:1;">
+          <span class="field-label" style="margin:0;">反应釜 / 产线</span>
+          <input class="field-input" id="woVessel" placeholder="如：R-201">
+        </div>
+      </div>
+      <div class="field">
+        <div class="field-label">关联釜次（下发后生成）</div>
+        <input class="field-input" id="woRc" placeholder="待下发后系统自动分配" disabled>
+      </div>
+      <div class="field">
+        <div class="field-label">负责人</div>
+        <input class="field-input" id="woOwner" placeholder="工单负责人">
+      </div>
+      <div class="field">
+        <div class="field-label">备注</div>
+        <textarea class="field-area" id="woNote" placeholder="工艺要求、特殊管控说明…"></textarea>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn btn-ghost" onclick="WO.close()">取消</button>
+      <button class="btn btn-primary" onclick="WO.save()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 工单详情 抽屉 -->
+<div class="drawer-mask" id="wdMask">
+  <div class="drawer" id="wdDrawer">
+    <div class="drawer-head">
+      <div class="drawer-title" id="wdTitle">生产工单详情</div>
+      <span class="drawer-close" onclick="WO.detailClose()">✕</span>
+    </div>
+    <div class="drawer-body">
+      <div class="info-banner-mini" id="wdInfo"></div>
+      <div class="field">
+        <div class="field-label">工单明细</div>
+        <div class="detail-grid" id="wdDetail"></div>
+      </div>
+      <div class="field">
+        <div class="field-label">关联生产计划</div>
+        <div class="mini-list" id="wdPlan" style="border:1px solid var(--page);border-radius:8px;"></div>
+      </div>
+      <div class="field">
+        <div class="field-label">分解釜次（生产执行）</div>
+        <div class="mini-list" id="wdRc" style="border:1px solid var(--page);border-radius:8px;"></div>
+      </div>
+      <div class="field">
+        <div class="field-label">生产准备（5M1E 齐套）</div>
+        <div class="mini-list" id="wdPrep" style="border:1px solid var(--page);border-radius:8px;"></div>
+      </div>
+      <div class="field">
+        <div class="field-label">执行进度</div>
+        <div class="gantt" id="wdGantt">就绪 · 待下发</div>
+      </div>
+      <div class="field">
+        <div class="field-label">操作记录</div>
+        <div id="wdLogs"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 下发 / 取消 抽屉 -->
+<div class="drawer-mask" id="waMask">
+  <div class="drawer" id="waDrawer">
+    <div class="drawer-head">
+      <div class="drawer-title" id="waTitle"><span style="color:var(--primary-600);">▶</span> 下发生产工单</div>
+      <span class="drawer-close" onclick="WO.actClose()">✕</span>
+    </div>
+    <div class="drawer-body">
+      <div class="info-banner-mini">
+        <div class="ibm-item"><div class="ibm-label">工单编号</div><div class="ibm-value num" id="waCode">WO-000</div></div>
+        <div class="ibm-item"><div class="ibm-label">产品</div><div class="ibm-value" id="waProduct">—</div></div>
+        <div class="ibm-item"><div class="ibm-label">车间</div><div class="ibm-value" id="waWs">—</div></div>
+        <div class="ibm-item"><div class="ibm-label">反应釜 / 产线</div><div class="ibm-value" id="waVessel">—</div></div>
+      </div>
+      <div class="field">
+        <div class="field-label"><span class="field-req">*</span> <span id="waReasonLabel">下发说明</span></div>
+        <textarea class="field-area" id="waReason" placeholder="请填写下发说明 / 取消原因…"></textarea>
+      </div>
+      <div class="field">
+        <div class="field-label">影响范围</div>
+        <div id="waImpact" style="font-size:12px;color:var(--text-sub);background:var(--page);border-radius:8px;padding:10px 14px;line-height:1.7;"></div>
+      </div>
+      <div class="field">
+        <div class="field-label"><span class="field-req">*</span> 电子签名口令</div>
+        <input class="field-input" id="waSign" type="password" placeholder="请输入签名口令…">
+      </div>
+      <div class="sign-note" id="waNote">依据 GMP 数据完整性要求，工单下发 / 取消需操作人电子签名留痕，下发后将自动分解釜次并同步生产执行。</div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn btn-ghost" onclick="WO.actClose()">取消</button>
+      <button class="btn btn-primary" id="waConfirm" onclick="WO.confirm()">确认下发</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ===== 生产工单：真实筛选 + 新增/编辑/详情/下发/取消 =====
+  (function () {
+    var $ = function (id) { return document.getElementById(id); };
+    var toastTimer;
+    function toast(msg) {
+      var t = $('toast'); t.textContent = msg; t.classList.add('show');
+      clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove('show'); }, 1800);
+    }
+    function setText(id, v) { var e = $(id); if (e) e.textContent = v; }
+    function setHTML(id, v) { var e = $(id); if (e) e.innerHTML = v; }
+    function recordWoCancel(wo, plan, qty, product) {
+      try {
+        var arr = JSON.parse(localStorage.getItem('mes_wo_cancel') || '[]');
+        var exist = false;
+        for (var i = 0; i < arr.length; i++) { if (arr[i].wo === wo) { exist = true; break; } }
+        if (!exist) { arr.push({ wo: wo, plan: plan, qty: qty, product: product, time: new Date().toISOString().slice(0, 10) }); localStorage.setItem('mes_wo_cancel', JSON.stringify(arr)); }
+      } catch (e) {}
+    }
+
+    var tab = '全部';
+    var editing = null, actCode = null, actMode = null;
+
+    function rowByCode(code) {
+      var rows = document.querySelectorAll('.wo-row');
+      for (var i = 0; i < rows.length; i++) {
+        if (rows[i].getAttribute('data-code') === code) return rows[i];
+      }
+      return null;
+    }
+    function dataset(r) {
+      return {
+        code: r.getAttribute('data-code'), plan: r.getAttribute('data-plan'),
+        product: r.getAttribute('data-product'), spec: r.getAttribute('data-spec'),
+        qty: r.getAttribute('data-qty'), type: r.getAttribute('data-type'),
+        prio: r.getAttribute('data-prio'), vessel: r.getAttribute('data-vessel'),
+        ws: r.getAttribute('data-ws'), rc: r.getAttribute('data-rc'),
+        owner: r.getAttribute('data-owner'), wostatus: r.getAttribute('data-wostatus')
+      };
+    }
+    function statusTag(st) {
+      if (st === '待下发') return '<span class="status-tag info"><span class="dot"></span>待下发</span>';
+      if (st === '已下发') return '<span class="status-tag review"><span class="dot"></span>已下发</span>';
+      if (st === '执行中') return '<span class="status-tag normal"><span class="dot"></span>执行中</span>';
+      if (st === '已完成') return '<span class="status-tag normal"><span class="dot"></span>已完成</span>';
+      if (st === '已取消') return '<span class="status-tag draft"><span class="dot"></span>已取消</span>';
+      return st;
+    }
+    function typeTag(t) {
+      if (t === '返工') return '<span class="type-tag rework">返工</span>';
+      if (t === '补料') return '<span class="type-tag add">补料</span>';
+      return '<span class="type-tag normal">正常</span>';
+    }
+    function prioTag(p) {
+      if (p === '高') return '<span class="prio-high">● 高</span>';
+      if (p === '中') return '<span class="prio-mid">● 中</span>';
+      return '<span class="prio-low">● 低</span>';
+    }
+    function m1eChips(ready) {
+      var keys = ['人', '机', '料', '法', '环'];
+      var h = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">';
+      for (var i = 0; i < keys.length; i++) {
+        h += '<span style="font-size:12px;padding:3px 11px;border-radius:20px;'
+          + (ready ? 'background:rgba(46,160,67,.14);color:#2ea043;border:1px solid rgba(46,160,67,.3);'
+                   : 'background:var(--page);color:var(--text-sub);border:1px solid var(--page);')
+          + '">' + (ready ? '✓ ' : '… ') + keys[i] + '</span>';
+      }
+      return h + '</div>';
+    }
+    function rcTag(rc) {
+      if (rc) return '<span class="op-link op-rc" data-rc="' + rc + '">' + rc + '</span>';
+      return '—';
+    }
+    function opHTML(code, st) {
+      var h = '<span class="op-link op-view" data-code="' + code + '">查看</span>';
+      if (st === '待下发') {
+        h += '<span class="op-link op-edit" data-code="' + code + '">编辑</span>'
+           + '<span class="op-link op-release" data-code="' + code + '">下发</span>'
+           + '<span class="op-link op-cancel" data-code="' + code + '">取消</span>';
+      } else if (st === '已下发') {
+        h += '<span class="op-link op-edit" data-code="' + code + '">编辑</span>'
+           + '<span class="op-link op-start" data-code="' + code + '">开工</span>'
+           + '<span class="op-link op-cancel" data-code="' + code + '">取消</span>';
+      } else if (st === '已取消') {
+        h += '<span class="op-link op-copy" data-code="' + code + '">复制</span>';
+      }
+      return h;
+    }
+    function buildRow(d) {
+      return '<tr class="wo-row" data-code="' + d.code + '" data-plan="' + d.plan + '" data-product="' + d.product
+        + '" data-spec="' + d.spec + '" data-qty="' + d.qty + '" data-type="' + d.type + '" data-prio="' + d.prio
+        + '" data-vessel="' + d.vessel + '" data-ws="' + d.ws + '" data-rc="' + (d.rc || '') + '" data-owner="' + d.owner + '" data-wostatus="' + d.wostatus + '">'
+        + '<td class="num">' + d.code + '</td>'
+        + '<td><span class="op-link op-plan" data-plan="' + d.plan + '">' + d.plan + '</span></td>'
+        + '<td>' + d.product + '</td>'
+        + '<td>' + typeTag(d.type) + '</td>'
+        + '<td>' + prioTag(d.prio) + '</td>'
+        + '<td>' + rcTag(d.rc) + '</td>'
+        + '<td>' + d.ws + '</td>'
+        + '<td>' + statusTag(d.wostatus) + '</td>'
+        + '<td>' + d.owner + '</td>'
+        + '<td>' + opHTML(d.code, d.wostatus) + '</td>'
+        + '</tr>';
+    }
+    function nextCode() {
+      var rows = document.querySelectorAll('.wo-row');
+      var max = 10;
+      for (var i = 0; i < rows.length; i++) {
+        var m = /(\d+)$/.exec(rows[i].getAttribute('data-code'));
+        if (m) { var v = parseInt(m[1], 10); if (v > max) max = v; }
+      }
+      max++;
+      return 'WO-2608-' + (max < 10 ? '00' + max : (max < 100 ? '0' + max : '' + max));
+    }
+
+    function pass(r) {
+      var wostatus = r.getAttribute('data-wostatus');
+      var product = r.getAttribute('data-product');
+      var ws = r.getAttribute('data-ws');
+      var type = r.getAttribute('data-type');
+      var q = ($('fSearch').value || '').trim().toLowerCase();
+      var code = r.getAttribute('data-code').toLowerCase();
+      var plan = r.getAttribute('data-plan').toLowerCase();
+      if (tab !== '全部' && wostatus !== tab) return false;
+      if ($('fProduct').value !== '全部产品' && product !== $('fProduct').value) return false;
+      if ($('fWs').value !== '全部车间' && ws !== $('fWs').value) return false;
+      if ($('fType').value !== '全部类型' && type !== $('fType').value) return false;
+      if (q && code.indexOf(q) === -1 && plan.indexOf(q) === -1) return false;
+      return true;
+    }
+    function apply() {
+      var rows = document.querySelectorAll('.wo-row');
+      var n = 0;
+      for (var i = 0; i < rows.length; i++) {
+        if (pass(rows[i])) { rows[i].style.display = ''; n++; } else { rows[i].style.display = 'none'; }
+      }
+      setText('woCount', n);
+      var desc = '状态：' + tab + ' · 产品：' + $('fProduct').value + ' · 车间：' + $('fWs').value + ' · 类型：' + $('fType').value;
+      setText('woFilterDesc', desc);
+      var empty = $('emptyRow'); if (empty) empty.style.display = n ? 'none' : '';
+    }
+    function recalc() {
+      var rows = document.querySelectorAll('.wo-row');
+      var total = 0, dispatched = 0, running = 0, pending = 0, done = 0, cancel = 0;
+      for (var i = 0; i < rows.length; i++) {
+        var st = rows[i].getAttribute('data-wostatus');
+        total++;
+        if (st === '待下发') pending++;
+        else if (st === '已下发') dispatched++;
+        else if (st === '执行中') running++;
+        else if (st === '已完成') done++;
+        else if (st === '已取消') cancel++;
+      }
+      setText('mTotal', total); setText('mDispatched', dispatched);
+      setText('mRunning', running); setText('mPending', pending);
+      setText('cAll', total); setText('cPending', pending); setText('cDispatched', dispatched);
+      setText('cRunning', running); setText('cDone', done); setText('cCancel', cancel);
+      renderPending();
+      apply();
+    }
+    function renderPending() {
+      var rows = document.querySelectorAll('.wo-row');
+      var h = '', n = 0;
+      for (var i = 0; i < rows.length && n < 5; i++) {
+        var r = rows[i];
+        if (r.getAttribute('data-wostatus') === '待下发') {
+          h += '<div class="mini-item"><div><div class="mini-name">' + r.getAttribute('data-code')
+            + '</div><div class="mini-meta">' + r.getAttribute('data-product') + ' · ' + r.getAttribute('data-ws') + '</div></div>'
+            + '<span class="mini-go" onclick="WO.act(\'' + r.getAttribute('data-code') + '\',\'release\')">下发</span></div>';
+          n++;
+        }
+      }
+      if (!h) h = '<div class="mini-item" style="color:var(--text-sec);">当前无待下发工单</div>';
+      setHTML('pendingList', h);
+    }
+
+    function showMask(id) { $(id).classList.add('show'); }
+    function hideMask(id) { $(id).classList.remove('show'); }
+
+    window.WO = {
+      open: function (code, srcCode) {
+        editing = code || null;
+        var src = srcCode || code;
+        var d = src ? dataset(rowByCode(src)) : null;
+        if (code) { setText('woTitle', '✎ 编辑生产工单'); setText('woCode', code); setText('woStatusPreview', rowByCode(code).getAttribute('data-wostatus')); }
+        else { setText('woTitle', '＋ 新增生产工单'); setText('woCode', srcCode ? nextCode() : nextCode()); setText('woStatusPreview', '待下发'); }
+        $('woPlan').value = d ? d.plan : 'PLAN-2608-001';
+        $('woProduct').value = d ? d.product : '对乙酰氨基酚';
+        $('woSpec').value = d ? d.spec : '';
+        $('woQty').value = d ? d.qty : '';
+        $('woType').value = d ? d.type : '正常';
+        $('woPrio').value = d ? d.prio : '中';
+        $('woWs').value = d ? d.ws : '一车间';
+        $('woVessel').value = d ? d.vessel : '';
+        $('woRc').value = d ? (d.rc || '待下发后系统自动分配') : '';
+        $('woOwner').value = d ? d.owner : '';
+        $('woNote').value = '';
+        showMask('woMask');
+      },
+      close: function () { hideMask('woMask'); },
+      save: function () {
+        var code = editing || $('woCode').value;
+        var d = {
+          code: code,
+          plan: $('woPlan').value, product: $('woProduct').value, spec: $('woSpec').value, qty: $('woQty').value,
+          type: $('woType').value, prio: $('woPrio').value, ws: $('woWs').value, vessel: $('woVessel').value,
+          rc: editing ? rowByCode(editing).getAttribute('data-rc') : '',
+          owner: $('woOwner').value,
+          wostatus: editing ? rowByCode(editing).getAttribute('data-wostatus') : '待下发'
+        };
+        if (!d.product || !d.qty) { toast('请填写产品与计划产量'); return; }
+        if (editing) {
+          var tr = rowByCode(editing);
+          tr.outerHTML = buildRow(d);
+        } else {
+          var tbody = $('woTable').getElementsByTagName('tbody')[0];
+          tbody.insertAdjacentHTML('beforeend', buildRow(d));
+        }
+        recalc();
+        WO.close();
+        toast(editing ? '工单已更新' : '生产工单已创建（待下发）');
+      },
+      openDetail: function (code) {
+        var r = rowByCode(code); if (!r) return;
+        var d = dataset(r);
+        setText('wdTitle', '生产工单 · ' + code);
+        setHTML('wdInfo',
+          '<div class="ibm-item"><div class="ibm-label">工单编号</div><div class="ibm-value num">' + code + '</div></div>'
+          + '<div class="ibm-item"><div class="ibm-label">产品</div><div class="ibm-value">' + d.product + '</div></div>'
+          + '<div class="ibm-item"><div class="ibm-label">类型</div><div class="ibm-value">' + typeTag(d.type) + '</div></div>'
+          + '<div class="ibm-item"><div class="ibm-label">状态</div><div class="ibm-value">' + statusTag(d.wostatus) + '</div></div>'
+        );
+        setHTML('wdDetail',
+          '<div class="detail-item"><div class="detail-label">规格</div><div class="detail-value">' + d.spec + '</div></div>'
+          + '<div class="detail-item"><div class="detail-label">计划产量</div><div class="detail-value num">' + d.qty + '</div></div>'
+          + '<div class="detail-item"><div class="detail-label">优先级</div><div class="detail-value">' + prioTag(d.prio) + '</div></div>'
+          + '<div class="detail-item"><div class="detail-label">车间</div><div class="detail-value">' + d.ws + '</div></div>'
+          + '<div class="detail-item"><div class="detail-label">反应釜 / 产线</div><div class="detail-value">' + d.vessel + '</div></div>'
+          + '<div class="detail-item"><div class="detail-label">负责人</div><div class="detail-value">' + d.owner + '</div></div>'
+        );
+        setHTML('wdPlan',
+          '<div class="mini-item"><div><div class="mini-name">' + d.plan + '</div><div class="mini-meta">关联主生产计划（MPS）</div></div><span class="mini-go" onclick="window.location.href=\'生产计划.html\'">计划</span></div>'
+        );
+        if (d.rc) {
+          setHTML('wdRc',
+            '<div class="mini-item"><div><div class="mini-name">' + d.rc + '</div><div class="mini-meta">' + d.ws + ' · 已分解釜次</div></div><span class="mini-go" onclick="window.location.href=\'釜次详情.html\'">釜次</span></div>'
+            + '<div class="mini-item"><div><div class="mini-name">进入生产执行</div><div class="mini-meta">工序动作 / EBR 批记录</div></div><span class="mini-go" onclick="window.location.href=\'生产执行管理.html\'">执行</span></div>'
+          );
+          setHTML('wdGantt', '釜次 ' + d.rc + ' · 已下发执行');
+        } else {
+          setHTML('wdRc',
+            '<div class="mini-item" style="color:var(--text-sec);">工单尚未下发，釜次待分解</div>'
+          );
+          setHTML('wdGantt', '就绪 · 待下发');
+        }
+        setHTML('wdPrep',
+          '<div class="mini-item"><div><div class="mini-name">5M1E 齐套核查</div><div class="mini-meta">人 / 机 / 料 / 法 / 环 就绪确认</div></div><span class="mini-go" onclick="window.location.href=\'生产准备.html\'">准备</span></div>'
+          + m1eChips(d.wostatus !== '待下发')
+        );
+        var disp = d.wostatus === '待下发' ? '尚未下发' : '已分解釜次并下发';
+        setHTML('wdLogs',
+          '<div class="log-row"><span class="log-time">08-02</span><span class="log-msg">由 ' + d.plan + ' 下达生成工单 · 负责人 ' + d.owner + '</span></div>'
+          + '<div class="log-row"><span class="log-time">08-03</span><span class="log-msg">物料齐套检查 · 通过</span></div>'
+          + '<div class="log-row"><span class="log-time">—</span><span class="log-msg">' + disp + '</span></div>'
+        );
+        showMask('wdMask');
+      },
+      detailClose: function () { hideMask('wdMask'); },
+      act: function (code, mode) {
+        actCode = code; actMode = mode;
+        var r = rowByCode(code);
+        setText('waCode', code);
+        setText('waProduct', r.getAttribute('data-product'));
+        setText('waWs', r.getAttribute('data-ws'));
+        setText('waVessel', r.getAttribute('data-vessel'));
+        if (mode === 'release') {
+          setText('waTitle', '▶ 下发生产工单');
+          setHTML('waReasonLabel', '下发说明');
+          setText('waImpact', '下发后系统将自动分解釜次（RC）并同步至生产执行，工单进入「已下发」状态。');
+          setText('waConfirm', '确认下发');
+        } else if (mode === 'start') {
+          setText('waTitle', '▶ 工单开工确认');
+          setHTML('waReasonLabel', '开工说明');
+          setText('waImpact', '开工确认后工单进入「执行中」，系统将初始化 EBR 电子批记录并锁定 5M1E 齐套状态，随之进入生产执行。');
+          setText('waConfirm', '确认开工');
+        } else {
+          setText('waTitle', '⏸ 取消生产工单');
+          setHTML('waReasonLabel', '取消原因');
+          setText('waImpact', '取消后该工单从下发序列移除，相关釜次将一并撤回（如尚未开工）。');
+          setText('waConfirm', '确认取消');
+        }
+        $('waReason').value = ''; $('waSign').value = '';
+        showMask('waMask');
+      },
+      actClose: function () { hideMask('waMask'); },
+      confirm: function () {
+        if (!actCode) return;
+        if (!($('waReason').value || '').trim()) { toast('请填写' + (actMode === 'release' ? '下发说明' : '取消原因')); return; }
+        if (!($('waSign').value || '').trim()) { toast('请输入电子签名口令'); return; }
+        var tr = rowByCode(actCode);
+        var newSt;
+        if (actMode === 'release') newSt = '已下发';
+        else if (actMode === 'start') newSt = '执行中';
+        else newSt = '已取消';
+        tr.setAttribute('data-wostatus', newSt);
+        tr.cells[7].innerHTML = statusTag(newSt);
+        tr.cells[9].innerHTML = opHTML(actCode, newSt);
+        if (actMode === 'release' || actMode === 'start') {
+          var suffix = actCode.replace('WO-2608-', '');
+          var rc = 'RC-2608-' + suffix;
+          if (!tr.getAttribute('data-rc')) { tr.setAttribute('data-rc', rc); tr.cells[5].innerHTML = rcTag(rc); }
+        }
+        if (actMode === 'cancel') {
+          recordWoCancel(actCode, tr.getAttribute('data-plan'), tr.getAttribute('data-qty'), tr.getAttribute('data-product'));
+        }
+        recalc();
+        WO.actClose();
+        toast(actMode === 'release' ? '工单已下发，釜次 ' + (actCode.replace('WO-2608-', 'RC-2608-')) + ' 已分解'
+            : actMode === 'start' ? '工单已开工，EBR 电子批记录已初始化'
+            : '工单已取消，已回冲关联计划 ' + tr.getAttribute('data-plan') + ' 的排产数量');
+      }
+    };
+
+    // 行 / 操作 事件委托
+    var table = $('woTable');
+    table.addEventListener('click', function (e) {
+      var t = e.target;
+      var planL = t.closest ? t.closest('.op-plan') : null;
+      if (planL) { window.location.href = '生产计划.html'; return; }
+      var rcL = t.closest ? t.closest('.op-rc') : null;
+      if (rcL && rcL.getAttribute('data-rc')) { window.location.href = '釜次详情.html'; return; }
+      var view = t.closest ? t.closest('.op-view') : null;
+      if (view) { WO.openDetail(view.getAttribute('data-code')); return; }
+      var edit = t.closest ? t.closest('.op-edit') : null;
+      if (edit) { WO.open(edit.getAttribute('data-code')); return; }
+      var rel = t.closest ? t.closest('.op-release') : null;
+      if (rel) { WO.act(rel.getAttribute('data-code'), 'release'); return; }
+      var start = t.closest ? t.closest('.op-start') : null;
+      if (start) { WO.act(start.getAttribute('data-code'), 'start'); return; }
+      var cancel = t.closest ? t.closest('.op-cancel') : null;
+      if (cancel) { WO.act(cancel.getAttribute('data-code'), 'cancel'); return; }
+      var copy = t.closest ? t.closest('.op-copy') : null;
+      if (copy) { WO.open(null, copy.getAttribute('data-code')); return; }
+      var tr = t.closest ? t.closest('.wo-row') : null;
+      if (tr && tr.getAttribute('data-code')) { WO.openDetail(tr.getAttribute('data-code')); }
+    });
+
+    // 状态 tab 切换
+    var tabs = document.querySelectorAll('#woTabs .filter-tab');
+    for (var i = 0; i < tabs.length; i++) {
+      tabs[i].addEventListener('click', function () {
+        tab = this.getAttribute('data-wostatus');
+        for (var j = 0; j < tabs.length; j++) tabs[j].classList.remove('active');
+        this.classList.add('active');
+        apply();
+      });
+    }
+    // 筛选
+    ['fProduct', 'fWs', 'fType'].forEach(function (id) { $(id).addEventListener('change', apply); });
+    $('fSearch').addEventListener('input', apply);
+
+    window.woTab = function (status) {
+      tab = status;
+      for (var j = 0; j < tabs.length; j++) {
+        tabs[j].classList.toggle('active', tabs[j].getAttribute('data-wostatus') === status);
+      }
+      apply();
+    };
+
+    recalc();
+    applyUrlWo();
+    function applyUrlWo(){
+      try {
+        var p = new URLSearchParams(location.search);
+        var wo = p.get('wo');
+        if (wo) {
+          var rows = document.querySelectorAll('.wo-row');
+          for (var i = 0; i < rows.length; i++) {
+            if (rows[i].getAttribute('data-code') === wo) {
+              rows[i].style.outline = '2px solid var(--primary-400)';
+              rows[i].style.background = 'rgba(59,130,246,.06)';
+              rows[i].scrollIntoView({block:'center'});
+              break;
+            }
+          }
+        }
+      } catch(e){}
+    }
+  })();
+</script>
+  <script src="sidebar.js"></script>
+  <script src="plant.js"></script>
+<script src="role.js"></script>
+<script>
+/* ERP 入站工单（系统集成联调回写：localStorage mes_erp_wo）*/
+(function () {
+  function renderErpInbound() {
+    var el = document.getElementById('erpInbound'); if (!el) return;
+    var arr = []; try { arr = JSON.parse(localStorage.getItem('mes_erp_wo') || '[]'); } catch (e) {}
+    if (!arr.length) { el.innerHTML = ''; return; }
+    el.innerHTML = '<div style="background:#eef5fb;border:1px solid #cfe0f0;border-radius:12px;padding:14px 18px;margin-bottom:16px;">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">'
+      + '<div style="font-size:14px;font-weight:500;display:flex;align-items:center;gap:8px;"><span style="color:#2f6fb0;">🏢</span>ERP 入站工单（INT-004 · 实时下发）</div>'
+      + '<span style="font-size:11px;color:#2f6fb0;background:#fff;border:1px solid #cfe0f0;padding:2px 9px;border-radius:20px;">' + arr.length + ' 条待接收</span></div>'
+      + '<div style="display:flex;flex-wrap:wrap;gap:10px;">' + arr.map(function (o, i) {
+        return '<div style="flex:1;min-width:230px;background:#fff;border:1px solid #e3e9f1;border-radius:9px;padding:10px 12px;">'
+          + '<div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-family:ui-monospace,monospace;font-weight:600;color:#2f6fb0;">' + o.wo + '</span><span style="font-size:10.5px;color:#8a99ab;">来自 ' + o.order + '</span></div>'
+          + '<div style="font-size:12px;color:#1f2d3d;margin-top:4px;">' + o.product + ' ' + o.spec + '</div>'
+          + '<div style="font-size:11.5px;color:#5b6b7d;margin-top:3px;">' + o.qty + ' · ' + o.vessel + ' · ' + o.ws + ' · 优先级 ' + o.prio + '</div>'
+          + '<button class="btn" style="margin-top:8px;padding:5px 12px;font-size:12px;" onclick="(function(){var a=JSON.parse(localStorage.getItem(\'mes_erp_wo\')||\'[]\');a.splice(' + i + ',1);localStorage.setItem(\'mes_erp_wo\',JSON.stringify(a));renderErpInbound();})()">✓ 接收并生成工单</button>'
+          + '</div>';
+      }).join('') + '</div></div>';
+  }
+  window.renderErpInbound = renderErpInbound;
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', renderErpInbound); else renderErpInbound();
+  // 跨页回写后从联调页返回时刷新
+  window.addEventListener('focus', renderErpInbound);
+})();
+</script>
+</body>
+</html>
