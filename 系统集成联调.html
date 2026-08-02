@@ -12,22 +12,34 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; background: var(--page); color: var(--text); font-size: 13px; display: flex; height: 100vh; overflow: hidden; }
 
-    /* ===== 侧边栏 ===== */
+    /* ===== 侧边栏（与 sidebar.js 渲染结构对齐） ===== */
     .sidebar { width: 232px; background: var(--primary-900); color: #cfe1f2; flex-shrink: 0; display: flex; flex-direction: column; }
-    .side-logo { padding: 16px 18px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(255,255,255,.08); }
-    .side-logo .mark { width: 30px; height: 30px; border-radius: 8px; background: linear-gradient(135deg, var(--primary-400), var(--primary-600)); display: flex; align-items: center; justify-content: center; font-size: 15px; }
-    .side-logo .t1 { font-size: 14px; font-weight: 600; color: #fff; line-height: 1.2; }
-    .side-logo .t2 { font-size: 11px; color: #8fb2d6; }
-    .nav-scroll { flex: 1; overflow-y: auto; padding-bottom: 14px; }
-    .nav-group-head { padding: 14px 16px 5px; font-size: 11px; color: #6FA9DA; letter-spacing: .6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; }
-    .nav-item { padding: 8px 16px 8px 36px; font-size: 12.5px; color: #85B7EB; cursor: pointer; transition: all .15s; display: flex; align-items: center; gap: 7px; }
+    .sidebar-logo { padding: 14px 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid rgba(255,255,255,.08); flex: none; }
+    .logo-icon { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+    .logo-name { font-size: 14px; font-weight: 600; color: #fff; line-height: 1.2; }
+    .logo-slogan { font-size: 11px; color: #8fb2d6; margin-top: 2px; }
+    .sidebar-nav { padding: 8px 0; flex: 1; overflow-y: auto; }
+    .nav-group-head { padding: 14px 16px 5px; font-size: 11px; color: #6FA9DA; letter-spacing: .6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; transition: color .15s; }
+    .nav-group-head:hover { color: #B5D4F4; }
+    .nav-group-head > span:first-child { font-weight: 500; }
+    .nav-item { padding: 8px 16px 8px 36px; font-size: 12.5px; color: #85B7EB; cursor: pointer; position: relative; transition: all .15s; display: flex; align-items: center; gap: 7px; }
     .nav-item:hover { background: var(--primary-700); color: #B5D4F4; }
     .nav-item.active { background: var(--primary-600); color: #fff; font-weight: 500; }
     .nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--primary-400); }
-    .nav-group-head .nav-caret { font-size: 10px; opacity: 0.75; transition: transform 0.18s; display: inline-block; }
+    .nav-caret { font-size: 10px; opacity: 0.75; transition: transform 0.18s; display: inline-block; }
     .nav-group-items { overflow: hidden; }
     .nav-group.collapsed .nav-caret { transform: rotate(-90deg); }
     .nav-group.collapsed .nav-group-items { display: none; }
+    .sidebar-collapse { padding: 10px 16px; font-size: 12px; color: #85B7EB; cursor: pointer; display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--primary-600); transition: all .15s; flex: none; }
+    .sidebar-collapse:hover { background: var(--primary-700); color: #B5D4F4; }
+    .collapse-caret { display: inline-block; transition: transform .2s; font-size: 14px; line-height: 1; }
+    .sidebar-footer { padding: 12px 20px; border-top: 1px solid rgba(255,255,255,.08); font-size: 12px; color: #5DCAA5; display: flex; align-items: center; gap: 6px; flex: none; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--normal); }
+    .sidebar.collapsed { width: 56px; min-width: 56px; }
+    .sidebar.collapsed .logo-name, .sidebar.collapsed .logo-slogan, .sidebar.collapsed .nav-group-head > span:first-child, .sidebar.collapsed .nav-item > span:last-child, .sidebar.collapsed .sidebar-footer > span:last-child, .sidebar.collapsed #lblAll { display: none; }
+    .sidebar.collapsed .nav-item { padding-left: 0; justify-content: center; }
+    .sidebar.collapsed .nav-group-head { justify-content: center; }
+    .sidebar.collapsed .collapse-caret { transform: rotate(180deg); }
 
     /* ===== 主区 ===== */
     .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
