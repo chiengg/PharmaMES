@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MES 精细化工 - 生产执行管理</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary-50: #E6F1FB; --primary-200: #B5D4F4; --primary-400: #378ADD;
+    --primary-600: #185FA5; --primary-800: #0C447C; --primary-900: #042C53;
+    --normal: #1D9E75; --normal-bg: #E1F5EE;
+    --info: #EF9F27; --info-bg: #FAEEDA;
+    --warning: #D85A30; --warning-bg: #FAECE7;
+    --block: #E24B4A; --block-bg: #FCEBEB;
+    --white: #FFFFFF; --page: #F1EFE8; --border: #D3D1C7;
+    --text-sec: #888780; --text-sub: #5F5E5A; --text: #2C2C2A;
+  }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif;
+    background: var(--page); color: var(--text);
+    font-size: 14px; line-height: 1.6; overflow: hidden; height: 100vh;
+  }
+  .app { display: flex; height: 100vh; }
+
+  /* === 侧边栏 === */
+  .sidebar { width: 200px; min-width: 200px; background: var(--primary-800); color: #85B7EB; display: flex; flex-direction: column; overflow-y: auto; }
+  .sidebar-logo { padding: 14px 16px; border-bottom: 1px solid var(--primary-600); display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .sidebar-nav { padding: 8px 0; flex: 1; }
+  .nav-item { padding: 8px 16px 8px 36px; font-size: 12.5px; color: #85B7EB; cursor: pointer; position: relative; transition: all 0.15s; display: flex; align-items: center; gap: 7px; }
+  .nav-item:hover { background: var(--primary-900); color: #B5D4F4; }
+  .nav-item.active { background: var(--primary-600); color: #FFF; font-weight: 500; }
+  .nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--primary-400); }
+  .nav-section-title { padding: 16px 20px 6px; font-size: 11px; color: #378ADD; text-transform: uppercase; letter-spacing: 0.5px; }
+  .sidebar-footer { padding: 12px 20px; border-top: 1px solid var(--primary-600); font-size: 12px; color: #5DCAA5; display: flex; align-items: center; gap: 6px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--normal); }
+
+  /* === 主区域 === */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { height: 52px; min-height: 52px; background: var(--white); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+  .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-sec); }
+  .breadcrumb .current { color: var(--text); font-weight: 500; }
+  .topbar-right { display: flex; align-items: center; gap: 20px; }
+  .search-box { display: flex; align-items: center; gap: 8px; background: var(--page); border-radius: 8px; padding: 6px 14px; width: 220px; }
+  .search-box input { border: none; background: none; outline: none; font-size: 13px; color: var(--text); flex: 1; font-family: inherit; }
+  .search-box input::placeholder { color: var(--text-sec); }
+  .notify-btn { position: relative; cursor: pointer; padding: 6px; border-radius: 8px; }
+  .notify-btn:hover { background: var(--page); }
+  .notify-badge { position: absolute; top: 2px; right: 2px; width: 16px; height: 16px; background: var(--block); color: #fff; border-radius: 50%; font-size: 10px; display: flex; align-items: center; justify-content: center; font-weight: 500; }
+  .user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+  .user-info:hover { background: var(--page); }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-600); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }
+  .user-name { font-size: 13px; color: var(--text); }
+  .user-role { font-size: 11px; color: var(--text-sec); }
+
+  /* === 内容区 === */
+  .content { flex: 1; overflow-y: auto; padding: 14px 28px; }
+
+  /* === 页面标题 === */
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+  .page-title { font-size: 22px; font-weight: 500; color: var(--text); }
+  .page-subtitle { font-size: 13px; color: var(--text-sec); margin-top: 2px; }
+  .header-actions { display: flex; gap: 10px; }
+  .btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+  .btn-primary { background: var(--primary-600); color: #fff; }
+  .btn-primary:hover { background: var(--primary-800); }
+  .btn-secondary { background: var(--white); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--primary-400); color: var(--primary-600); }
+
+  /* === 指标卡片 === */
+  .metrics-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 18px; }
+  .metric-card { background: var(--white); border-radius: 10px; padding: 14px 16px; border: 1px solid var(--border); position: relative; overflow: hidden; }
+  .metric-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .metric-card.blue::before { background: var(--primary-400); }
+  .metric-card.green::before { background: var(--normal); }
+  .metric-card.orange::before { background: var(--warning); }
+  .metric-card.red::before { background: var(--block); }
+  .metric-card.amber::before { background: var(--info); }
+  .metric-card.gray::before { background: var(--text-sec); }
+  .metric-label { font-size: 11px; color: var(--text-sec); margin-bottom: 6px; }
+  .metric-value { font-family: "DIN Alternate", "Roboto", monospace; font-size: 26px; font-weight: 500; line-height: 1.1; }
+  .metric-card.blue .metric-value { color: var(--primary-600); }
+  .metric-card.green .metric-value { color: var(--normal); }
+  .metric-card.orange .metric-value { color: var(--warning); }
+  .metric-card.red .metric-value { color: var(--block); }
+  .metric-card.amber .metric-value { color: var(--info); }
+  .metric-card.gray .metric-value { color: var(--text-sub); }
+  .metric-unit { font-size: 12px; color: var(--text-sec); font-family: inherit; }
+  .metric-detail { font-size: 10px; color: var(--text-sec); margin-top: 4px; }
+
+  /* === 主区：列表占满整行 === */
+  .main-grid { display: block; margin-bottom: 16px; }
+
+  /* === 下方三栏并列（高度一致） === */
+  .triple-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; align-items: stretch; }
+  .triple-grid > .card { display: flex; flex-direction: column; min-height: 500px; }
+  .triple-grid > .card > .card-body { flex: 1; }
+
+  /* === 卡片 === */
+  .card { background: var(--white); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+  .card-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .card-title { font-size: 15px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .card-title .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .card-body { padding: 0; }
+
+  /* === 筛选栏 === */
+  .filter-bar { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--page); flex-wrap: wrap; }
+  .filter-group { display: flex; align-items: center; gap: 6px; }
+  .filter-label { font-size: 12px; color: var(--text-sec); }
+  .filter-select { padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--text); background: var(--white); cursor: pointer; font-family: inherit; outline: none; }
+  .filter-select:focus { border-color: var(--primary-400); }
+  .filter-tabs { display: flex; gap: 4px; background: var(--page); border-radius: 8px; padding: 3px; }
+  .filter-tab { padding: 4px 12px; font-size: 12px; color: var(--text-sec); cursor: pointer; border-radius: 6px; border: none; background: none; font-family: inherit; transition: all 0.15s; }
+  .filter-tab.active { background: var(--white); color: var(--primary-600); font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+  .filter-tab .count { font-family: "DIN", monospace; font-size: 11px; margin-left: 3px; opacity: 0.7; }
+
+  /* === 列表表格 === */
+  .exec-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .exec-table th { text-align: left; padding: 10px 16px; background: var(--page); color: var(--text-sec); font-weight: 500; font-size: 12px; border-bottom: 1px solid var(--border); white-space: nowrap; position: sticky; top: 0; }
+  .exec-table td { padding: 12px 16px; border-bottom: 1px solid var(--page); color: var(--text); vertical-align: middle; }
+  .exec-table tbody tr { cursor: pointer; transition: background 0.12s; }
+  .exec-table tbody tr:hover { background: var(--primary-50); }
+  .exec-table .num { font-family: "DIN Alternate", "Roboto", monospace; }
+  .batch-id-link { font-family: "DIN Alternate", "Roboto", monospace; font-weight: 500; color: var(--primary-600); }
+  .batch-id-link:hover { text-decoration: underline; }
+  .op-link { color: var(--primary-600); cursor: pointer; }
+  .op-link:hover { text-decoration: underline; }
+
+  /* === 状态标签 === */
+  .status-tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 14px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+  .status-tag .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .status-tag.normal { background: var(--normal-bg); color: #085041; }
+  .status-tag.normal .dot { background: var(--normal); }
+  .status-tag.info { background: var(--info-bg); color: #633806; }
+  .status-tag.info .dot { background: var(--info); }
+  .status-tag.warning { background: var(--warning-bg); color: #712B13; }
+  .status-tag.warning .dot { background: var(--warning); }
+  .status-tag.block { background: var(--block-bg); color: #501313; }
+  .status-tag.block .dot { background: var(--block); }
+  .status-tag.executing { background: var(--primary-50); color: var(--primary-800); }
+  .status-tag.executing .dot { background: var(--primary-400); }
+  .status-tag.done { background: var(--page); color: var(--text-sub); }
+  .status-tag.done .dot { background: var(--text-sec); }
+
+  /* === 进度条 === */
+  .progress-cell { display: flex; align-items: center; gap: 8px; min-width: 120px; }
+  .progress-bar { flex: 1; height: 6px; background: var(--page); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 3px; }
+  .progress-fill.normal { background: var(--normal); }
+  .progress-fill.info { background: var(--info); }
+  .progress-fill.warning { background: var(--warning); }
+  .progress-fill.block { background: var(--block); }
+  .progress-fill.executing { background: var(--primary-400); }
+  .progress-fill.done { background: var(--text-sec); }
+  .progress-text { font-family: "DIN", monospace; font-size: 11px; color: var(--text-sec); min-width: 36px; }
+
+  /* === 预警列表 === */
+  .alert-item { display: flex; align-items: flex-start; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--page); cursor: pointer; }
+  .alert-item:last-child { border-bottom: none; }
+  .alert-item:hover { background: var(--page); margin: 0 -20px; padding: 10px 20px; }
+  .alert-bar { width: 3px; min-width: 3px; min-height: 36px; border-radius: 2px; margin-top: 2px; }
+  .alert-bar.block { background: var(--block); }
+  .alert-bar.warning { background: var(--warning); }
+  .alert-bar.info { background: var(--info); }
+  .alert-content { flex: 1; }
+  .alert-title { font-size: 12px; color: var(--text); margin-bottom: 3px; }
+  .alert-title .alert-batch { font-family: "DIN", monospace; font-weight: 500; color: var(--primary-600); }
+  .alert-desc { font-size: 11px; color: var(--text-sub); }
+  .alert-time { font-size: 10px; color: var(--text-sec); flex-shrink: 0; margin-top: 2px; }
+
+  /* === 今日计划进度 === */
+  .plan-progress { padding: 14px 0; }
+  .plan-item { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .plan-item:last-child { margin-bottom: 0; }
+  .plan-label { font-size: 12px; color: var(--text-sub); min-width: 90px; }
+  .plan-bar { flex: 1; height: 20px; background: var(--page); border-radius: 10px; overflow: hidden; position: relative; }
+  .plan-fill { height: 100%; border-radius: 10px; display: flex; align-items: center; padding-left: 8px; font-size: 11px; color: #fff; font-family: "DIN", monospace; transition: width 0.4s; }
+  .plan-fill.done { background: var(--normal); }
+  .plan-fill.executing { background: var(--primary-400); }
+  .plan-fill.pending { background: var(--text-sec); opacity: 0.4; }
+  .plan-count { font-family: "DIN", monospace; font-size: 12px; color: var(--text-sec); min-width: 50px; text-align: right; }
+
+  /* === 底部图表区 === */
+  .bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  /* === 班次信息 === */
+  .shift-info { display: flex; gap: 12px; }
+  .shift-card { flex: 1; padding: 10px 14px; border-radius: 8px; text-align: center; }
+  .shift-card.current { background: var(--primary-50); border: 1px solid var(--primary-200); }
+  .shift-card.normal { background: var(--page); border: 1px solid var(--border); }
+  .shift-name { font-size: 12px; color: var(--text-sub); margin-bottom: 4px; }
+  .shift-card.current .shift-name { color: var(--primary-600); font-weight: 500; }
+  .shift-time { font-family: "DIN", monospace; font-size: 14px; color: var(--text); font-weight: 500; }
+  .shift-count { font-size: 11px; color: var(--text-sec); margin-top: 4px; }
+
+  /* === 三栏模块新增（预警页脚 / 小时排产 / 车间分布 / 班次对比 / 人员） === */
+  .alert-footer { display: flex; gap: 12px; padding-top: 8px; margin-top: 8px; border-top: 1px solid var(--page); font-size: 10px; color: var(--text-sec); flex-wrap: wrap; }
+  .alert-footer .af-item { display: flex; align-items: center; gap: 3px; }
+  .alert-footer .af-val { font-family: "DIN", monospace; color: var(--text); font-weight: 500; font-size: 11px; }
+  .alert-footer .af-val.warn { color: var(--block); }
+
+  .section-label { font-size: 11px; color: var(--text-sec); margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
+  .section-label .sl-extra { font-family: "DIN", monospace; color: var(--primary-600); font-size: 11px; }
+
+  .hour-section { padding-top: 12px; border-top: 1px solid var(--page); margin-top: 12px; }
+  .hour-chart { display: flex; align-items: flex-end; gap: 3px; height: 46px; padding: 0 2px; }
+  .hour-col { flex: 1; height: 100%; display: flex; align-items: flex-end; justify-content: center; }
+  .hour-bar { width: 100%; max-width: 14px; border-radius: 2px 2px 0 0; min-height: 2px; background: var(--primary-400); }
+  .hour-bar.executing { background: var(--normal); }
+  .hour-bar.dim { background: var(--border); opacity: 0.7; }
+  .hour-axis { display: flex; justify-content: space-between; padding: 4px 4px 0; font-family: "DIN", monospace; font-size: 9px; color: var(--text-sec); }
+
+  .ws-dist { margin-top: 12px; }
+  .ws-row { display: flex; align-items: center; gap: 8px; font-size: 11px; margin-bottom: 7px; }
+  .ws-row:last-child { margin-bottom: 0; }
+  .ws-name { color: var(--text-sub); min-width: 56px; }
+  .ws-bar { flex: 1; height: 7px; background: var(--page); border-radius: 4px; overflow: hidden; }
+  .ws-fill { height: 100%; background: var(--primary-400); border-radius: 4px; }
+  .ws-fill.alt { background: var(--info); }
+  .ws-count { font-family: "DIN", monospace; font-size: 11px; color: var(--text); min-width: 46px; text-align: right; }
+  .ws-pct { font-size: 10px; color: var(--text-sec); min-width: 30px; text-align: right; font-family: "DIN", monospace; }
+
+  /* 瓶颈工序 TOP3 */
+  .bottleneck { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--page); }
+  .bn-row { display: flex; align-items: center; gap: 8px; font-size: 11px; margin-bottom: 7px; }
+  .bn-row:last-child { margin-bottom: 0; }
+  .bn-rank { width: 16px; height: 16px; border-radius: 4px; background: var(--block); color: var(--white); font-family: "DIN", monospace; font-size: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .bn-row:nth-child(2) .bn-rank { background: var(--warning); }
+  .bn-row:nth-child(3) .bn-rank { background: var(--info); }
+  .bn-name { color: var(--text-sub); min-width: 60px; }
+  .bn-bar { flex: 1; height: 7px; background: var(--page); border-radius: 4px; position: relative; overflow: hidden; }
+  .bn-fill { height: 100%; background: var(--primary-400); border-radius: 4px; }
+  .bn-mark { position: absolute; top: -2px; bottom: -2px; width: 1.5px; background: var(--text-sec); }
+  .bn-val { font-family: "DIN", monospace; font-size: 11px; color: var(--text); min-width: 40px; text-align: right; }
+
+  /* OEE 趋势（SVG 折线） */
+  .oee-trend { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--page); }
+  .oee-axis { display: flex; justify-content: space-between; padding: 0 4px; font-family: "DIN", monospace; font-size: 9px; color: var(--text-sec); margin-top: 2px; }
+  .oee-stats { display: flex; justify-content: space-between; padding-top: 6px; font-size: 10px; color: var(--text-sec); }
+  .oee-stats b { font-family: "DIN", monospace; color: var(--text); font-weight: 500; }
+
+  .shift-metrics { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--page); }
+  .metric-table { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2px 8px; font-size: 11px; align-items: center; }
+  .metric-table .mh { color: var(--text-sec); padding: 4px 0; }
+  .metric-table .mc { font-family: "DIN", monospace; color: var(--primary-600); padding: 4px 0; font-weight: 500; }
+  .metric-table .mc.night { color: var(--text); }
+
+  .shift-personnel { margin-top: 10px; display: flex; gap: 10px; }
+  .shift-personnel .sp-col { flex: 1; padding: 8px 10px; background: var(--page); border-radius: 6px; }
+  .shift-personnel .sp-name { color: var(--text-sub); font-size: 10px; margin-bottom: 3px; display: flex; justify-content: space-between; }
+  .shift-personnel .sp-name b { font-family: "DIN", monospace; color: var(--text); font-weight: 500; font-size: 12px; }
+  .shift-personnel .sp-detail { font-size: 10px; color: var(--text-sub); }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-sec); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .pulse { animation: pulse 1.5s ease-in-out infinite; }
+  .table-scroll { overflow-y: auto; }
+
+  /* === 侧边栏 v2：分组折叠 + 窄宽 + 新LOGO === */
+  .logo-text { line-height: 1.25; min-width: 0; }
+  .logo-name { font-size: 15px; font-weight: 500; color: #FFFFFF; letter-spacing: 0.3px; }
+  .logo-slogan { font-size: 10.5px; color: #93B5D9; margin-top: 1px; }
+  .nav-group-head { padding: 14px 16px 5px; font-size: 11px; color: #6FA9DA; letter-spacing: 0.6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; transition: color 0.15s; }
+  .nav-group-head:hover { color: #B5D4F4; }
+  .nav-group-head > span:first-child { font-weight: 500; }
+  .nav-caret { font-size: 10px; opacity: 0.75; transition: transform 0.18s; display: inline-block; }
+  .nav-group-items { overflow: hidden; }
+  .nav-group.collapsed .nav-caret { transform: rotate(-90deg); }
+  .nav-group.collapsed .nav-group-items { display: none; }
+  .sidebar-collapse { padding: 10px 16px; font-size: 12px; color: #85B7EB; cursor: pointer; display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--primary-600); transition: all 0.15s; }
+  .sidebar-collapse:hover { background: var(--primary-900); color: #B5D4F4; }
+  .collapse-caret { display: inline-block; transition: transform 0.2s; font-size: 14px; line-height: 1; }
+  .sidebar.collapsed .collapse-caret { transform: rotate(180deg); }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- 侧边栏 -->
+  <aside class="sidebar" id="appSidebar"></aside>
+
+  <!-- 主区域 -->
+  <div class="main">
+    <header class="topbar">
+      <div class="breadcrumb">
+        <span>生产管理</span><span>›</span>
+        <span class="current">生产执行</span>
+      </div>
+      <div class="topbar-right">
+        <div class="search-box">
+          <span style="color: var(--text-sec); font-size: 13px;">⌕</span>
+          <input type="text" placeholder="搜索釜次编号 / 产品名称..." />
+        </div>
+        <div class="notify-btn">
+          <span style="font-size: 18px; color: var(--text-sub);">🔔</span>
+          <span class="notify-badge pulse">5</span>
+        </div>
+        <div id="plantSwitch"></div>
+        <div id="roleSwitch"></div>
+      <div class="user-info">
+          <div class="avatar">张</div>
+          <div><div class="user-name">张明</div><div class="user-role">车间主管</div></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="tabbar" id="tabBar"></div>
+      <div class="content">
+    
+      <!-- 页面标题 -->
+      <div class="page-header">
+        <div>
+          <div class="page-title">生产执行管理</div>
+          <div class="page-subtitle">2026年7月31日 · 一车间 · 白班 08:00-20:00</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary">📥 导出报表</button>
+          <button class="btn btn-primary" onclick="window.location.href='新建釜次.html'">+ 新建釜次</button>
+        </div>
+      </div>
+
+      <!-- 数据汇总指标 -->
+      <div class="metrics-row">
+        <div class="metric-card blue">
+          <div class="metric-label">在产釜次</div>
+          <div class="metric-value">12<span class="metric-unit"> 个</span></div>
+          <div class="metric-detail">白班8 · 夜班4</div>
+        </div>
+        <div class="metric-card green">
+          <div class="metric-label">今日完工</div>
+          <div class="metric-value">8<span class="metric-unit"> 批</span></div>
+          <div class="metric-detail">合格率 98.5%</div>
+        </div>
+        <div class="metric-card orange">
+          <div class="metric-label">预警事件</div>
+          <div class="metric-value">5<span class="metric-unit"> 起</span></div>
+          <div class="metric-detail">阻断1 · 警告2 · 提示2</div>
+        </div>
+        <div class="metric-card red">
+          <div class="metric-label">阻断批次</div>
+          <div class="metric-value">1<span class="metric-unit"> 批</span></div>
+          <div class="metric-detail">RC-0731-003</div>
+        </div>
+        <div class="metric-card amber">
+          <div class="metric-label">平均执行时长</div>
+          <div class="metric-value">4.2<span class="metric-unit"> h</span></div>
+          <div class="metric-detail">较昨日 -0.3h</div>
+        </div>
+        <div class="metric-card gray">
+          <div class="metric-label">计划完成率</div>
+          <div class="metric-value">67<span class="metric-unit">%</span></div>
+          <div class="metric-detail">8/12 批完成</div>
+        </div>
+      </div>
+
+      <!-- 主体：列表 + 预警 -->
+      <div class="main-grid">
+        <!-- 左侧：生产执行列表 -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="dot" style="background: var(--primary-400);"></span>生产执行列表</div>
+            <div class="filter-tabs" id="execTabs">
+              <button class="filter-tab active" data-k="全部">全部<span class="count">12</span></button>
+              <button class="filter-tab" data-k="执行中">执行中<span class="count">9</span></button>
+              <button class="filter-tab" data-k="预警">预警<span class="count">2</span></button>
+              <button class="filter-tab" data-k="阻断">阻断<span class="count">1</span></button>
+              <button class="filter-tab" data-k="已完工">已完工<span class="count">8</span></button>
+            </div>
+          </div>
+          <!-- 筛选栏 -->
+          <div class="filter-bar">
+            <div class="filter-group">
+              <span class="filter-label">车间：</span>
+              <select class="filter-select" id="eWorkshop"><option>全部车间</option><option>一车间</option><option>二车间</option></select>
+            </div>
+            <div class="filter-group">
+              <span class="filter-label">产品：</span>
+              <select class="filter-select" id="eProd"><option>全部产品</option><option>对乙酰氨基酚</option><option>阿莫西林</option><option>阿司匹林</option><option>布洛芬</option><option>头孢氨苄</option><option>硝苯地平</option></select>
+            </div>
+            <div class="filter-group">
+              <span class="filter-label">工序：</span>
+              <select class="filter-select" id="eProc"><option>全部工序</option><option>预处理</option><option>称量配料</option><option>溶解</option><option>投料反应</option><option>混合反应</option><option>结晶</option><option>过滤</option><option>干燥</option><option>已完工</option></select>
+            </div>
+            <div class="filter-group">
+              <span class="filter-label">班次：</span>
+              <select class="filter-select" id="eShift"><option>全部班次</option><option>白班</option><option>夜班</option></select>
+            </div>
+          </div>
+          <!-- 表格 -->
+          <div class="table-scroll">
+            <table class="exec-table">
+              <thead>
+                <tr>
+                  <th>关联工单</th>
+                  <th>釜次编号</th>
+                  <th>批次号</th>
+                  <th>产品名称</th>
+                  <th>当前工序</th>
+                  <th>进度</th>
+                  <th>状态</th>
+                  <th>反应釜</th><th>车间</th><th>班次</th>
+                  <th>操作员</th>
+                  <th>开始时间</th>
+                  <th>预计完工</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="exec-row" data-wo="WO-2608-001" data-code="RC-0731-001" data-prod="对乙酰氨基酚" data-proc="投料反应" data-estatus="正常" data-equip="R-201" data-workshop="一车间" data-shift="白班"><td><span class="op-link op-wo" data-wo="WO-2608-001">WO-2608-001</span></td>
+                  <td><span class="batch-id-link">RC-0731-001</span></td>
+                  <td>对乙酰氨基酚</td>
+                  <td>投料反应 (3/5)</td>
+                  <td><div class="progress-cell"><div class="progress-bar"><div class="progress-fill normal" style="width:60%"></div></div><span class="progress-text">60%</span></div></td>
+                  <td><span class="status-tag normal"><span class="dot"></span>正常</span></td>
+                  <td class="num">R-201</td><td>一车间</td><td>白班</td>
+                  <td>张明</td>
+                  <td class="num">08:30</td>
+                  <td class="num">12:00</td>
+                  <td><span style="font-size: 12px; color: var(--primary-600); cursor: pointer;" onclick="location.href='生产执行-动作指引.html'">查看 →</span></td>
+                </tr>
+                <tr class="exec-row" data-wo="WO-2608-002" data-code="RC-0731-002" data-prod="阿莫西林胶囊" data-proc="干燥" data-estatus="正常" data-equip="R-203" data-workshop="一车间" data-shift="白班"><td><span class="op-link op-wo" data-wo="WO-2608-002">WO-2608-002</span></td>
+                  <td><span class="batch-id-link">RC-0731-002</span></td>
+                  <td>阿莫西林胶囊</td>
+                  <td>干燥 (5/6)</td>
+                  <td><div class="progress-cell"><div class="progress-bar"><div class="progress-fill normal" style="width:83%"></div></div><span class="progress-text">83%</span></div></td>
+                  <td><span class="status-tag normal"><span class="dot"></span>正常</span></td>
+                  <td class="num">R-203</td><td>一车间</td><td>白班</td>
+                  <td>王芳</td>
+                  <td class="num">07:00</td>
+                  <td class="num">13:00</td>
+                  <td><span style="font-size: 12px; color: var(--primary-600); cursor: pointer;" onclick="location.href='生产执行-动作指引.html'">查看 →</span></td>
+                </tr>
+                <tr class="exec-row" data-wo="WO-2608-003" style="background: #FFFAFA;" data-code="RC-0731-003" data-prod="阿司匹林肠溶片" data-proc="投料反应" data-estatus="阻断" data-equip="R-205" data-workshop="二车间" data-shift="白班"><td><span class="op-link op-wo" data-wo="WO-2608-003">WO-2608-003</span></td>
+                  <td><span class="batch-id-link" style="color: var(--block);">RC-0731-003</span></td>
+                  <td>阿司匹林肠溶片</td>
+                  <td>投料反应 (2/5)</td>
+                  <td><div class="progress-cell"><div class="progress-bar"><div class="progress-fill block" style="width:40%"></div></div><span class="progress-text">40%</span></div></td>
+                  <td><span class="status-tag block"><span class="dot pulse"></span>阻断</span></td>
+                  <td class="num">R-205</td><td>二车间</td><td>白班</td>
+                  <td>李伟</td>
+                  <td class="num">08:00</td>
+                  <td class="num" style="color: var(--block);">待确认</td>
+                  <td><button class="handle-block-btn" onclick="EX.open('RC-0731-003')">处理 →</button></td>
+                </tr>
+                <tr class="exec-row" data-wo="WO-2608-004" data-code="RC-0731-004" data-prod="盐酸小檗碱片" data-proc="结晶" data-estatus="正常" data-equip="R-202" data-workshop="一车间" data-shift="白班"><td><span class="op-link op-wo" data-wo="WO-2608-004">WO-2608-004</span></td>
+                  <td><span class="batch-id-link">RC-0731-004</span></td>
+                  <td>盐酸小檗碱片</td>
+                  <td>结晶 (4/5)</td>
+                  <td><div class="progress-cell"><div class="progress-bar"><div class="progress-fill normal" style="width:80%"></div></div><span class="progress-text">80%</span></div></td>
+                  <td><span class="status-tag normal"><span class="dot"></span>正常</span></td>
+                  <td class="num">R-202</td><td>一车间</td><td>白班</td>
+                  <td>赵强</td>
+                  <td class="num">06:00</td>
+                  <td class="num">14:00</td>
+                  <td><span style="font-size: 12px; color: var(--primary-600); cursor: pointer;" onclick="location.href='生产执行-动作指引.html'">查看 →</span></td>
+                </tr>
+                <tr class="exec-row" data-wo="WO-2608-005" data-code="RC-0731-005" data-prod="布洛芬缓释胶囊" data-proc="混合反应" data-estatus="警告" data-equip="R-206" data-workshop="二车间" data-shift="白班"><td><span class="op-link op-wo" data-wo="WO-2608-005">WO-2608-005</span></td>
+                  <td><span class="batch-id-link">RC-0731-005</span></td>
+                  <td>布洛芬缓释胶囊</td>
+                  <td>混合反应 (2/4)</td>
+                  <td><div class="progress-cell"><div class="progress-bar"><div class="progress-fill warning" style="width:50%"></div></div><span class="progress-text">50%</span></div></td>
+                  <td><span class="status-tag warning"><span class="dot"></span>警告</span></td>
+                  <td class="num">R-206</td><td>二车间</td><td>白班</td>
+                  <td>陈静</td>
+                  <td class="num">09:00</td>
+                  <td class="num">15:00</td>
+                  <td><span style="font-size: 12px; color: var(--primary-600); cursor: pointer;" onclick="location.href='生产执行-动作指引.html'">查看 →</span></td>
+                </tr>
+                <tr class="exec-row" data-wo="WO-2608-006" data-code="RC-0731-006" data-prod="头孢氨苄胶囊" data-proc="称量配料" data-estatus="提示" data-equip="R-204" data-workshop="一车间" data-shift="白班"><td><span class="op-link op-wo" data-wo="WO-2608-006">WO-2608-006</span></td>
+                  <td><span class="batch-id-link">RC-0731-006</span></td>
+                  <td>头孢氨苄胶囊</td>
+                  <td>称量配料 (1/4)</td>
+                  <td><div class="progress-cell"><div class="progress-bar"><div class="progress-fill info" style="width:25%"></div></div><span class="progress-text">25%</span></div></td>
+                  <td><span class="status-tag info"><span class="dot"></span>提示</span></td>
+                  <td class="num">R-204</td><td>一车间</td><td>白班</td>
+                  <td>刘洋</td>
+                  <td class="num">11:30</td>
+                  <td class="num">16:30</td>
+                  <td><span style="font-size: 12px; color: var(--primary-600); cursor: pointer;" onclick="location.href='生产执行-动作指引.html'">查看 →</span></td>
+                </tr>
+                <tr class="exec-row" data-wo="WO-2608-007" data-code="RC-0731-007" data-prod="硝苯地平片" data-proc="溶解" data-estatus="正常" data-equip="R-201" data-workshop="一车间" data-shift="白班"><td><span class="op-link op-wo" data-wo="WO-2608-007">WO-2608-007</span></td>
+                  <td><span class="batch-id-link">RC-0731-007</span></td>
+                  <td>硝苯地平片</td>
+                  <td>溶解 (2/4)</td>
+                  <td><div class="progress-cell"><div class="progress-bar"><div class="progress-fill normal" style="width:50%"></div></div><span class="progress-text">50%</span></div></td>
+                  <td><span class="status-tag normal"><span class="dot"></span>正常</span></td>
+                  <td class="num">R-201</td><td>一车间</td><td>白班</td>
+                  <td>孙丽</td>
+                  <td class="num">09:30</td>
+                  <td class="num">14:30</td>
+                  <td><span style="font-size: 12px; color: var(--primary-600); cursor: pointer;" onclick="location.href='生产执行-动作指引.html'">查看 →</span></td>
+                </tr>
+                <tr class="exec-row" data-wo="WO-2608-008" data-code="RC-0731-008" data-prod="双氯芬酸钠肠溶片" data-proc="过滤" data-estatus="正常" data-equip="R-207" data-workshop="二车间" data-shift="白班"><td><span class="op-link op-wo" data-wo="WO-2608-008">WO-2608-008</span></td>
+                  <td><span class="batch-id-link">RC-0731-008</span></td>
+                  <td>双氯芬酸钠肠溶片</td>
+                  <td>过滤 (3/5)</td>
+                  <td><div class="progress-cell"><div class="progress-bar"><div class="progress-fill normal" style="width:60%"></div></div><span class="progress-text">60%</span></div></td>
+                  <td><span class="status-tag normal"><span class="dot"></span>正常</span></td>
+                  <td class="num">R-207</td><td>二车间</td><td>白班</td>
+                  <td>周涛</td>
+                  <td class="num">08:00</td>
+                  <td class="num">13:30</td>
+                  <td><span style="font-size: 12px; color: var(--primary-600); cursor: pointer;" onclick="location.href='生产执行-动作指引.html'">查看 →</span></td>
+                </tr>
+                <tr class="exec-row" data-wo="WO-2608-009" data-code="RC-0731-009" data-prod="奥美拉唑肠溶胶囊" data-proc="预处理" data-estatus="执行中" data-equip="R-208" data-workshop="二车间" data-shift="白班"><td><span class="op-link op-wo" data-wo="WO-2608-009">WO-2608-009</span></td>
+                  <td><span class="batch-id-link">RC-0731-009</span></td>
+                  <td>奥美拉唑肠溶胶囊</td>
+                  <td>预处理 (1/4)</td>
+                  <td><div class="progress-cell"><div class="progress-bar"><div class="progress-fill executing" style="width:15%"></div></div><span class="progress-text">15%</span></div></td>
+                  <td><span class="status-tag executing"><span class="dot"></span>执行中</span></td>
+                  <td class="num">R-208</td><td>二车间</td><td>白班</td>
+                  <td>吴磊</td>
+                  <td class="num">12:00</td>
+                  <td class="num">17:00</td>
+                  <td><span style="font-size: 12px; color: var(--primary-600); cursor: pointer;" onclick="location.href='生产执行-动作指引.html'">查看 →</span></td>
+                </tr>
+                <tr class="exec-row" data-wo="WO-2608-010" style="opacity: 0.7;" data-code="RC-0731-010" data-prod="甲硝唑片" data-proc="已完工" data-estatus="已完工" data-equip="R-202" data-workshop="一车间" data-shift="夜班"><td><span class="op-link op-wo" data-wo="WO-2608-010">WO-2608-010</span></td>
+                  <td><span class="batch-id-link" style="color: var(--text-sec);">RC-0731-010</span></td>
+                  <td>甲硝唑片</td>
+                  <td>已完工</td>
+                  <td><div class="progress-cell"><div class="progress-bar"><div class="progress-fill done" style="width:100%"></div></div><span class="progress-text">100%</span></div></td>
+                  <td><span class="status-tag done"><span class="dot"></span>已完工</span></td>
+                  <td class="num">R-202</td><td>一车间</td><td>夜班</td>
+                  <td>赵强</td>
+                  <td class="num">03:00</td>
+                  <td class="num">07:15</td>
+                  <td><span style="font-size: 12px; color: var(--text-sec); cursor: pointer;" onclick="location.href='生产执行-动作指引.html'">查看 →</span></td>
+                </tr>
+                <tr class="exec-row" data-wo="WO-2608-011" style="opacity: 0.7;" data-code="RC-0731-011" data-prod="复方氨酚烷胺片" data-proc="已完工" data-estatus="已完工" data-equip="R-205" data-workshop="二车间" data-shift="夜班"><td><span class="op-link op-wo" data-wo="WO-2608-011">WO-2608-011</span></td>
+                  <td><span class="batch-id-link" style="color: var(--text-sec);">RC-0731-011</span></td>
+                  <td>复方氨酚烷胺片</td>
+                  <td>已完工</td>
+                  <td><div class="progress-cell"><div class="progress-bar"><div class="progress-fill done" style="width:100%"></div></div><span class="progress-text">100%</span></div></td>
+                  <td><span class="status-tag done"><span class="dot"></span>已完工</span></td>
+                  <td class="num">R-205</td><td>二车间</td><td>夜班</td>
+                  <td>李伟</td>
+                  <td class="num">01:00</td>
+                  <td class="num">05:30</td>
+                  <td><span style="font-size: 12px; color: var(--text-sec); cursor: pointer;" onclick="location.href='生产执行-动作指引.html'">查看 →</span></td>
+                </tr>
+                <tr class="exec-row" data-wo="WO-2608-012" style="opacity: 0.7;" data-code="RC-0731-012" data-prod="罗红霉素胶囊" data-proc="已完工" data-estatus="已完工" data-equip="R-206" data-workshop="二车间" data-shift="夜班"><td><span class="op-link op-wo" data-wo="WO-2608-012">WO-2608-012</span></td>
+                  <td><span class="batch-id-link" style="color: var(--text-sec);">RC-0731-012</span></td>
+                  <td>罗红霉素胶囊</td>
+                  <td>已完工</td>
+                  <td><div class="progress-cell"><div class="progress-bar"><div class="progress-fill done" style="width:100%"></div></div><span class="progress-text">100%</span></div></td>
+                  <td><span class="status-tag done"><span class="dot"></span>已完工</span></td>
+                  <td class="num">R-206</td><td>二车间</td><td>夜班</td>
+                  <td>陈静</td>
+                  <td class="num">02:00</td>
+                  <td class="num">06:45</td>
+                  <td><span style="font-size: 12px; color: var(--text-sec); cursor: pointer;" onclick="location.href='生产执行-动作指引.html'">查看 →</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <!-- 分页 -->
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-top: 1px solid var(--page); font-size: 12px; color: var(--text-sec);">
+            <span>共 <b id="execCount" style="color:var(--primary-600);font-family:'DIN',monospace;">12</b> 条记录（当前筛选结果）</span>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px;" disabled>上一页</button>
+              <button class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px; background: var(--primary-600); color: #fff; border: none;">1</button>
+              <button class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px;" disabled>下一页</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 下方：实时预警 + 今日生产计划 + 班次执行概况 三栏并列 -->
+      <div class="triple-grid">
+          <!-- 预警 -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="dot pulse" style="background: var(--block);"></span>实时预警</div>
+              <span style="font-size: 11px; color: var(--text-sec); cursor: pointer;" onclick="window.location.href='实时预警.html'">5起待处理 · 全部→</span>
+            </div>
+            <div class="card-body" style="padding: 14px 20px;">
+              <div class="alert-item">
+                <div class="alert-bar block"></div>
+                <div class="alert-content">
+                  <div class="alert-title"><span class="alert-batch">RC-0731-003</span> 投料温度超限</div>
+                  <div class="alert-desc">实际 85.6°C · 标准 ≤80°C</div>
+                </div>
+                <div class="alert-time">10:15</div>
+              </div>
+              <div class="alert-item">
+                <div class="alert-bar warning"></div>
+                <div class="alert-content">
+                  <div class="alert-title"><span class="alert-batch">RC-0731-005</span> 压力值偏高</div>
+                  <div class="alert-desc">实际 2.18MPa · 标准 ≤2.0MPa</div>
+                </div>
+                <div class="alert-time">10:08</div>
+              </div>
+              <div class="alert-item">
+                <div class="alert-bar info"></div>
+                <div class="alert-content">
+                  <div class="alert-title"><span class="alert-batch">RC-0731-006</span> 投料顺序偏差</div>
+                  <div class="alert-desc">催化剂B应在溶媒A之后投料</div>
+                </div>
+                <div class="alert-time">09:52</div>
+              </div>
+              <div class="alert-item">
+                <div class="alert-bar warning"></div>
+                <div class="alert-content">
+                  <div class="alert-title"><span class="alert-batch">RC-0731-003</span> 投料量偏差</div>
+                  <div class="alert-desc">实际 52.3kg · 标准 50.0kg</div>
+                </div>
+                <div class="alert-time">09:45</div>
+              </div>
+              <div class="alert-item">
+                <div class="alert-bar block"></div>
+                <div class="alert-content">
+                  <div class="alert-title"><span class="alert-batch">RC-0731-003</span> 阀门开启顺序错误</div>
+                  <div class="alert-desc">V-203应在V-201之后开启</div>
+                </div>
+                <div class="alert-time">09:12</div>
+              </div>
+              <div class="alert-footer">
+                <span class="af-item">今日 <span class="af-val">12</span> 起</span>
+                <span class="af-item">已处理 <span class="af-val">7</span></span>
+                <span class="af-item">处理中 <span class="af-val warn">5</span></span>
+                <span class="af-item">平均处置 <span class="af-val">18min</span></span>
+              </div>
+            </div>
+          </div>
+
+      <!-- 今日生产计划进度 -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="dot" style="background: var(--normal);"></span>今日生产计划</div>
+              <span style="font-size: 11px; color: var(--text-sec);">12批计划</span>
+            </div>
+            <div class="card-body" style="padding: 16px 20px;">
+              <div class="plan-progress">
+                <div class="plan-item">
+                  <span class="plan-label">已完工</span>
+                  <div class="plan-bar"><div class="plan-fill done" style="width: 67%;">8</div></div>
+                  <span class="plan-count">8 批</span>
+                </div>
+                <div class="plan-item">
+                  <span class="plan-label">执行中</span>
+                  <div class="plan-bar"><div class="plan-fill executing" style="width: 33%;">4</div></div>
+                  <span class="plan-count">4 批</span>
+                </div>
+                <div class="plan-item">
+                  <span class="plan-label">待排产</span>
+                  <div class="plan-bar"><div class="plan-fill pending" style="width: 0%;"></div></div>
+                  <span class="plan-count">0 批</span>
+                </div>
+              </div>
+              <div style="padding-top: 12px; border-top: 1px solid var(--page); display: flex; justify-content: space-between; font-size: 12px;">
+                <div>
+                  <div style="color: var(--text-sec); font-size: 11px;">计划完成率</div>
+                  <div style="font-family: 'DIN', monospace; font-size: 18px; font-weight: 500; color: var(--normal);">67%</div>
+                </div>
+                <div>
+                  <div style="color: var(--text-sec); font-size: 11px;">合格率</div>
+                  <div style="font-family: 'DIN', monospace; font-size: 18px; font-weight: 500; color: var(--normal);">98.5%</div>
+                </div>
+                <div>
+                  <div style="color: var(--text-sec); font-size: 11px;">平均耗时</div>
+                  <div style="font-family: 'DIN', monospace; font-size: 18px; font-weight: 500; color: var(--primary-600);">4.2h</div>
+                </div>
+              </div>
+              <div class="hour-section">
+                <div class="section-label"><span>按小时排产 8:00–20:00</span><span class="sl-extra">峰值 3 批（10:00）</span></div>
+                <div class="hour-chart">
+                  <div class="hour-col"><div class="hour-bar executing" style="height:33%"></div></div>
+                  <div class="hour-col"><div class="hour-bar executing" style="height:67%"></div></div>
+                  <div class="hour-col"><div class="hour-bar executing" style="height:100%"></div></div>
+                  <div class="hour-col"><div class="hour-bar executing" style="height:67%"></div></div>
+                  <div class="hour-col"><div class="hour-bar executing" style="height:33%"></div></div>
+                  <div class="hour-col"><div class="hour-bar dim" style="height:4px"></div></div>
+                  <div class="hour-col"><div class="hour-bar executing" style="height:33%"></div></div>
+                  <div class="hour-col"><div class="hour-bar executing" style="height:67%"></div></div>
+                  <div class="hour-col"><div class="hour-bar executing" style="height:33%"></div></div>
+                  <div class="hour-col"><div class="hour-bar dim" style="height:4px"></div></div>
+                  <div class="hour-col"><div class="hour-bar dim" style="height:4px"></div></div>
+                  <div class="hour-col"><div class="hour-bar dim" style="height:4px"></div></div>
+                  <div class="hour-col"><div class="hour-bar dim" style="height:4px"></div></div>
+                </div>
+                <div class="hour-axis"><span>8</span><span>12</span><span>20</span></div>
+              </div>
+              <div class="ws-dist">
+                <div class="ws-row">
+                  <span class="ws-name">一车间</span>
+                  <div class="ws-bar"><div class="ws-fill" style="width:67%"></div></div>
+                  <span class="ws-count">8 批</span>
+                  <span class="ws-pct">67%</span>
+                </div>
+                <div class="ws-row">
+                  <span class="ws-name">二车间</span>
+                  <div class="ws-bar"><div class="ws-fill alt" style="width:33%"></div></div>
+                  <span class="ws-count">4 批</span>
+                  <span class="ws-pct">33%</span>
+                </div>
+              </div>
+              <div class="bottleneck">
+                <div class="section-label"><span>瓶颈工序 TOP3</span><span class="sl-extra">耗时 vs 标准</span></div>
+                <div class="bn-row">
+                  <span class="bn-rank">1</span>
+                  <span class="bn-name">反应滴加</span>
+                  <div class="bn-bar"><div class="bn-fill" style="width:92%"></div><div class="bn-mark" style="left:60%"></div></div>
+                  <span class="bn-val">5.5h</span>
+                </div>
+                <div class="bn-row">
+                  <span class="bn-rank">2</span>
+                  <span class="bn-name">升温保温</span>
+                  <div class="bn-bar"><div class="bn-fill" style="width:75%"></div><div class="bn-mark" style="left:55%"></div></div>
+                  <span class="bn-val">3.2h</span>
+                </div>
+                <div class="bn-row">
+                  <span class="bn-rank">3</span>
+                  <span class="bn-name">离心甩滤</span>
+                  <div class="bn-bar"><div class="bn-fill" style="width:58%"></div><div class="bn-mark" style="left:50%"></div></div>
+                  <span class="bn-val">1.8h</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 班次信息 -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="dot" style="background: var(--primary-400);"></span>班次执行概况</div>
+            </div>
+            <div class="card-body" style="padding: 14px 20px;">
+              <div class="shift-info">
+                <div class="shift-card current">
+                  <div class="shift-name">白班（当前）</div>
+                  <div class="shift-time">08:00-20:00</div>
+                  <div class="shift-count">在产 8 批 · 完工 5 批</div>
+                </div>
+                <div class="shift-card normal">
+                  <div class="shift-name">夜班</div>
+                  <div class="shift-time">20:00-08:00</div>
+                  <div class="shift-count">在产 4 批 · 完工 3 批</div>
+                </div>
+              </div>
+              <div class="shift-metrics">
+                <div class="section-label"><span>班次指标对比</span><span class="sl-extra">白班 / 夜班</span></div>
+                <div class="metric-table">
+                  <div class="mh">产量批</div><div class="mc">5 批</div><div class="mc night">3 批</div>
+                  <div class="mh">合格率</div><div class="mc">100%</div><div class="mc night">97%</div>
+                  <div class="mh">异常起</div><div class="mc">2</div><div class="mc night">1</div>
+                  <div class="mh">工时利用率</div><div class="mc">92%</div><div class="mc night">88%</div>
+                </div>
+                <div class="shift-personnel">
+                  <div class="sp-col">
+                    <div class="sp-name">白班 <b>8 人</b></div>
+                    <div class="sp-detail">操作 6 · QA 1 · 班长 1</div>
+                  </div>
+                  <div class="sp-col">
+                    <div class="sp-name">夜班 <b>4 人</b></div>
+                    <div class="sp-detail">操作 3 · 班长 1</div>
+                  </div>
+                </div>
+              </div>
+              <div class="oee-trend">
+                <div class="section-label"><span>OEE 趋势 · 最近 8 小时</span><span class="sl-extra">均值 84.3%</span></div>
+                <div class="oee-chart">
+                  <svg viewBox="0 0 240 60" preserveAspectRatio="none" style="width:100%;height:60px;display:block;">
+                    <defs>
+                      <linearGradient id="oeeGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="var(--primary-400)" stop-opacity="0.35"/>
+                        <stop offset="100%" stop-color="var(--primary-400)" stop-opacity="0"/>
+                      </linearGradient>
+                    </defs>
+                    <line x1="0" y1="40" x2="240" y2="40" stroke="var(--border)" stroke-dasharray="2 3"/>
+                    <path d="M0,32 L30,24 L60,30 L90,18 L120,22 L150,14 L180,20 L210,12 L240,16 L240,60 L0,60 Z" fill="url(#oeeGrad)"/>
+                    <path d="M0,32 L30,24 L60,30 L90,18 L120,22 L150,14 L180,20 L210,12 L240,16" fill="none" stroke="var(--primary-500)" stroke-width="1.5"/>
+                    <circle cx="240" cy="16" r="2.5" fill="var(--primary-500)"/>
+                  </svg>
+                </div>
+                <div class="oee-axis"><span>04:00</span><span>08:00</span><span>12:00</span></div>
+                <div class="oee-stats">
+                  <span>可用率 <b>91%</b></span>
+                  <span>性能 <b>88%</b></span>
+                  <span>质量 <b>99%</b></span>
+                </div>
+              </div>
+            </div>
+          </div>
+      </div>
+
+      <!-- 底部：状态分布 + 设备利用率 -->
+      <div class="bottom-grid">
+        <!-- 釜次状态分布 -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="dot" style="background: var(--primary-400);"></span>釜次状态分布</div>
+            <div class="filter-tabs">
+              <button class="filter-tab active">今日</button>
+              <button class="filter-tab">本周</button>
+            </div>
+          </div>
+          <div class="card-body" style="padding: 16px 20px;">
+            <div style="display: flex; gap: 24px; align-items: center; height: 160px;">
+              <!-- 环形图 -->
+              <div style="display: flex; flex-direction: column; align-items: center;">
+                <svg viewBox="0 0 120 120" width="130" height="130">
+                  <circle cx="60" cy="60" r="45" fill="none" stroke="#F1EFE8" stroke-width="14"/>
+                  <circle cx="60" cy="60" r="45" fill="none" stroke="#1D9E75" stroke-width="14" stroke-dasharray="169.6 282.7" stroke-dashoffset="0" transform="rotate(-90 60 60)" stroke-linecap="round"/>
+                  <circle cx="60" cy="60" r="45" fill="none" stroke="#378ADD" stroke-width="14" stroke-dasharray="42.4 282.7" stroke-dashoffset="-169.6" transform="rotate(-90 60 60)" stroke-linecap="round"/>
+                  <circle cx="60" cy="60" r="45" fill="none" stroke="#EF9F27" stroke-width="14" stroke-dasharray="21.2 282.7" stroke-dashoffset="-212" transform="rotate(-90 60 60)" stroke-linecap="round"/>
+                  <circle cx="60" cy="60" r="45" fill="none" stroke="#D85A30" stroke-width="14" stroke-dasharray="14.1 282.7" stroke-dashoffset="-233.2" transform="rotate(-90 60 60)" stroke-linecap="round"/>
+                  <circle cx="60" cy="60" r="45" fill="none" stroke="#E24B4A" stroke-width="14" stroke-dasharray="7.1 282.7" stroke-dashoffset="-247.3" transform="rotate(-90 60 60)" stroke-linecap="round"/>
+                  <text x="60" y="56" text-anchor="middle" font-size="24" font-weight="500" fill="#2C2C2A" font-family="DIN, monospace">12</text>
+                  <text x="60" y="74" text-anchor="middle" font-size="10" fill="#888780">在产批次</text>
+                </svg>
+              </div>
+              <!-- 图例 -->
+              <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <div style="display: flex; align-items: center; gap: 8px;"><div style="width: 10px; height: 10px; border-radius: 2px; background: #1D9E75;"></div><span style="font-size: 12px; color: var(--text-sub);">正常</span></div>
+                  <span style="font-family: DIN, monospace; font-size: 14px; font-weight: 500; color: #1D9E75;">6</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <div style="display: flex; align-items: center; gap: 8px;"><div style="width: 10px; height: 10px; border-radius: 2px; background: #378ADD;"></div><span style="font-size: 12px; color: var(--text-sub);">执行中</span></div>
+                  <span style="font-family: DIN, monospace; font-size: 14px; font-weight: 500; color: #378ADD;">2</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <div style="display: flex; align-items: center; gap: 8px;"><div style="width: 10px; height: 10px; border-radius: 2px; background: #EF9F27;"></div><span style="font-size: 12px; color: var(--text-sub);">提示</span></div>
+                  <span style="font-family: DIN, monospace; font-size: 14px; font-weight: 500; color: #EF9F27;">1</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <div style="display: flex; align-items: center; gap: 8px;"><div style="width: 10px; height: 10px; border-radius: 2px; background: #D85A30;"></div><span style="font-size: 12px; color: var(--text-sub);">警告</span></div>
+                  <span style="font-family: DIN, monospace; font-size: 14px; font-weight: 500; color: #D85A30;">2</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <div style="display: flex; align-items: center; gap: 8px;"><div style="width: 10px; height: 10px; border-radius: 2px; background: #E24B4A;"></div><span style="font-size: 12px; color: var(--text-sub);">阻断</span></div>
+                  <span style="font-family: DIN, monospace; font-size: 14px; font-weight: 500; color: #E24B4A;">1</span>
+                </div>
+              </div>
+              <!-- 工序分布 -->
+              <div style="flex: 1; border-left: 1px solid var(--page); padding-left: 20px;">
+                <div style="font-size: 12px; font-weight: 500; color: var(--text-sub); margin-bottom: 10px;">工序分布</div>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 12px; color: var(--text-sub);">称量配料</span><span style="font-family: DIN, monospace; font-size: 13px; color: var(--text);">2 批</span></div>
+                  <div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 12px; color: var(--text-sub);">投料反应</span><span style="font-family: DIN, monospace; font-size: 13px; color: var(--text);">4 批</span></div>
+                  <div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 12px; color: var(--text-sub);">冷却结晶</span><span style="font-family: DIN, monospace; font-size: 13px; color: var(--text);">2 批</span></div>
+                  <div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 12px; color: var(--text-sub);">过滤干燥</span><span style="font-family: DIN, monospace; font-size: 13px; color: var(--text);">3 批</span></div>
+                  <div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 12px; color: var(--text-sub);">包装</span><span style="font-family: DIN, monospace; font-size: 13px; color: var(--text);">1 批</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 设备利用率 -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="dot" style="background: var(--normal);"></span>反应釜利用率</div>
+            <span style="font-size: 11px; color: var(--text-sec);">8台设备</span>
+          </div>
+          <div class="card-body" style="padding: 16px 20px;">
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div class="plan-item">
+                <span class="plan-label">R-201</span>
+                <div class="plan-bar"><div class="plan-fill done" style="width: 88%;">88%</div></div>
+                <span class="plan-count" style="color: var(--normal);">运行</span>
+              </div>
+              <div class="plan-item">
+                <span class="plan-label">R-202</span>
+                <div class="plan-bar"><div class="plan-fill done" style="width: 75%;">75%</div></div>
+                <span class="plan-count" style="color: var(--normal);">运行</span>
+              </div>
+              <div class="plan-item">
+                <span class="plan-label">R-203</span>
+                <div class="plan-bar"><div class="plan-fill done" style="width: 92%;">92%</div></div>
+                <span class="plan-count" style="color: var(--normal);">运行</span>
+              </div>
+              <div class="plan-item">
+                <span class="plan-label">R-204</span>
+                <div class="plan-bar"><div class="plan-fill executing" style="width: 45%;">45%</div></div>
+                <span class="plan-count" style="color: var(--primary-400);">运行</span>
+              </div>
+              <div class="plan-item">
+                <span class="plan-label">R-205</span>
+                <div class="plan-bar"><div class="plan-fill" style="width: 30%; background: var(--block);">30%</div></div>
+                <span class="plan-count" style="color: var(--block);">阻断</span>
+              </div>
+              <div class="plan-item">
+                <span class="plan-label">R-206</span>
+                <div class="plan-bar"><div class="plan-fill done" style="width: 80%;">80%</div></div>
+                <span class="plan-count" style="color: var(--normal);">运行</span>
+              </div>
+              <div class="plan-item">
+                <span class="plan-label">R-207</span>
+                <div class="plan-bar"><div class="plan-fill done" style="width: 70%;">70%</div></div>
+                <span class="plan-count" style="color: var(--normal);">运行</span>
+              </div>
+              <div class="plan-item">
+                <span class="plan-label">R-208</span>
+                <div class="plan-bar"><div class="plan-fill executing" style="width: 20%;">20%</div></div>
+                <span class="plan-count" style="color: var(--primary-400);">运行</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    
+    </div></div>
+  </div>
+
+
+<style>
+.handle-block-btn{background:var(--block,#E5484D);color:#fff;border:none;border-radius:6px;padding:5px 11px;font-size:12px;cursor:pointer;font-weight:500;font-family:inherit;}
+.exec-ex-drawer{position:fixed;inset:0;z-index:200;display:none;}
+.exec-ex-drawer.open{display:block;}
+.exec-ex-mask{position:absolute;inset:0;background:rgba(15,23,42,.45);}
+.exec-ex-panel{position:absolute;top:0;right:0;width:468px;max-width:94vw;height:100%;background:#fff;box-shadow:-14px 0 44px rgba(15,23,42,.18);padding:30px 26px;overflow:auto;font-family:inherit;}
+.exec-ex-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.exec-ex-badge{font-size:13px;font-weight:600;color:var(--block,#E5484D);background:#FFEDEC;padding:6px 12px;border-radius:8px;}
+.exec-ex-close{margin-left:auto;background:none;border:none;font-size:22px;line-height:1;color:var(--text-sec,#64748B);cursor:pointer;}
+.exec-ex-meta{font-size:12.5px;color:var(--text-sec,#64748B);background:#F8FAFC;border:1px solid #EEF2F7;border-radius:10px;padding:12px 14px;margin-bottom:18px;line-height:1.7;}
+.exec-ex-meta b{color:var(--text,#0F172A);font-family:'DIN',monospace;}
+.exec-ex-steps{display:flex;gap:8px;margin-bottom:18px;}
+.exec-ex-step{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;color:var(--text-sec,#64748B);flex:1;}
+.exec-ex-step .exec-ex-idx{width:26px;height:26px;border-radius:50%;background:#EEF2F7;color:var(--text-sec,#64748B);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;font-family:'DIN',monospace;}
+.exec-ex-step.done .exec-ex-idx{background:var(--normal,#16A34A);color:#fff;}
+.exec-ex-step.cur .exec-ex-idx{background:var(--primary-600,#2563EB);color:#fff;}
+.exec-ex-step.cur{color:var(--text,#0F172A);font-weight:600;}
+.exec-ex-detail{font-size:13.5px;line-height:1.8;color:var(--text,#0F172A);background:#F8FAFC;border:1px solid #EEF2F7;border-radius:10px;padding:16px 18px;margin-bottom:18px;}
+.exec-ex-act{width:100%;background:var(--primary-600,#2563EB);color:#fff;border:none;border-radius:8px;padding:11px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;}
+.exec-ex-closed{font-size:15px;font-weight:600;color:var(--normal,#16A34A);line-height:1.7;}
+.exec-ex-closed span{display:block;font-size:12.5px;font-weight:400;color:var(--text-sec,#64748B);margin-top:6px;}
+</style>
+<div class="exec-ex-drawer" id="execExDrawer">
+  <div class="exec-ex-mask" onclick="EX.close()"></div>
+  <div class="exec-ex-panel">
+    <div class="exec-ex-head">
+      <span class="exec-ex-badge">异常闭环处理 · RC-0731-003</span>
+      <button class="exec-ex-close" onclick="EX.close()">×</button>
+    </div>
+    <div style="font-size:12px;color:var(--text-sec,#64748B);line-height:1.7;margin-bottom:18px;">
+      <b style="color:var(--text,#0F172A);">EARS 需求</b> · 当生产执行记录进入 <b style="color:var(--block,#E5484D);">阻断</b> 状态时，系统应呈现异常处理流（上报 → 审批 → 处理 → 复核 → 闭环）；闭环确认后，该记录置为 <b style="color:var(--normal,#16A34A);">已闭环</b> 并移出阻断队列。
+    </div>
+    <div class="exec-ex-body" id="execExBody"></div>
+  </div>
+</div>
+<script>
+var EX = (function(){
+  var STEP = 0;
+  var CODE = 'RC-0731-003';
+  var META = [
+    { t:'异常上报', d:'产线在投料反应中发现温度 / 压力超限，釜次 RC-0731-003 已暂停。点击下方「推进」，提交异常工单并进入主管审批环节。' },
+    { t:'主管审批', d:'车间主管已收到异常工单，确认并批准现场处理方案（设备隔离 / 物料排料 / 现场清洁）。' },
+    { t:'现场处理', d:'现场人员按 SOP 执行隔离、排料、清洁，消除异常根因，恢复反应釜 R-205 可用。' },
+    { t:'质量复核', d:'QA 对处理产物抽样复检，确认关键指标（含量 / 粒度 / 溶出）恢复正常、无交叉污染。' },
+    { t:'闭环确认', d:'异常已闭环：釜次 RC-0731-003 恢复可执行状态，本批投料反应可继续推进。' }
+  ];
+  function draw(){
+    var html = '';
+    html += '<div class="exec-ex-meta">批次 <b>'+CODE+'</b> ｜ 产品：阿司匹林肠溶片 ｜ 工序：投料反应 ｜ 反应釜：R-205 ｜ 车间：二车间 ｜ 操作员：李伟</div>';
+    html += '<div class="exec-ex-steps">';
+    for (var i=0;i<5;i++){
+      var cls = (STEP>4 && i<=4) ? 'done' : (i===STEP ? 'cur' : (i<STEP ? 'done' : 'todo'));
+      html += '<div class="exec-ex-step '+cls+'"><span class="exec-ex-idx">'+(i+1)+'</span>'+META[i].t+'</div>';
+    }
+    html += '';
+    html += '<div class="exec-ex-detail">'+META[STEP].d+'</div>';
+    html += '<button class="exec-ex-act" onclick="EX.go()">'+((STEP<4)?'推进到：「'+META[STEP+1].t+'」 →':'确认闭环 →')+'</button>';
+    document.getElementById('execExBody').innerHTML = html;
+  }
+  function open(){
+    STEP = 0; draw();
+    document.getElementById('execExDrawer').classList.add('open');
+  }
+  function go(){
+    if (STEP < 4){ STEP++; draw(); }
+    else { closeLoop(); }
+  }
+  function closeLoop(){
+    var row = document.querySelector('.exec-row[data-code="RC-0731-003"]');
+    if (row){
+      row.setAttribute('data-estatus','已闭环');
+      var tag = row.querySelector('.status-tag');
+      if (tag){ tag.className='status-tag normal'; tag.innerHTML='<span class="dot"></span>已闭环'; }
+      var act = row.querySelector('td:last-child');
+      if (act) act.innerHTML='<span style="font-size:12px;color:#16A34A;cursor:pointer;">已闭环 ✓</span>';
+    }
+    var bt = document.querySelector('.filter-tab[data-k="阻断"]');
+    if (bt){ var c = bt.querySelector('.count'); if (c) c.textContent='0'; }
+    document.getElementById('execExDrawer').classList.remove('open');
+    document.getElementById('execExBody').innerHTML = '<div class="exec-ex-closed">✓ 异常已闭环<span>釜次 RC-0731-003 状态更新为「已闭环」，生产执行闭环完成。可重新点击「处理 →」查看结果。</span></div>';
+  }
+  function close(){ document.getElementById('execExDrawer').classList.remove('open'); }
+  return { open:open, go:go, close:close };
+})();
+</script>
+<script>
+  // ===== 生产执行列表：状态Tab + 筛选条件 真实过滤 =====
+  (function () {
+    var rows = Array.prototype.slice.call(document.querySelectorAll('.exec-row'));
+    if (!rows.length) return;
+    var tabs = document.getElementById('execTabs');
+    var eWorkshop = document.getElementById('eWorkshop');
+    var eProd = document.getElementById('eProd');
+    var eProc = document.getElementById('eProc');
+    var eShift = document.getElementById('eShift');
+    var tbody = rows[0].parentNode;
+    var curKey = '全部';
+
+    var emptyRow = document.createElement('tr');
+    emptyRow.innerHTML = '<td colspan="14" style="text-align:center;padding:56px 0;color:var(--text-sec);font-size:13px;">'
+      + '<div style="font-size:28px;opacity:.35;margin-bottom:8px;">▶</div>'
+      + '无符合条件的釜次<br><span style="font-size:12px;opacity:.75;">请调整状态Tab或筛选条件后重试</span></td>';
+    emptyRow.style.display = 'none';
+    tbody.appendChild(emptyRow);
+
+    function matchKey(st, key) {
+      if (key === '全部') return true;
+      if (key === '执行中') return st !== '已完工';
+      if (key === '预警') return st === '警告' || st === '提示';
+      if (key === '阻断') return st === '阻断';
+      if (key === '已完工') return st === '已完工';
+      return true;
+    }
+
+    function pass(r) {
+      var d = r.dataset;
+      if (!matchKey(d.estatus, curKey)) return false;
+      if (eWorkshop && eWorkshop.value !== '全部车间' && d.workshop !== eWorkshop.value) return false;
+      if (eProd && eProd.value !== '全部产品' && (d.prod || '').indexOf(eProd.value) < 0) return false;
+      if (eProc && eProc.value !== '全部工序' && (d.proc || '').indexOf(eProc.value) < 0) return false;
+      if (eShift && eShift.value !== '全部班次' && d.shift !== eShift.value) return false;
+      return true;
+    }
+
+    function apply() {
+      var shown = 0;
+      rows.forEach(function (r) {
+        var ok = pass(r);
+        r.style.display = ok ? '' : 'none';
+        if (ok) shown++;
+      });
+      emptyRow.style.display = shown ? 'none' : '';
+      var c = document.getElementById('execCount');
+      if (c) c.textContent = shown;
+    }
+
+    if (tabs) {
+      tabs.querySelectorAll('.filter-tab').forEach(function (btn) {
+        var key = btn.getAttribute('data-k');
+        var n = rows.filter(function (r) { return matchKey(r.dataset.estatus, key); }).length;
+        var c = btn.querySelector('.count'); if (c) c.textContent = n;
+        btn.addEventListener('click', function () {
+          tabs.querySelectorAll('.filter-tab').forEach(function (b) { b.classList.remove('active'); });
+          this.classList.add('active');
+          curKey = key;
+          apply();
+        });
+      });
+    }
+    [eWorkshop, eProd, eProc, eShift].forEach(function (sel) { if (sel) sel.addEventListener('change', apply); });
+    apply();
+  })();
+
+
+  // ===== 釜次号 ↔ 批次号 互链 + ?fc 高亮（P2 对账） =====
+  (function () {
+    var stl = document.createElement('style');
+    stl.textContent = '.exec-row.hl{outline:2px solid var(--primary-600);outline-offset:-2px;background:rgba(37,99,235,.10)!important;}';
+    document.head.appendChild(stl);
+    var rows = document.querySelectorAll('.exec-row');
+    rows.forEach(function (r) {
+      var fc = r.getAttribute('data-code') || '';
+      var suffix = (fc.split('-')[2] || '');
+      var batch = 'RC-2608-' + suffix;
+      var num = parseInt(suffix, 10);
+      var ref = r.children[2] || r.lastElementChild; // 产品列(釜次编号之后)
+      var td = document.createElement('td');
+      if (num >= 1 && num <= 8) {
+        td.innerHTML = '<span class="op-link" onclick="event.stopPropagation();location.href=\'批次追溯.html?rc=' + batch + '\'" title="批次号（商业批次）">' + batch + '</span>';
+      } else {
+        td.innerHTML = '<span style="color:var(--text-sec);font-size:12px;" title="批次尚未生成（在产或未放行归档）">待归档</span>';
+      }
+      r.insertBefore(td, ref);
+    });
+    var p = new URLSearchParams(location.search);
+    var fc = p.get('fc');
+    if (fc) {
+      for (var i = 0; i < rows.length; i++) {
+        if (rows[i].getAttribute('data-code') === fc) {
+          rows[i].classList.add('hl');
+          rows[i].scrollIntoView({ block: 'center' });
+          break;
+        }
+      }
+    }
+  })();
+
+  // 其他Tab组（今日/本周等）仅切换高亮
+  document.querySelectorAll('.filter-tabs').forEach(group => {
+    if (group.id === 'execTabs') return;
+    group.querySelectorAll('.filter-tab').forEach(btn => {
+      btn.addEventListener('click', function() {
+        group.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+      });
+    });
+  });
+  // 釜次编号点击 → 釜次详情
+  document.querySelectorAll('.batch-id-link').forEach(link => {
+    link.addEventListener('click', function(e) {
+      e.stopPropagation();
+      // 若编号在按钮内则不抢事件
+      if (e.target.closest('button')) return;
+      window.location.href = '釜次详情.html';
+    });
+  });
+  // 关联工单点击 → 生产工单
+  document.querySelectorAll('.op-wo').forEach(link => {
+    link.addEventListener('click', function(e) {
+      e.stopPropagation();
+      window.location.href = '生产工单.html';
+    });
+  });
+  // 行点击 → 生产执行-动作指引（详情页）；若点击的是按钮或按钮内元素则不触发
+  document.querySelectorAll('.exec-table tbody tr').forEach(row => {
+    row.addEventListener('click', function(e) {
+      if (e.target.closest('button')) return;
+      if (e.target.classList.contains('batch-id-link')) return;
+      if (e.target.closest('.op-wo')) return;
+      window.location.href = '生产执行-动作指引.html';
+    });
+  });
+  // 预警列表点击 → 实时预警中心
+  document.querySelectorAll('.alert-item').forEach(item => {
+    item.addEventListener('click', function() {
+      window.location.href = '实时预警.html';
+    });
+  });
+  // 预警卡片标题区域点击 → 实时预警中心
+  document.querySelectorAll('.card-title').forEach(title => {
+    if (title.textContent.includes('实时预警')) {
+      title.style.cursor = 'pointer';
+      title.addEventListener('click', function() {
+        window.location.href = '实时预警.html';
+      });
+    }
+  });
+  // "查看 →" / "处理" 点击：仅当目标是 span 文本（无 button 包裹）时生效
+  document.querySelectorAll('.exec-table td span').forEach(span => {
+    if (span.closest('button')) return;
+    if (span.textContent.includes('查看')) {
+      span.addEventListener('click', function(e) {
+        e.stopPropagation();
+        window.location.href = '生产执行-动作指引.html';
+      });
+    }
+  });
+</script>
+  <script src="sidebar.js"></script>
+  <script src="plant.js"></script>
+<script src="role.js"></script>
+</body>
+</html>
