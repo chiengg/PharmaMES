@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MES 精细化工 - 数据接口</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary-50: #E6F1FB; --primary-200: #B5D4F4; --primary-400: #378ADD;
+    --primary-600: #185FA5; --primary-800: #0C447C; --primary-900: #042C53;
+    --normal: #1D9E75; --normal-bg: #E1F5EE;
+    --info: #EF9F27; --info-bg: #FAEEDA;
+    --warning: #D85A30; --warning-bg: #FAECE7;
+    --block: #E24B4A; --block-bg: #FCEBEB;
+    --white: #FFFFFF; --page: #F1EFE8; --border: #D3D1C7;
+    --text-sec: #888780; --text-sub: #5F5E5A; --text: #2C2C2A;
+  }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif;
+    background: var(--page); color: var(--text);
+    font-size: 14px; line-height: 1.6; overflow: hidden; height: 100vh;
+  }
+  .app { display: flex; height: 100vh; }
+  .sidebar { width: 200px; min-width: 200px; background: var(--primary-800); color: #85B7EB; display: flex; flex-direction: column; overflow-y: auto; }
+  .sidebar-logo { padding: 14px 16px; border-bottom: 1px solid var(--primary-600); display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .sidebar-nav { padding: 8px 0; flex: 1; }
+  .nav-item { padding: 8px 16px 8px 36px; font-size: 12.5px; color: #85B7EB; cursor: pointer; position: relative; transition: all 0.15s; display: flex; align-items: center; gap: 7px; }
+  .nav-item:hover { background: var(--primary-900); color: #B5D4F4; }
+  .nav-item.active { background: var(--primary-600); color: #FFF; font-weight: 500; }
+  .nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--primary-400); }
+  .nav-section-title { padding: 16px 20px 6px; font-size: 11px; color: #378ADD; text-transform: uppercase; letter-spacing: 0.5px; }
+  .sidebar-footer { padding: 12px 20px; border-top: 1px solid var(--primary-600); font-size: 12px; color: #5DCAA5; display: flex; align-items: center; gap: 6px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--normal); }
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { height: 52px; min-height: 52px; background: var(--white); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+  .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-sec); }
+  .breadcrumb .current { color: var(--text); font-weight: 500; }
+  .breadcrumb a { color: var(--text-sec); text-decoration: none; cursor: pointer; }
+  .breadcrumb a:hover { color: var(--primary-600); }
+  .topbar-right { display: flex; align-items: center; gap: 20px; }
+  .user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+  .user-info:hover { background: var(--page); }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-600); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }
+  .user-name { font-size: 13px; color: var(--text); }
+  .user-role { font-size: 11px; color: var(--text-sec); }
+  .content { flex: 1; overflow-y: auto; padding: 14px 28px; }
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+  .page-title { font-size: 22px; font-weight: 500; color: var(--text); }
+  .page-subtitle { font-size: 13px; color: var(--text-sec); margin-top: 2px; }
+  .header-actions { display: flex; gap: 10px; }
+  .btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+  .btn-primary { background: var(--primary-600); color: #fff; }
+  .btn-primary:hover { background: var(--primary-800); }
+  .btn-secondary { background: var(--white); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--primary-400); color: var(--primary-600); }
+  .btn-danger { background: var(--block); color: #fff; }
+  .btn-danger:hover { opacity: 0.9; }
+  .btn-ghost { background: var(--page); color: var(--text-sub); border: 1px solid var(--border); }
+  .btn-ghost:hover { color: var(--primary-600); border-color: var(--primary-400); }
+
+  .metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+  .metric-card { background: var(--white); border-radius: 10px; padding: 14px 16px; border: 1px solid var(--border); position: relative; overflow: hidden; }
+  .metric-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .metric-card.blue::before { background: var(--primary-400); }
+  .metric-card.green::before { background: var(--normal); }
+  .metric-card.amber::before { background: var(--info); }
+  .metric-card.gray::before { background: var(--text-sec); }
+  .metric-label { font-size: 11px; color: var(--text-sec); margin-bottom: 6px; }
+  .metric-value { font-family: "DIN Alternate", "Roboto", monospace; font-size: 26px; font-weight: 500; line-height: 1.1; }
+  .metric-card.blue .metric-value { color: var(--primary-600); }
+  .metric-card.green .metric-value { color: var(--normal); }
+  .metric-card.amber .metric-value { color: var(--info); }
+  .metric-card.gray .metric-value { color: var(--text-sub); }
+  .metric-unit { font-size: 12px; color: var(--text-sec); font-family: inherit; }
+  .metric-detail { font-size: 10px; color: var(--text-sec); margin-top: 4px; }
+
+  .main-grid { display: grid; grid-template-columns: 1fr 320px; gap: 16px; margin-bottom: 16px; }
+  .card { background: var(--white); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+  .card-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .card-title { font-size: 15px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .card-title .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .card-body { padding: 0; }
+
+  .filter-bar { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--page); flex-wrap: wrap; }
+  .filter-group { display: flex; align-items: center; gap: 6px; }
+  .filter-label { font-size: 12px; color: var(--text-sec); }
+  .filter-select { padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--text); background: var(--white); cursor: pointer; font-family: inherit; outline: none; }
+  .filter-select:focus { border-color: var(--primary-400); }
+  .filter-search { flex: 1; min-width: 160px; max-width: 260px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--text); background: var(--white); font-family: inherit; outline: none; }
+  .filter-search:focus { border-color: var(--primary-400); }
+  .filter-tabs { display: flex; gap: 4px; background: var(--page); border-radius: 8px; padding: 3px; }
+  .filter-tab { padding: 4px 12px; font-size: 12px; color: var(--text-sec); cursor: pointer; border-radius: 6px; border: none; background: none; font-family: inherit; transition: all 0.15s; }
+  .filter-tab.active { background: var(--white); color: var(--primary-600); font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+  .filter-tab .count { font-family: "DIN", monospace; font-size: 11px; margin-left: 3px; opacity: 0.7; }
+
+  .exec-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .exec-table th { text-align: left; padding: 10px 16px; background: var(--page); color: var(--text-sec); font-weight: 500; font-size: 12px; border-bottom: 1px solid var(--border); white-space: nowrap; position: sticky; top: 0; }
+  .exec-table td { padding: 12px 16px; border-bottom: 1px solid var(--page); color: var(--text); vertical-align: middle; }
+  .exec-table tbody tr { cursor: pointer; transition: background 0.12s; }
+  .exec-table tbody tr:hover { background: var(--primary-50); }
+  .exec-table .num { font-family: "DIN Alternate", "Roboto", monospace; }
+  .if-code { font-family: "DIN Alternate", "Roboto", monospace; font-weight: 500; color: var(--primary-600); }
+  .exec-table tbody td.num:first-child { color: var(--primary-600); cursor: pointer; font-weight: 500; }
+  .exec-table tbody td.num:first-child:hover { text-decoration: underline; }
+
+  .status-tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 14px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+  .status-tag .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .status-tag.normal { background: var(--normal-bg); color: #085041; } .status-tag.normal .dot { background: var(--normal); }
+  .status-tag.info { background: var(--info-bg); color: #633806; } .status-tag.info .dot { background: var(--info); }
+  .status-tag.warning { background: var(--warning-bg); color: #712B13; } .status-tag.warning .dot { background: var(--warning); }
+  .status-tag.review { background: var(--primary-50); color: var(--primary-800); } .status-tag.review .dot { background: var(--primary-400); }
+  .status-tag.draft { background: var(--page); color: var(--text-sub); } .status-tag.draft .dot { background: var(--text-sec); }
+  .status-tag.block { background: var(--block-bg); color: #7A1C1B; } .status-tag.block .dot { background: var(--block); }
+
+  .op-link { font-size: 12px; color: var(--primary-600); cursor: pointer; margin-right: 10px; }
+  .op-link:hover { text-decoration: underline; }
+  .op-toggle { font-size: 12px; cursor: pointer; margin-right: 10px; }
+  .op-toggle.disable { color: var(--block); }
+  .op-toggle.enable { color: var(--normal); }
+  .op-toggle:hover { text-decoration: underline; }
+  .dir-tag { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: var(--primary-50); color: var(--primary-800); }
+  .dir-tag.down { background: var(--info-bg); color: #633806; }
+  .dir-tag.both { background: var(--normal-bg); color: #085041; }
+
+  .right-panel { display: flex; flex-direction: column; gap: 16px; }
+
+  .cat-tree { padding: 10px 12px; }
+  .cat-node { display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--text-sub); transition: all 0.15s; margin-bottom: 2px; }
+  .cat-node:hover { background: var(--primary-50); color: var(--primary-600); }
+  .cat-node.active { background: var(--primary-600); color: #fff; font-weight: 500; }
+  .cat-node.active .cat-count { color: #fff; background: rgba(255,255,255,0.22); }
+  .cat-node .cat-count { font-family: "DIN", monospace; font-size: 11px; padding: 1px 8px; border-radius: 8px; background: var(--page); color: var(--text-sec); }
+  .cat-node .cat-ic { margin-right: 8px; }
+
+  .stat-card { padding: 14px 20px; }
+  .stat-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--page); }
+  .stat-item:last-child { border-bottom: none; }
+  .stat-left { display: flex; align-items: center; gap: 8px; }
+  .stat-bar { width: 4px; height: 16px; border-radius: 2px; }
+  .stat-name { font-size: 12px; color: var(--text-sub); }
+  .stat-count { font-family: "DIN", monospace; font-size: 16px; font-weight: 500; }
+
+  .board-row { display: flex; align-items: center; gap: 12px; padding: 10px 20px; }
+  .board-num { font-family: "DIN Alternate", "Roboto", monospace; font-size: 24px; font-weight: 500; }
+  .board-num.green { color: var(--normal); }
+  .board-num.blue { color: var(--primary-600); }
+  .board-sub { font-size: 11px; color: var(--text-sec); }
+
+  .mini-list { padding: 6px 0; }
+  .mini-item { display: flex; align-items: center; justify-content: space-between; padding: 9px 20px; border-bottom: 1px solid var(--page); font-size: 12px; }
+  .mini-item:last-child { border-bottom: none; }
+  .mini-name { font-weight: 500; color: var(--text); }
+  .mini-meta { font-size: 11px; color: var(--text-sec); margin-top: 2px; }
+  .mini-go { font-size: 12px; color: var(--primary-600); cursor: pointer; }
+  .mini-go:hover { text-decoration: underline; }
+
+  /* 抽屉 */
+  .drawer-mask { position: fixed; inset: 0; background: rgba(15,23,42,0.45); display: none; z-index: 50; }
+  .drawer-mask.show { display: block; }
+  .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 460px; max-width: 94vw; background: var(--white); box-shadow: -8px 0 24px rgba(0,0,0,0.16); transform: translateX(100%); transition: transform 0.25s ease; z-index: 51; display: flex; flex-direction: column; }
+  .drawer-mask.show .drawer { transform: none; }
+  .drawer-head { padding: 18px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .drawer-title { font-size: 16px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .drawer-close { cursor: pointer; color: var(--text-sec); font-size: 18px; line-height: 1; padding: 2px 6px; border-radius: 6px; }
+  .drawer-close:hover { background: var(--page); color: var(--text); }
+  .drawer-body { flex: 1; overflow-y: auto; padding: 20px 24px; }
+  .drawer-foot { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+  .field { margin-bottom: 16px; }
+  .field-label { font-size: 12px; color: var(--text-sub); margin-bottom: 6px; display: flex; align-items: center; gap: 4px; }
+  .field-req { color: var(--block); }
+  .field-input, .field-area, .field-select { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text); background: var(--white); font-family: inherit; outline: none; }
+  .field-input:focus, .field-area:focus, .field-select:focus { border-color: var(--primary-400); }
+  .field-area { resize: vertical; min-height: 70px; line-height: 1.6; }
+  .info-banner-mini { background: var(--page); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
+  .ibm-item { display: flex; flex-direction: column; gap: 2px; }
+  .ibm-label { font-size: 11px; color: var(--text-sec); }
+  .ibm-value { font-size: 13px; color: var(--text); font-weight: 500; }
+  .sign-note { font-size: 11px; color: var(--text-sec); background: var(--info-bg); border: 1px solid #F0D9B0; border-radius: 8px; padding: 8px 12px; line-height: 1.6; }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+  .detail-item { display: flex; flex-direction: column; gap: 3px; }
+  .detail-label { font-size: 11px; color: var(--text-sec); }
+  .detail-value { font-size: 13px; color: var(--text); }
+  .point-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--page); font-size: 12px; font-family: "DIN", monospace; }
+  .point-row:last-child { border-bottom: none; }
+  .point-name { width: 120px; color: var(--primary-600); }
+  .point-addr { flex: 1; color: var(--text-sub); }
+  .point-val { color: var(--text); }
+  .log-row { display: flex; gap: 8px; padding: 6px 0; font-size: 11px; border-bottom: 1px solid var(--page); font-family: "DIN", monospace; }
+  .log-row:last-child { border-bottom: none; }
+  .log-time { color: var(--text-sec); width: 58px; flex: none; }
+  .log-msg { color: var(--text-sub); }
+  .test-result { margin-top: 14px; padding: 14px 16px; border-radius: 10px; font-size: 13px; display: none; }
+  .test-result.ok { display: block; background: var(--normal-bg); color: #085041; border: 1px solid #B9E6D4; }
+  .test-result.err { display: block; background: var(--block-bg); color: #7A1C1B; border: 1px solid #F3C2C1; }
+  .toast { position: fixed; top: 18px; left: 50%; transform: translateX(-50%) translateY(-12px); background: var(--text); color: #fff; padding: 10px 20px; border-radius: 10px; font-size: 13px; z-index: 80; opacity: 0; transition: all 0.25s ease; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-sec); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .pulse { animation: pulse 1.5s ease-in-out infinite; }
+
+  /* === 侧边栏 v2：分组折叠 + 窄宽 + 新LOGO === */
+  .logo-text { line-height: 1.25; min-width: 0; }
+  .logo-name { font-size: 15px; font-weight: 500; color: #FFFFFF; letter-spacing: 0.3px; }
+  .logo-slogan { font-size: 10.5px; color: #93B5D9; margin-top: 1px; }
+  .nav-group-head { padding: 14px 16px 5px; font-size: 11px; color: #6FA9DA; letter-spacing: 0.6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; transition: color 0.15s; }
+  .nav-group-head:hover { color: #B5D4F4; }
+  .nav-group-head > span:first-child { font-weight: 500; }
+  .nav-caret { font-size: 10px; opacity: 0.75; transition: transform 0.18s; display: inline-block; }
+  .nav-group-items { overflow: hidden; }
+  .nav-group.collapsed .nav-caret { transform: rotate(-90deg); }
+  .nav-group.collapsed .nav-group-items { display: none; }
+  .sidebar-collapse { padding: 10px 16px; font-size: 12px; color: #85B7EB; cursor: pointer; display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--primary-600); transition: all 0.15s; }
+  .sidebar-collapse:hover { background: var(--primary-900); color: #B5D4F4; }
+  .collapse-caret { display: inline-block; transition: transform 0.2s; font-size: 14px; line-height: 1; }
+  .sidebar.collapsed .collapse-caret { transform: rotate(180deg); }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- 侧边栏 -->
+  <aside class="sidebar" id="appSidebar"></aside>
+
+  <!-- 主区域 -->
+  <div class="main">
+    <header class="topbar">
+      <div class="breadcrumb">
+        <a onclick="window.location.href='标准动作库.html'">基础配置</a>
+        <span>›</span>
+        <span class="current">数据接口</span>
+      </div>
+      <div class="topbar-right">
+        <div id="plantSwitch"></div>
+        <div id="roleSwitch"></div>
+      <div class="user-info">
+          <div class="avatar">张</div>
+          <div><div class="user-name">张明</div><div class="user-role">车间主管</div></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="tabbar" id="tabBar"></div>
+      <div class="content">
+    
+      <div class="page-header">
+        <div>
+          <div class="page-title">数据接口</div>
+          <div class="page-subtitle">基础配置 · DCS/PLC 点位映射 · ERP/LIMS/WMS 双向同步 · 接口健康度与失败重试监控</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary">🔄 全部同步测试</button>
+          <button class="btn btn-secondary">📥 导出接口清单</button>
+          <a class="btn btn-primary" href="系统集成联调.html">🔌 接口联调演示</a>
+          <button class="btn btn-primary" onclick="DI.open()">＋ 新增接口</button>
+        </div>
+      </div>
+
+      <div class="metrics-row">
+        <div class="metric-card blue">
+          <div class="metric-label">接口总数</div>
+          <div class="metric-value" id="mTotal">12</div>
+          <div class="metric-detail">5 个对接系统</div>
+        </div>
+        <div class="metric-card green">
+          <div class="metric-label">运行中</div>
+          <div class="metric-value" id="mRun">9</div>
+          <div class="metric-detail">正常采集 / 同步</div>
+        </div>
+        <div class="metric-card gray">
+          <div class="metric-label">异常</div>
+          <div class="metric-value" id="mErr">2</div>
+          <div class="metric-detail">重试队列中</div>
+        </div>
+        <div class="metric-card amber">
+          <div class="metric-label">平均健康度</div>
+          <div class="metric-value" id="mHealth">97%</div>
+          <div class="metric-detail">运行中接口均值</div>
+        </div>
+      </div>
+
+      <div class="main-grid">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><span class="dot" style="background: var(--primary-400);"></span>接口台账</div>
+            <div class="filter-tabs" id="ifTabs">
+              <button class="filter-tab active" data-istatus="全部">全部<span class="count" id="cAll">12</span></button>
+              <button class="filter-tab" data-istatus="运行中">运行中<span class="count" id="cRun">9</span></button>
+              <button class="filter-tab" data-istatus="异常">异常<span class="count" id="cErr">2</span></button>
+              <button class="filter-tab" data-istatus="停用">停用<span class="count" id="cStop">1</span></button>
+            </div>
+          </div>
+          <div class="filter-bar">
+            <div class="filter-group">
+              <span class="filter-label">对接系统：</span>
+              <select class="filter-select" id="fSys"><option>全部系统</option><option>DCS/PLC</option><option>ERP</option><option>LIMS</option><option>WMS</option><option>SCADA</option></select>
+            </div>
+            <div class="filter-group">
+              <span class="filter-label">数据方向：</span>
+              <select class="filter-select" id="fDir"><option>全部方向</option><option>上行</option><option>下行</option><option>双向</option></select>
+            </div>
+            <div class="filter-group" style="margin-left:auto;">
+              <input class="filter-search" id="fSearch" placeholder="搜索接口编号 / 名称…">
+            </div>
+          </div>
+          <div style="overflow-x: auto;">
+            <table class="exec-table" id="ifTable">
+              <thead>
+                <tr>
+                  <th>接口编号</th>
+                  <th>接口名称</th>
+                  <th>对接系统</th>
+                  <th>类型</th>
+                  <th>方向</th>
+                  <th>运行状态</th>
+                  <th>最近同步</th>
+                  <th>健康度</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="if-row" data-ifcode="INT-001" data-sys="DCS/PLC" data-type="点位采集" data-dir="上行" data-istatus="运行中" data-health="99">
+                  <td class="num">INT-001</td>
+                  <td>反应釜温度采集</td>
+                  <td>DCS/PLC</td>
+                  <td>点位采集</td>
+                  <td><span class="dir-tag">上行</span></td>
+                  <td><span class="status-tag normal"><span class="dot"></span>运行中</span></td>
+                  <td class="num">08:32</td>
+                  <td class="num" style="color:var(--normal);">99%</td>
+                  <td><span class="op-link op-view">查看</span><span class="op-link op-test">测试</span><span class="op-toggle disable" data-ifcode="INT-001" data-act="停用">停用</span></td>
+                </tr>
+                <tr class="if-row" data-ifcode="INT-002" data-sys="DCS/PLC" data-type="点位采集" data-dir="上行" data-istatus="运行中" data-health="98">
+                  <td class="num">INT-002</td>
+                  <td>阀门状态采集</td>
+                  <td>DCS/PLC</td>
+                  <td>点位采集</td>
+                  <td><span class="dir-tag">上行</span></td>
+                  <td><span class="status-tag normal"><span class="dot"></span>运行中</span></td>
+                  <td class="num">08:31</td>
+                  <td class="num" style="color:var(--normal);">98%</td>
+                  <td><span class="op-link op-view">查看</span><span class="op-link op-test">测试</span><span class="op-toggle disable" data-ifcode="INT-002" data-act="停用">停用</span></td>
+                </tr>
+                <tr class="if-row" data-ifcode="INT-003" data-sys="ERP" data-type="主数据同步" data-dir="双向" data-istatus="运行中" data-health="100">
+                  <td class="num">INT-003</td>
+                  <td>物料主数据同步</td>
+                  <td>ERP</td>
+                  <td>主数据同步</td>
+                  <td><span class="dir-tag both">双向</span></td>
+                  <td><span class="status-tag normal"><span class="dot"></span>运行中</span></td>
+                  <td class="num">08:30</td>
+                  <td class="num" style="color:var(--normal);">100%</td>
+                  <td><span class="op-link op-view">查看</span><span class="op-link op-test">测试</span><span class="op-toggle disable" data-ifcode="INT-003" data-act="停用">停用</span></td>
+                </tr>
+                <tr class="if-row" data-ifcode="INT-004" data-sys="ERP" data-type="工单同步" data-dir="下行" data-istatus="异常" data-health="0">
+                  <td class="num">INT-004</td>
+                  <td>生产工单下发</td>
+                  <td>ERP</td>
+                  <td>工单同步</td>
+                  <td><span class="dir-tag down">下行</span></td>
+                  <td><span class="status-tag block"><span class="dot pulse"></span>异常</span></td>
+                  <td class="num">08:15</td>
+                  <td style="color:var(--block);font-weight:500;">失败重试</td>
+                  <td><span class="op-link op-view">查看</span><span class="op-link op-test">测试</span><span class="op-toggle disable" data-ifcode="INT-004" data-act="停用">停用</span></td>
+                </tr>
+                <tr class="if-row" data-ifcode="INT-005" data-sys="LIMS" data-type="检验下发" data-dir="下行" data-istatus="运行中" data-health="97">
+                  <td class="num">INT-005</td>
+                  <td>检验任务下发</td>
+                  <td>LIMS</td>
+                  <td>检验下发</td>
+                  <td><span class="dir-tag down">下行</span></td>
+                  <td><span class="status-tag normal"><span class="dot"></span>运行中</span></td>
+                  <td class="num">08:20</td>
+                  <td class="num" style="color:var(--normal);">97%</td>
+                  <td><span class="op-link op-view">查看</span><span class="op-link op-test">测试</span><span class="op-toggle disable" data-ifcode="INT-005" data-act="停用">停用</span></td>
+                </tr>
+                <tr class="if-row" data-ifcode="INT-006" data-sys="LIMS" data-type="检验回传" data-dir="上行" data-istatus="运行中" data-health="99">
+                  <td class="num">INT-006</td>
+                  <td>检验结果回传</td>
+                  <td>LIMS</td>
+                  <td>检验回传</td>
+                  <td><span class="dir-tag">上行</span></td>
+                  <td><span class="status-tag normal"><span class="dot"></span>运行中</span></td>
+                  <td class="num">08:22</td>
+                  <td class="num" style="color:var(--normal);">99%</td>
+                  <td><span class="op-link op-view">查看</span><span class="op-link op-test">测试</span><span class="op-toggle disable" data-ifcode="INT-006" data-act="停用">停用</span></td>
+                </tr>
+                <tr class="if-row" data-ifcode="INT-007" data-sys="WMS" data-type="库存同步" data-dir="双向" data-istatus="异常" data-health="0">
+                  <td class="num">INT-007</td>
+                  <td>库存双向同步</td>
+                  <td>WMS</td>
+                  <td>库存同步</td>
+                  <td><span class="dir-tag both">双向</span></td>
+                  <td><span class="status-tag block"><span class="dot pulse"></span>异常</span></td>
+                  <td class="num">07:58</td>
+                  <td style="color:var(--block);font-weight:500;">队列堆积</td>
+                  <td><span class="op-link op-view">查看</span><span class="op-link op-test">测试</span><span class="op-toggle disable" data-ifcode="INT-007" data-act="停用">停用</span></td>
+                </tr>
+                <tr class="if-row" data-ifcode="INT-008" data-sys="SCADA" data-type="点位采集" data-dir="上行" data-istatus="运行中" data-health="96">
+                  <td class="num">INT-008</td>
+                  <td>压力采集</td>
+                  <td>SCADA</td>
+                  <td>点位采集</td>
+                  <td><span class="dir-tag">上行</span></td>
+                  <td><span class="status-tag normal"><span class="dot"></span>运行中</span></td>
+                  <td class="num">08:33</td>
+                  <td class="num" style="color:var(--normal);">96%</td>
+                  <td><span class="op-link op-view">查看</span><span class="op-link op-test">测试</span><span class="op-toggle disable" data-ifcode="INT-008" data-act="停用">停用</span></td>
+                </tr>
+                <tr class="if-row" data-ifcode="INT-009" data-sys="DCS/PLC" data-type="点位采集" data-dir="上行" data-istatus="运行中" data-health="98">
+                  <td class="num">INT-009</td>
+                  <td>流量计量</td>
+                  <td>DCS/PLC</td>
+                  <td>点位采集</td>
+                  <td><span class="dir-tag">上行</span></td>
+                  <td><span class="status-tag normal"><span class="dot"></span>运行中</span></td>
+                  <td class="num">08:29</td>
+                  <td class="num" style="color:var(--normal);">98%</td>
+                  <td><span class="op-link op-view">查看</span><span class="op-link op-test">测试</span><span class="op-toggle disable" data-ifcode="INT-009" data-act="停用">停用</span></td>
+                </tr>
+                <tr class="if-row" data-ifcode="INT-010" data-sys="ERP" data-type="库存同步" data-dir="双向" data-istatus="停用" data-health="0">
+                  <td class="num">INT-010</td>
+                  <td>旧库存接口</td>
+                  <td>ERP</td>
+                  <td>库存同步</td>
+                  <td><span class="dir-tag both">双向</span></td>
+                  <td><span class="status-tag draft"><span class="dot"></span>停用</span></td>
+                  <td class="num">—</td>
+                  <td class="num" style="color:var(--text-sec);">—</td>
+                  <td><span class="op-link op-view">查看</span><span class="op-link op-test">测试</span><span class="op-toggle enable" data-ifcode="INT-010" data-act="启用">启用</span></td>
+                </tr>
+                <tr class="if-row" data-ifcode="INT-011" data-sys="LIMS" data-type="主数据同步" data-dir="双向" data-istatus="运行中" data-health="95">
+                  <td class="num">INT-011</td>
+                  <td>标准品主数据</td>
+                  <td>LIMS</td>
+                  <td>主数据同步</td>
+                  <td><span class="dir-tag both">双向</span></td>
+                  <td><span class="status-tag normal"><span class="dot"></span>运行中</span></td>
+                  <td class="num">08:18</td>
+                  <td class="num" style="color:var(--normal);">95%</td>
+                  <td><span class="op-link op-view">查看</span><span class="op-link op-test">测试</span><span class="op-toggle disable" data-ifcode="INT-011" data-act="停用">停用</span></td>
+                </tr>
+                <tr class="if-row" data-ifcode="INT-012" data-sys="DCS/PLC" data-type="工单同步" data-dir="下行" data-istatus="运行中" data-health="99">
+                  <td class="num">INT-012</td>
+                  <td>批次投料下发</td>
+                  <td>DCS/PLC</td>
+                  <td>工单同步</td>
+                  <td><span class="dir-tag down">下行</span></td>
+                  <td><span class="status-tag normal"><span class="dot"></span>运行中</span></td>
+                  <td class="num">08:25</td>
+                  <td class="num" style="color:var(--normal);">99%</td>
+                  <td><span class="op-link op-view">查看</span><span class="op-link op-test">测试</span><span class="op-toggle disable" data-ifcode="INT-012" data-act="停用">停用</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 20px;border-top:1px solid var(--page);font-size:12px;color:var(--text-sec);">
+            <span>当前筛选结果 <b id="ifCount" style="color:var(--primary-600);font-family:'DIN',monospace;">12</b> 个接口</span>
+            <span id="ifFilterDesc" style="opacity:.85;">状态：全部 · 系统：全部系统 · 方向：全部方向</span>
+          </div>
+        </div>
+
+        <div class="right-panel">
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="dot" style="background: var(--primary-400);"></span>按对接系统</div>
+              <span style="font-size: 11px; color: var(--text-sec);">点击筛选</span>
+            </div>
+            <div class="card-body cat-tree" id="sysTree">
+              <div class="cat-node active" data-sys="全部"><span><span class="cat-ic">💱</span>全部系统</span><span class="cat-count" id="sAll">12</span></div>
+              <div class="cat-node" data-sys="DCS/PLC"><span><span class="cat-ic">⚙</span>DCS/PLC</span><span class="cat-count" id="sDcs">5</span></div>
+              <div class="cat-node" data-sys="ERP"><span><span class="cat-ic">🏢</span>ERP</span><span class="cat-count" id="sErp">3</span></div>
+              <div class="cat-node" data-sys="LIMS"><span><span class="cat-ic">🔬</span>LIMS</span><span class="cat-count" id="sLims">3</span></div>
+              <div class="cat-node" data-sys="WMS"><span><span class="cat-ic">📦</span>WMS</span><span class="cat-count" id="sWms">1</span></div>
+              <div class="cat-node" data-sys="SCADA"><span><span class="cat-ic">📡</span>SCADA</span><span class="cat-count" id="sSca">1</span></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="dot" style="background: var(--normal);"></span>健康度看板</div>
+            </div>
+            <div class="board-row">
+              <div><div class="board-num green" id="bNormal">92%</div><div class="board-sub">接口正常率</div></div>
+              <div style="width:1px;height:36px;background:var(--border);"></div>
+              <div><div class="board-num blue" id="bAvg">97%</div><div class="board-sub">平均健康度</div></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="dot" style="background: var(--block);"></span>失败重试队列</div>
+              <span style="font-size: 11px; color: var(--text-sec);">待处理</span>
+            </div>
+            <div class="mini-list" id="retryList"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><span class="dot" style="background: var(--info);"></span>告警通知</div>
+            </div>
+            <div class="mini-list">
+              <div class="mini-item"><div><div class="mini-name">INT-004 同步超时</div><div class="mini-meta">ERP 生产工单 · 08:15</div></div><span class="mini-go" onclick="ifTab('异常')">查看</span></div>
+              <div class="mini-item"><div><div class="mini-name">INT-007 队列堆积</div><div class="mini-meta">WMS 库存 · 07:58</div></div><span class="mini-go" onclick="ifTab('异常')">查看</span></div>
+              <div class="mini-item"><div><div class="mini-name">INT-011 健康度偏低</div><div class="mini-meta">LIMS 标准品 · 95%</div></div><span class="mini-go" onclick="ifTab('运行中')">查看</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    
+    </div></div>
+  </div>
+
+
+<!-- 新增接口 抽屉 -->
+<div class="drawer-mask" id="diMask">
+  <div class="drawer" id="diDrawer">
+    <div class="drawer-head">
+      <div class="drawer-title"><span style="color:var(--primary-600);">＋</span> 新增数据接口</div>
+      <span class="drawer-close" onclick="DI.close()">✕</span>
+    </div>
+    <div class="drawer-body">
+      <div class="field">
+        <div class="field-label"><span class="field-req">*</span> 接口名称</div>
+        <input class="field-input" id="diName" placeholder="如：反应釜压力采集">
+      </div>
+      <div class="field">
+        <div class="field-label"><span class="field-req">*</span> 对接系统</div>
+        <select class="field-select" id="diSys"><option>DCS/PLC</option><option>ERP</option><option>LIMS</option><option>WMS</option><option>SCADA</option></select>
+      </div>
+      <div class="field">
+        <div class="field-label"><span class="field-req">*</span> 接口类型</div>
+        <select class="field-select" id="diType"><option>点位采集</option><option>主数据同步</option><option>工单同步</option><option>检验下发</option><option>检验回传</option><option>库存同步</option></select>
+      </div>
+      <div class="field">
+        <div class="field-label"><span class="field-req">*</span> 数据方向</div>
+        <select class="field-select" id="diDir"><option>上行</option><option>下行</option><option>双向</option></select>
+      </div>
+      <div class="field">
+        <div class="field-label">采集频率 / 同步周期</div>
+        <input class="field-input" id="diFreq" placeholder="如：1s / 5min">
+      </div>
+      <div class="field">
+        <div class="field-label">量纲换算</div>
+        <input class="field-input" id="diUnit" placeholder="如：℃ → K；kPa → MPa">
+      </div>
+      <div class="field">
+        <div class="field-label">备注</div>
+        <textarea class="field-area" id="diNote" placeholder="接口说明、调用方、负责人…"></textarea>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn btn-ghost" onclick="DI.close()">取消</button>
+      <button class="btn btn-primary" onclick="DI.save()">保存并启用</button>
+    </div>
+  </div>
+</div>
+
+<!-- 接口详情 抽屉 -->
+<div class="drawer-mask" id="ddMask">
+  <div class="drawer" id="ddDrawer">
+    <div class="drawer-head">
+      <div class="drawer-title" id="ddTitle">接口详情</div>
+      <span class="drawer-close" onclick="DD.close()">✕</span>
+    </div>
+    <div class="drawer-body">
+      <div class="info-banner-mini" id="ddInfo"></div>
+      <div class="field">
+        <div class="field-label">点位映射（示例）</div>
+        <div id="ddPoints"></div>
+      </div>
+      <div class="field">
+        <div class="field-label">同步规则</div>
+        <div id="ddRules" style="font-size:12px;color:var(--text-sub);background:var(--page);border-radius:8px;padding:10px 14px;line-height:1.8;"></div>
+      </div>
+      <div class="field">
+        <div class="field-label">近期调用日志</div>
+        <div id="ddLogs"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 测试 抽屉 -->
+<div class="drawer-mask" id="dtMask">
+  <div class="drawer" id="dtDrawer">
+    <div class="drawer-head">
+      <div class="drawer-title" id="dtTitle">接口连通性测试</div>
+      <span class="drawer-close" onclick="DT.close()">✕</span>
+    </div>
+    <div class="drawer-body">
+      <div class="info-banner-mini" id="dtInfo"></div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="DT.run()">发起连通性测试</button>
+      <div class="test-result" id="dtResult"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 停用 / 启用 抽屉 -->
+<div class="drawer-mask" id="dsMask">
+  <div class="drawer" id="dsDrawer">
+    <div class="drawer-head">
+      <div class="drawer-title" id="dsTitle"><span style="color:var(--block);">⏸</span> 停用数据接口</div>
+      <span class="drawer-close" onclick="DS.close()">✕</span>
+    </div>
+    <div class="drawer-body">
+      <div class="info-banner-mini">
+        <div class="ibm-item"><div class="ibm-label">接口编号</div><div class="ibm-value num" id="dsCode">INT-000</div></div>
+        <div class="ibm-item"><div class="ibm-label">接口名称</div><div class="ibm-value" id="dsName">—</div></div>
+        <div class="ibm-item"><div class="ibm-label">对接系统</div><div class="ibm-value" id="dsSys">—</div></div>
+        <div class="ibm-item"><div class="ibm-label">数据方向</div><div class="ibm-value" id="dsDir">—</div></div>
+      </div>
+      <div class="field">
+        <div class="field-label"><span id="dsReasonReq" class="field-req">*</span> <span id="dsReasonLabel">停用原因</span></div>
+        <textarea class="field-area" id="dsReason" placeholder="请填写停用 / 启用原因…"></textarea>
+      </div>
+      <div class="field">
+        <div class="field-label">影响范围</div>
+        <div style="font-size:12px;color:var(--text-sub);background:var(--page);border-radius:8px;padding:10px 14px;line-height:1.7;" id="dsImpact">停用后相关采集 / 同步任务将暂停，直至重新启用。</div>
+      </div>
+      <div class="field">
+        <div class="field-label"><span class="field-req">*</span> 电子签名口令</div>
+        <input class="field-input" id="dsSign" type="password" placeholder="请输入签名口令…">
+      </div>
+      <div class="sign-note" id="dsNote">依据数据完整性要求，接口停用 / 启用需操作人电子签名留痕。</div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn btn-ghost" onclick="DS.close()">取消</button>
+      <button class="btn btn-danger" id="dsConfirm" onclick="DS.confirm()">确认停用</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ===== 数据接口：真实筛选 + 新增/详情/测试/停用启用 =====
+  (function () {
+    var rows = Array.prototype.slice.call(document.querySelectorAll('.if-row'));
+    var ifTabs = document.getElementById('ifTabs');
+    var fSys = document.getElementById('fSys');
+    var fDir = document.getElementById('fDir');
+    var fSearch = document.getElementById('fSearch');
+    var sysTree = document.getElementById('sysTree');
+    var curStatus = '全部';
+    var curSys = '全部';
+
+    function statusTag(status) {
+      if (status === '运行中') return '<span class="status-tag normal"><span class="dot"></span>运行中</span>';
+      if (status === '异常') return '<span class="status-tag block"><span class="dot pulse"></span>异常</span>';
+      return '<span class="status-tag draft"><span class="dot"></span>停用</span>';
+    }
+    function dirTag(dir) {
+      if (dir === '下行') return '<span class="dir-tag down">下行</span>';
+      if (dir === '双向') return '<span class="dir-tag both">双向</span>';
+      return '<span class="dir-tag">上行</span>';
+    }
+    function healthCell(r) {
+      var d = r.dataset;
+      if (d.istatus === '停用') return '<td class="num" style="color:var(--text-sec);">—</td>';
+      if (d.istatus === '异常') return '<td style="color:var(--block);font-weight:500;">失败重试</td>';
+      var h = parseInt(d.health, 10);
+      var color = h >= 95 ? 'var(--normal)' : (h >= 90 ? 'var(--info)' : 'var(--block)');
+      return '<td class="num" style="color:' + color + ';">' + h + '%</td>';
+    }
+
+    function pass(r) {
+      var d = r.dataset;
+      if (curStatus !== '全部' && d.istatus !== curStatus) return false;
+      if (curSys !== '全部' && d.sys !== curSys) return false;
+      if (fDir && fDir.value !== '全部方向' && d.dir !== fDir.value) return false;
+      if (fSearch) {
+        var t = fSearch.value.trim().toLowerCase();
+        if (t && (d.ifcode + d.name).toLowerCase().indexOf(t) < 0) return false;
+      }
+      return true;
+    }
+
+    function apply() {
+      var shown = 0;
+      rows.forEach(function (r) {
+        var ok = pass(r);
+        r.style.display = ok ? '' : 'none';
+        if (ok) shown++;
+      });
+      var cnt = document.getElementById('ifCount');
+      if (cnt) cnt.textContent = shown;
+      var desc = document.getElementById('ifFilterDesc');
+      if (desc) desc.textContent = '状态：' + curStatus + ' · 系统：' + (fSys && fSys.value !== '全部系统' ? fSys.value : curSys) + ' · 方向：' + (fDir ? fDir.value : '全部方向');
+      recalc();
+    }
+
+    function recalc() {
+      var total = rows.length, run = 0, err = 0, stop = 0;
+      var c = { 'DCS/PLC': 0, 'ERP': 0, 'LIMS': 0, 'WMS': 0, 'SCADA': 0 };
+      var hSum = 0, hN = 0;
+      rows.forEach(function (r) {
+        var d = r.dataset;
+        if (d.istatus === '运行中') { run++; hSum += parseInt(d.health || '0', 10); hN++; }
+        else if (d.istatus === '异常') err++;
+        else if (d.istatus === '停用') stop++;
+        if (c.hasOwnProperty(d.sys)) c[d.sys]++;
+      });
+      setText('mTotal', total); setText('mRun', run); setText('mErr', err);
+      setText('cAll', total); setText('cRun', run); setText('cErr', err); setText('cStop', stop);
+      setText('sAll', total); setText('sDcs', c['DCS/PLC']); setText('sErp', c['ERP']); setText('sLims', c['LIMS']); setText('sWms', c['WMS']); setText('sSca', c['SCADA']);
+      var avg = hN ? Math.round(hSum / hN) : 0;
+      var normalRate = total ? Math.round(run / total * 100) : 0;
+      setText('mHealth', avg + '%');
+      setText('bAvg', avg + '%');
+      setText('bNormal', normalRate + '%');
+      renderRetry();
+    }
+
+    function setText(id, v) { var el = document.getElementById(id); if (el) el.textContent = v; }
+
+    function renderRetry() {
+      var box = document.getElementById('retryList');
+      if (!box) return;
+      var items = rows.filter(function (r) { return r.dataset.istatus === '异常'; });
+      if (!items.length) { box.innerHTML = '<div class="mini-item" style="color:var(--text-sec);">暂无失败任务</div>'; return; }
+      box.innerHTML = items.map(function (r) {
+        var d = r.dataset;
+        return '<div class="mini-item"><div><div class="mini-name">' + d.name + ' <span style="font-family:\'DIN\',monospace;font-size:11px;color:var(--text-sec);">' + d.ifcode + '</span></div>' +
+          '<div class="mini-meta">' + d.sys + ' · 重试中</div></div>' +
+          '<span class="mini-go" onclick="DT.open(\'' + d.ifcode + '\')">重试</span></div>';
+      }).join('');
+    }
+
+    // 状态 Tab
+    if (ifTabs) {
+      ifTabs.querySelectorAll('.filter-tab').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          ifTabs.querySelectorAll('.filter-tab').forEach(function (b) { b.classList.remove('active'); });
+          this.classList.add('active');
+          curStatus = this.getAttribute('data-istatus');
+          apply();
+        });
+      });
+    }
+    // 系统树
+    if (sysTree) {
+      sysTree.querySelectorAll('.cat-node').forEach(function (node) {
+        node.addEventListener('click', function () {
+          sysTree.querySelectorAll('.cat-node').forEach(function (n) { n.classList.remove('active'); });
+          this.classList.add('active');
+          curSys = this.getAttribute('data-sys');
+          if (fSys) fSys.value = (curSys === '全部') ? '全部系统' : curSys;
+          apply();
+        });
+      });
+    }
+    if (fSys) fSys.addEventListener('change', function () {
+      curSys = (fSys.value === '全部系统') ? '全部' : fSys.value;
+      if (sysTree) sysTree.querySelectorAll('.cat-node').forEach(function (n) {
+        n.classList.toggle('active', n.getAttribute('data-sys') === curSys);
+      });
+      apply();
+    });
+    if (fDir) fDir.addEventListener('change', apply);
+    if (fSearch) fSearch.addEventListener('input', apply);
+
+    // 操作列 + 行点击
+    var table = document.getElementById('ifTable');
+    if (table) {
+      table.addEventListener('click', function (e) {
+        var t = e.target;
+        if (t.classList.contains('op-view')) { e.stopPropagation(); DD.open(t.closest('.if-row').dataset.ifcode); return; }
+        if (t.classList.contains('op-test')) { e.stopPropagation(); DT.open(t.closest('.if-row').dataset.ifcode); return; }
+        if (t.classList.contains('op-toggle')) { e.stopPropagation(); var mode = (t.getAttribute('data-act') === '停用') ? 'disable' : 'enable'; DS.open(t.getAttribute('data-ifcode'), mode); return; }
+      });
+      table.querySelectorAll('tbody tr').forEach(function (row) {
+        row.addEventListener('click', function () { DD.open(row.dataset.ifcode); });
+      });
+    }
+
+    // 快捷切 Tab（告警通知用）
+    window.ifTab = function (status) {
+      curStatus = status;
+      if (ifTabs) ifTabs.querySelectorAll('.filter-tab').forEach(function (b) {
+        b.classList.toggle('active', b.getAttribute('data-istatus') === status);
+      });
+      apply();
+    };
+
+    // ===== 新增接口 =====
+    window.DI = {
+      open: function () {
+        document.getElementById('diName').value = '';
+        document.getElementById('diFreq').value = '';
+        document.getElementById('diUnit').value = '';
+        document.getElementById('diNote').value = '';
+        document.getElementById('diMask').classList.add('show');
+      },
+      close: function () { document.getElementById('diMask').classList.remove('show'); },
+      save: function () {
+        var name = document.getElementById('diName').value.trim();
+        if (!name) { alert('请填写接口名称'); return; }
+        var sys = document.getElementById('diSys').value;
+        var type = document.getElementById('diType').value;
+        var dir = document.getElementById('diDir').value;
+        var max = 0;
+        rows.forEach(function (r) { var n = parseInt(r.dataset.ifcode.replace('INT-', ''), 10); if (n > max) max = n; });
+        var code = 'INT-' + ('00' + (max + 1)).slice(-3);
+        var tr = document.createElement('tr');
+        tr.className = 'if-row';
+        tr.setAttribute('data-ifcode', code);
+        tr.setAttribute('data-sys', sys);
+        tr.setAttribute('data-type', type);
+        tr.setAttribute('data-dir', dir);
+        tr.setAttribute('data-istatus', '运行中');
+        tr.setAttribute('data-health', '100');
+        tr.innerHTML = '<td class="num">' + code + '</td><td>' + name + '</td><td>' + sys + '</td><td>' + type + '</td>' +
+          '<td>' + dirTag(dir) + '</td><td><span class="status-tag normal"><span class="dot"></span>运行中</span></td>' +
+          '<td class="num">—</td><td class="num" style="color:var(--normal);">100%</td>' +
+          '<td><span class="op-link op-view">查看</span><span class="op-link op-test">测试</span><span class="op-toggle disable" data-ifcode="' + code + '" data-act="停用">停用</span></td>';
+        tr.addEventListener('click', function () { DD.open(code); });
+        table.querySelector('tbody').appendChild(tr);
+        rows.push(tr);
+        this.close();
+        recalc(); apply();
+        toast('已新增并启用：' + code);
+      }
+    };
+
+    // ===== 接口详情 =====
+    var POINTS = {
+      'INT-001': [['TI-201','AI_0001','82.4℃'],['PI-201','AI_0002','1.62MPa']],
+      'INT-002': [['ZV-201','DI_0101','开'],['ZV-203','DI_0103','关']],
+      'INT-003': [['MAT_MAIN','ERP_SYNC','物料主数据']],
+      'INT-004': [['WO_DOWN','ERP_WO','工单下发']],
+      'INT-005': [['SAMPLE','LIMS_TASK','检验任务']],
+      'INT-006': [['RESULT','LIMS_RST','检验结果']],
+      'INT-007': [['STOCK','WMS_STK','库存']],
+      'INT-008': [['PT-201','AI_0005','1.58MPa']],
+      'INT-009': [['FT-201','AI_0007','450.2kg']],
+      'INT-010': [['OLD_STK','ERP_STK_OLD','旧库存']],
+      'INT-011': [['STD','LIMS_STD','标准品']],
+      'INT-012': [['BATCH','DCS_BATCH','批次投料']]
+    };
+    function rowByCode(code) { return rows.filter(function (r) { return r.dataset.ifcode === code; })[0]; }
+
+    window.DD = {
+      open: function (code) {
+        var r = rowByCode(code); if (!r) return;
+        var d = r.dataset;
+        document.getElementById('ddTitle').textContent = '接口详情 · ' + code;
+        document.getElementById('ddInfo').innerHTML =
+          '<div class="ibm-item"><div class="ibm-label">接口编号</div><div class="ibm-value num">' + code + '</div></div>' +
+          '<div class="ibm-item"><div class="ibm-label">接口名称</div><div class="ibm-value">' + d.name + '</div></div>' +
+          '<div class="ibm-item"><div class="ibm-label">对接系统</div><div class="ibm-value">' + d.sys + '</div></div>' +
+          '<div class="ibm-item"><div class="ibm-label">运行状态</div><div class="ibm-value">' + d.istatus + '</div></div>';
+        var pts = POINTS[code] || [['—','—','—']];
+        document.getElementById('ddPoints').innerHTML = pts.map(function (p) {
+          return '<div class="point-row"><span class="point-name">' + p[0] + '</span><span class="point-addr">' + p[1] + '</span><span class="point-val">' + p[2] + '</span></div>';
+        }).join('');
+        document.getElementById('ddRules').innerHTML = '类型：' + d.type + ' · 方向：' + d.dir + '<br>采集频率 / 同步周期：1s（点位）/ 5min（主数据）<br>量纲换算：℃→K、kPa→MPa 自动处理<br>失败策略：重试 3 次后入失败队列并告警';
+        document.getElementById('ddLogs').innerHTML = [
+          ['08:' + (30 + (parseInt(code.replace('INT-', ''), 10) % 9)) , '同步成功，耗时 ' + (40 + (parseInt(code.replace('INT-', ''), 10) % 50)) + 'ms'],
+          ['08:' + (20 + (parseInt(code.replace('INT-', ''), 10) % 9)), d.istatus === '异常' ? '同步失败，已入重试队列' : '同步成功'],
+          ['08:' + (10 + (parseInt(code.replace('INT-', ''), 10) % 9)), '心跳正常']
+        ].map(function (l) { return '<div class="log-row"><span class="log-time">' + l[0] + '</span><span class="log-msg">' + l[1] + '</span></div>'; }).join('');
+        document.getElementById('ddMask').classList.add('show');
+      },
+      close: function () { document.getElementById('ddMask').classList.remove('show'); }
+    };
+
+    // ===== 测试 =====
+    window.DT = {
+      open: function (code) {
+        var r = rowByCode(code); if (!r) return;
+        var d = r.dataset;
+        document.getElementById('dtTitle').textContent = '接口连通性测试 · ' + code;
+        document.getElementById('dtInfo').innerHTML =
+          '<div class="ibm-item"><div class="ibm-label">接口名称</div><div class="ibm-value">' + d.name + '</div></div>' +
+          '<div class="ibm-item"><div class="ibm-label">对接系统</div><div class="ibm-value">' + d.sys + '</div></div>';
+        var res = document.getElementById('dtResult');
+        res.className = 'test-result'; res.textContent = '';
+        document.getElementById('dtMask').classList.add('show');
+      },
+      run: function () {
+        var res = document.getElementById('dtResult');
+        var ok = Math.random() > 0.25;
+        var latency = 30 + Math.floor(Math.random() * 80);
+        if (ok) { res.className = 'test-result ok'; res.textContent = '✓ 连通性正常 · 往返时延 ' + latency + 'ms · 数据校验通过'; }
+        else { res.className = 'test-result err'; res.textContent = '✕ 连接超时 · 请检查 ' + '对接系统' + ' 网络与鉴权配置，或将其加入失败重试队列'; }
+      },
+      close: function () { document.getElementById('dtMask').classList.remove('show'); }
+    };
+
+    // ===== 停用 / 启用 =====
+    window.DS = {
+      mode: 'disable', code: '', row: null,
+      open: function (code, mode) {
+        var r = rowByCode(code); if (!r) return;
+        this.mode = mode; this.code = code; this.row = r;
+        var d = r.dataset;
+        setText('dsCode', code); setText('dsName', d.name); setText('dsSys', d.sys); setText('dsDir', d.dir);
+        document.getElementById('dsReason').value = '';
+        document.getElementById('dsSign').value = '';
+        if (mode === 'disable') {
+          setText('dsTitle', '⏸ 停用数据接口');
+          document.getElementById('dsTitle').style.color = '';
+          setText('dsReasonLabel', '停用原因'); setText('dsReasonReq', '*');
+          setText('dsImpact', '停用后相关采集 / 同步任务将暂停，直至重新启用。');
+          setText('dsConfirm', '确认停用');
+          document.getElementById('dsConfirm').className = 'btn btn-danger';
+        } else {
+          setText('dsTitle', '▶ 启用数据接口');
+          document.getElementById('dsTitle').style.color = 'var(--normal)';
+          setText('dsReasonLabel', '启用说明'); setText('dsReasonReq', '');
+          setText('dsImpact', '本接口将恢复为「运行中」，重新参与采集 / 同步。');
+          setText('dsConfirm', '确认启用');
+          document.getElementById('dsConfirm').className = 'btn btn-primary';
+        }
+        document.getElementById('dsMask').classList.add('show');
+      },
+      close: function () { document.getElementById('dsMask').classList.remove('show'); },
+      confirm: function () {
+        var reason = document.getElementById('dsReason').value.trim();
+        var sign = document.getElementById('dsSign').value.trim();
+        if (this.mode === 'disable' && !reason) { alert('请填写停用原因'); return; }
+        if (!sign) { alert('请输入电子签名口令'); return; }
+        var newStatus = (this.mode === 'disable') ? '停用' : '运行中';
+        var r = this.row;
+        r.dataset.istatus = newStatus;
+        if (newStatus === '运行中') r.dataset.health = '100';
+        r.cells[5].innerHTML = statusTag(newStatus);
+        r.cells[6].innerHTML = (newStatus === '停用') ? '<td class="num">—</td>' : '<td class="num">—</td>';
+        r.cells[7].innerHTML = healthCell(r);
+        var toggle = r.querySelector('.op-toggle');
+        if (toggle) {
+          toggle.setAttribute('data-act', newStatus === '停用' ? '启用' : '停用');
+          toggle.textContent = newStatus === '停用' ? '启用' : '停用';
+          toggle.className = 'op-toggle ' + (newStatus === '停用' ? 'enable' : 'disable');
+        }
+        recalc(); apply();
+        this.close();
+        toast((this.mode === 'disable' ? '已停用' : '已启用') + '：' + this.code);
+      }
+    };
+
+    function toast(msg) {
+      var el = document.getElementById('toast');
+      if (!el) return;
+      el.textContent = msg; el.classList.add('show');
+      setTimeout(function () { el.classList.remove('show'); }, 2200);
+    }
+
+    recalc();
+    apply();
+  })();
+</script>
+  <script src="sidebar.js"></script>
+  <script src="plant.js"></script>
+<script src="role.js"></script>
+</body>
+</html>
