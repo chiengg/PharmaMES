@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MES 精细化工 - 电子批记录归档</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary-50: #E6F1FB; --primary-200: #B5D4F4; --primary-400: #378ADD;
+    --primary-600: #185FA5; --primary-800: #0C447C; --primary-900: #042C53;
+    --normal: #1D9E75; --normal-bg: #E1F5EE;
+    --info: #EF9F27; --info-bg: #FAEEDA;
+    --warning: #D85A30; --warning-bg: #FAECE7;
+    --block: #E24B4A; --block-bg: #FCEBEB;
+    --white: #FFFFFF; --page: #F1EFE8; --border: #D3D1C7;
+    --text-sec: #888780; --text-sub: #5F5E5A; --text: #2C2C2A;
+  }
+  body { font-family: "PingFang SC","Microsoft YaHei",-apple-system,sans-serif; background: var(--page); color: var(--text); font-size: 14px; line-height: 1.6; overflow: hidden; height: 100vh; }
+  .app { display: flex; height: 100vh; }
+  .sidebar { width: 200px; min-width: 200px; background: var(--primary-800); color: #85B7EB; display: flex; flex-direction: column; overflow-y: auto; }
+  .sidebar-logo { padding: 14px 16px; border-bottom: 1px solid var(--primary-600); display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .sidebar-nav { padding: 8px 0; flex: 1; }
+  .nav-item { padding: 8px 16px 8px 36px; font-size: 12.5px; color: #85B7EB; cursor: pointer; position: relative; transition: all 0.15s; display: flex; align-items: center; gap: 7px; }
+  .nav-item:hover { background: var(--primary-900); color: #B5D4F4; }
+  .nav-item.active { background: var(--primary-600); color: #FFF; font-weight: 500; }
+  .nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--primary-400); }
+  .nav-group-head { padding: 14px 16px 5px; font-size: 11px; color: #6FA9DA; letter-spacing: 0.6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; transition: color 0.15s; }
+  .nav-group-head:hover { color: #B5D4F4; }
+  .nav-group-head > span:first-child { font-weight: 500; }
+  .nav-caret { font-size: 10px; opacity: 0.75; transition: transform 0.18s; display: inline-block; }
+  .nav-group-items { overflow: hidden; }
+  .nav-group.collapsed .nav-caret { transform: rotate(-90deg); }
+  .nav-group.collapsed .nav-group-items { display: none; }
+  .sidebar-footer { padding: 12px 20px; border-top: 1px solid var(--primary-600); font-size: 12px; color: #5DCAA5; display: flex; align-items: center; gap: 6px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--normal); }
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { height: 52px; min-height: 52px; background: var(--white); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+  .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-sec); }
+  .breadcrumb .current { color: var(--text); font-weight: 500; }
+  .breadcrumb a { color: var(--text-sec); text-decoration: none; cursor: pointer; }
+  .breadcrumb a:hover { color: var(--primary-600); }
+  .topbar-right { display: flex; align-items: center; gap: 20px; }
+  .user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+  .user-info:hover { background: var(--page); }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-600); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }
+  .user-name { font-size: 13px; color: var(--text); } .user-role { font-size: 11px; color: var(--text-sec); }
+  .content { flex: 1; overflow-y: auto; padding: 14px 28px; }
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .page-title { font-size: 22px; font-weight: 500; color: var(--text); }
+  .page-subtitle { font-size: 13px; color: var(--text-sec); margin-top: 2px; }
+  .header-actions { display: flex; gap: 10px; }
+  .btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+  .btn-primary { background: var(--primary-600); color: #fff; } .btn-primary:hover { background: var(--primary-800); }
+  .btn-secondary { background: var(--white); color: var(--text); border: 1px solid var(--border); } .btn-secondary:hover { border-color: var(--primary-400); color: var(--primary-600); }
+  .btn-ghost { background: var(--page); color: var(--text-sub); border: 1px solid var(--border); } .btn-ghost:hover { color: var(--primary-600); border-color: var(--primary-400); }
+  .metrics-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 16px; }
+  .metric-card { background: var(--white); border-radius: 10px; padding: 14px 16px; border: 1px solid var(--border); position: relative; overflow: hidden; }
+  .metric-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .metric-card.blue::before { background: var(--primary-400); } .metric-card.green::before { background: var(--normal); }
+  .metric-card.amber::before { background: var(--info); } .metric-card.gray::before { background: var(--text-sec); }
+  .metric-label { font-size: 11px; color: var(--text-sec); margin-bottom: 6px; }
+  .metric-value { font-family: "DIN Alternate","Roboto",monospace; font-size: 26px; font-weight: 500; line-height: 1.1; }
+  .metric-card.blue .metric-value { color: var(--primary-600); } .metric-card.green .metric-value { color: var(--normal); }
+  .metric-card.amber .metric-value { color: var(--info); } .metric-card.gray .metric-value { color: var(--text-sub); }
+  .metric-detail { font-size: 10px; color: var(--text-sec); margin-top: 4px; }
+  .main-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .card { background: var(--white); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; margin-bottom: 16px; }
+  .card-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .card-title { font-size: 15px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .card-title .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .card-body { padding: 16px 20px; }
+  .info-banner-mini { background: var(--page); border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; display: grid; grid-template-columns: repeat(4,1fr); gap: 12px 20px; }
+  .ibm-item { display: flex; flex-direction: column; gap: 2px; }
+  .ibm-label { font-size: 11px; color: var(--text-sec); }
+  .ibm-value { font-size: 13px; color: var(--text); font-weight: 500; }
+  .sub-title { font-size: 13px; font-weight: 500; color: var(--primary-800); margin: 18px 0 10px; display: flex; align-items: center; gap: 6px; }
+  .sub-title .bar { width: 3px; height: 14px; background: var(--primary-400); border-radius: 2px; }
+  .sub-title:first-child { margin-top: 0; }
+  .filter-bar { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--page); flex-wrap: wrap; }
+  .filter-label { font-size: 12px; color: var(--text-sec); }
+  .filter-select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; color: var(--text); background: var(--white); cursor: pointer; font-family: inherit; outline: none; min-width: 200px; }
+  .status-tag { display: inline-flex; align-items: center; gap: 5px; padding: 2px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 500; }
+  .status-tag .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .status-tag.normal { background: var(--normal-bg); color: var(--normal); }
+  .status-tag.info { background: var(--info-bg); color: var(--info); }
+  .status-tag.warning { background: var(--warning-bg); color: var(--warning); }
+  .status-tag.block { background: var(--block-bg); color: var(--block); }
+  .status-tag.executing { background: var(--primary-50); color: var(--primary-600); }
+  .audit-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; font-size: 12px; }
+  .op-link { color: var(--primary-600); cursor: pointer; font-family: "DIN Alternate",monospace; }
+  .op-link:hover { text-decoration: underline; }
+  .toast { position: fixed; top: 18px; left: 50%; transform: translateX(-50%) translateY(-12px); background: var(--text); color: #fff; padding: 10px 20px; border-radius: 10px; font-size: 13px; z-index: 80; opacity: 0; transition: all 0.25s ease; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  ::-webkit-scrollbar { width: 6px; height: 6px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; } ::-webkit-scrollbar-thumb:hover { background: var(--text-sec); }
+
+  /* === eBR 专用 === */
+  .ebr-timeline { position: relative; padding-left: 8px; }
+  .ebr-stage { position: relative; padding: 0 0 18px 30px; border-left: 2px solid var(--border); }
+  .ebr-stage:last-child { border-left-color: transparent; }
+  .ebr-node { position: absolute; left: -11px; top: 2px; width: 20px; height: 20px; border-radius: 50%; background: var(--primary-800); color: #fff; font-size: 11px; display: flex; align-items: center; justify-content: center; font-weight: 600; }
+  .ebr-stage.ok .ebr-node { background: var(--normal); }
+  .ebr-stage.warn .ebr-node { background: var(--info); }
+  .ebr-stage.block .ebr-node { background: var(--block); }
+  .ebr-stage.wait .ebr-node { background: var(--text-sec); }
+  .ebr-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .ebr-stage-title { font-size: 14px; font-weight: 500; color: var(--text); }
+  .ebr-stage-no { font-family: "DIN Alternate",monospace; font-size: 12px; color: var(--primary-600); cursor: pointer; }
+  .ebr-stage-no:hover { text-decoration: underline; }
+  .ebr-meta { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 8px 16px; margin-top: 8px; }
+  .ebr-meta .em { display: flex; flex-direction: column; gap: 1px; }
+  .ebr-meta .em-l { font-size: 10.5px; color: var(--text-sec); }
+  .ebr-meta .em-v { font-size: 12px; color: var(--text-sub); }
+  .ebr-meta .em-v.num { font-family: "DIN Alternate",monospace; color: var(--text); }
+  .sign-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .sign-table th { text-align: left; padding: 9px 10px; background: var(--page); color: var(--text-sec); font-weight: 500; border-bottom: 1px solid var(--border); }
+  .sign-table td { padding: 9px 10px; border-bottom: 1px solid var(--page); color: var(--text-sub); }
+  .sign-table td.num { font-family: "DIN Alternate",monospace; color: var(--text); }
+  .alcoa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .alcoa-card { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; }
+  .alcoa-card .k { font-size: 12px; font-weight: 600; color: var(--primary-800); display: flex; justify-content: space-between; align-items: center; }
+  .alcoa-card .v { font-size: 11px; color: var(--text-sec); line-height: 1.45; }
+  .alcoa-card .ok { color: var(--normal); font-weight: 600; }
+  .audit-log { display: flex; flex-direction: column; gap: 0; }
+  .audit-item { display: flex; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--page); font-size: 11.5px; }
+  .audit-item .at { font-family: "DIN Alternate",monospace; color: var(--text-sec); width: 86px; flex: none; }
+  .audit-item .ao { color: var(--primary-600); flex: none; min-width: 96px; }
+  .audit-item .am { color: var(--text-sub); }
+  .compliance-banner { background: linear-gradient(90deg,var(--primary-800),var(--primary-600)); color: #fff; border-radius: 12px; padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .compliance-banner .cb-l { font-size: 13px; opacity: 0.92; }
+  .compliance-banner .cb-v { font-size: 20px; font-weight: 600; font-family: "DIN Alternate",monospace; }
+  .pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+  .pill.ok { background: var(--normal-bg); color: var(--normal); }
+  .pill.warn { background: var(--warning-bg); color: var(--warning); }
+  .pill.sec { background: var(--page); color: var(--text-sec); border: 1px solid var(--border); }
+  .badge { background: var(--block); color: #fff; border-radius: 10px; font-size: 10px; padding: 0 6px; margin-left: 4px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="appSidebar"></aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="breadcrumb">
+        <a onclick="window.location.href='批次追溯.html'">批次追溯</a>
+        <span>›</span>
+        <span class="current">电子批记录归档</span>
+      </div>
+      <div class="topbar-right">
+        <div id="plantSwitch"></div>
+        <div id="roleSwitch"></div>
+      <div class="user-info"><div class="avatar">强</div><div><div class="user-name">陈有强</div><div class="user-role">车间管理者 · 合成一车间</div></div></div>
+      </div>
+    </div>
+
+    <div class="tabbar" id="tabBar"></div>
+    
+      <div class="page-header">
+        <div>
+          <div class="page-title">电子批记录归档（eBR）</div>
+          <div class="page-subtitle">阶段07 合规归档 · 7 阶段全链路聚合 · 21 CFR Part 11 电子签名 · ALCOA+ 数据完整性 · NMPA / FDA 审计就绪</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="EBR.gotoTrace()">🔗 批次追溯</button>
+          <button class="btn btn-primary" onclick="EBR.export()">📄 导出批记录（PDF）</button>
+        </div>
+      </div>
+
+      <div class="filter-bar">
+        <span class="filter-label">商业批次</span>
+        <select class="filter-select" id="ebrSel"></select>
+        <button class="btn btn-primary" onclick="EBR.select()">查看归档</button>
+        <span style="color:var(--text-sec);font-size:12px;margin-left:auto;" id="ebrSaveNote">GMP 要求保存至有效期后 1 年</span>
+      </div>
+
+      <div class="info-banner-mini" id="ebrHeader"></div>
+
+      <div class="compliance-banner">
+        <div class="cb-l">合规归档状态（ALCOA+ 数据完整性 / 电子签名审计追踪）</div>
+        <div class="cb-v" id="cbStatus">就绪</div>
+      </div>
+
+      <div class="metrics-row">
+        <div class="metric-card blue"><div class="metric-label">记录节点</div><div class="metric-value" id="mNode">7</div><div class="metric-detail">计划→归档 全链路</div></div>
+        <div class="metric-card green"><div class="metric-label">电子签名</div><div class="metric-value" id="mSign">7/7</div><div class="metric-detail">21 CFR Part 11</div></div>
+        <div class="metric-card amber"><div class="metric-label">异常关联</div><div class="metric-value" id="mDev">0</div><div class="metric-detail">偏差 / 变更</div></div>
+        <div class="metric-card gray"><div class="metric-label">EBR 编号</div><div class="metric-value" id="mEbr" style="font-size:18px;">—</div><div class="metric-detail">电子批记录</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="dot" style="background:var(--primary-400);"></span>全链路电子批记录（7 阶段）</div></div>
+        <div class="card-body">
+          <div class="ebr-timeline" id="ebrTimeline"></div>
+        </div>
+      </div>
+
+      <div class="main-grid">
+        <div class="card">
+          <div class="card-header"><div class="card-title"><span class="dot" style="background:var(--normal);"></span>电子签名汇总（21 CFR Part 11）</div></div>
+          <div class="card-body">
+            <table class="sign-table" id="signTable">
+              <thead><tr><th>签名步骤</th><th>签名角色</th><th>签名人</th><th>签名时间</th><th>签名含义</th><th>状态</th></tr></thead>
+              <tbody id="signBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title"><span class="dot" style="background:var(--info);"></span>ALCOA+ 数据完整性</div></div>
+          <div class="card-body">
+            <div class="alcoa-grid" id="alcoaGrid"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="dot" style="background:var(--primary-800);"></span>合规审计追踪</div></div>
+        <div class="card-body">
+          <div class="audit-log" id="auditLog"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== 电子批记录归档：阶段07 统一归档包 =====
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var toastTimer;
+  function toast(msg) { var t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove('show'); }, 1800); }
+  function setHTML(id, v) { var e = $(id); if (e) e.innerHTML = v; }
+  function setText(id, v) { var e = $(id); if (e) e.textContent = v; }
+
+  // 放行记录（与「清场放行」台账一致）
+  var RE_MAP = {
+    'RC-2608-001': { re: 'RE-2608-004', dec: '有条件放行', owner: 'QA总监' },
+    'RC-2608-002': { re: 'RE-2608-001', dec: '合格放行', owner: '王受权' },
+    'RC-2608-003': { re: 'RE-2608-007', dec: '已入库', owner: '王受权' },
+    'RC-2608-004': { re: 'RE-2608-003', dec: '待审核', owner: '—' },
+    'RC-2608-005': { re: 'RE-2608-005', dec: '拒收', owner: '王受权' },
+    'RC-2608-006': { re: 'RE-2608-002', dec: '待审核', owner: '—' },
+    'RC-2608-007': { re: 'RE-2608-008', dec: '待审核', owner: '—' },
+    'RC-2608-008': { re: 'RE-2608-006', dec: '合格放行', owner: '王受权' }
+  };
+  // 批次档案（与「批次追溯」一致）
+  var META = {
+    '001': { p: '阿莫西林胶囊 0.25g', d: '2026-08-02', st: '已放行', dev: 'DR-2608-001' },
+    '002': { p: '阿莫西林胶囊 0.25g', d: '2026-08-02', st: '已入库' },
+    '003': { p: '对乙酰氨基酚片 0.5g', d: '2026-08-02', st: '已入库' },
+    '004': { p: '布洛芬缓释胶囊', d: '2026-08-02', st: '待审核', chg: 'CHG-2608-004' },
+    '005': { p: '维生素C片', d: '2026-08-02', st: '拒收', dev: 'DR-2608-005' },
+    '006': { p: '头孢克肟颗粒', d: '2026-08-02', st: '待审核' },
+    '007': { p: '蒙脱石散', d: '2026-08-02', st: '待审核', chg: 'CHG-2608-007' },
+    '008': { p: '奥美拉唑肠溶胶囊', d: '2026-08-02', st: '已入库' }
+  };
+  function statusTag(st) {
+    if (st === '已入库' || st === '已放行') return '<span class="status-tag normal"><span class="dot"></span>' + st + '</span>';
+    if (st === '拒收') return '<span class="status-tag block"><span class="dot"></span>' + st + '</span>';
+    if (st === '待审核') return '<span class="status-tag warning"><span class="dot"></span>' + st + '</span>';
+    return st;
+  }
+  function build(N) {
+    var m = META[N], re = RE_MAP['RC-2608-' + N];
+    return {
+      code: 'RC-2608-' + N, fc: 'RC-0731-' + N, ebr: 'EBR-2608-' + N,
+      plan: 'PLAN-2608-' + N, wo: 'WO-2608-' + N, pb: 'PB-2608-' + N, wp: 'WP-2608-' + N, qc: 'QC-2608-' + N,
+      re: re.re, dec: re.dec, owner: re.owner, status: m.st, product: m.p, date: m.d,
+      dev: m.dev || null, chg: m.chg || null
+    };
+  }
+  var EBR_DATA = {}; Object.keys(META).forEach(function (N) { EBR_DATA['RC-2608-' + N] = build(N); });
+
+  // 7 阶段模板
+  var STAGES = [
+    { key: '计划', idx: 'P', cls: 'ok', get: function (d) { return { no: d.plan, role: '计划员', who: '李计划', time: d.date + ' 09:12', mean: '月度生产计划下发，排产至合成一车间', sign: '已签' }; } },
+    { key: '准备', idx: 'P', cls: 'ok', get: function (d) { return { no: d.pb, role: '准备员', who: '王准备', time: d.date + ' 07:30', mean: '5M1E 齐套确认（人/机/料/法/环），开工前检查通过', sign: '已签' }; } },
+    { key: '开工', idx: '1', cls: 'ok', get: function (d) { return { no: d.wo, role: '操作员', who: '张明', time: d.date + ' 08:32', mean: '工单开工确认，EBR 电子批记录初始化，锁定齐套状态', sign: '已签' }; } },
+    { key: '执行', idx: '2', cls: 'ok', get: function (d) { return { no: d.fc, role: '操作员', who: '张明 / 赵强', time: d.date + ' 08:40 ~ +1d', mean: '工序执行：制粒→干燥→混合→压片→包衣，各工序电子签名', sign: '已签' }; } },
+    { key: '质控', idx: '3', cls: 'ok', get: function (d) { return { no: d.qc, role: 'QC 检验员', who: '孙质检', time: d.date + ' +2d 10:15', mean: 'HPLC 全项检验，含量/有关物质/溶出度判定合格', sign: '已签' }; } },
+    { key: '放行', idx: '4', cls: 'ok', get: function (d) { var cls = d.dec === '合格放行' || d.dec === '已入库' ? 'ok' : (d.dec === '拒收' ? 'block' : 'warn'); return { no: d.re, role: '质量受权人', who: d.owner, time: d.date + ' +2d 16:20', mean: '清场放行「' + d.dec + '」决策，QA 放行审核', sign: d.dec === '待审核' ? '待签' : '已签', nodeCls: cls }; } },
+    { key: '归档', idx: '5', cls: 'ok', get: function (d) { return { no: d.ebr, role: '系统', who: 'MES 自动归档', time: d.date + ' +2d 17:00', mean: 'EBR 自动归档，审计追踪完整不可篡改，GMP 保存至有效期后 1 年', sign: '已签' }; } }
+  ];
+
+  var ALCOA = [
+    { k: 'A 归因', v: '所有记录可追溯到具体操作人与终端' },
+    { k: 'L 清晰', v: '中文+时间戳，易读持久' },
+    { k: 'C 同步', v: '过程参数实时采集，与操作同步' },
+    { k: 'O 原始', v: 'SCADA 直采，未做二次处理' },
+    { k: 'A 准确', v: '自动校验量程与逻辑，无矛盾' },
+    { k: 'C 完整', v: '计划→归档全链路，无缺失环节' },
+    { k: 'C 一致', v: '单号体系贯通，跨页引用一致' },
+    { k: 'E 持久', v: '只读归档，防篡改留存' },
+    { k: 'A 可得', v: '审计就绪，按权限即时调阅' }
+  ];
+
+  function renderHeader(d) {
+    setHTML('ebrHeader',
+      '<div class="ibm-item"><div class="ibm-label">商业批次</div><div class="ibm-value num">' + d.code + '</div></div>'
+      + '<div class="ibm-item"><div class="ibm-label">釜次号</div><div class="ibm-value num">' + d.fc + '</div></div>'
+      + '<div class="ibm-item"><div class="ibm-label">产品</div><div class="ibm-value">' + d.product + '</div></div>'
+      + '<div class="ibm-item"><div class="ibm-label">生产日期</div><div class="ibm-value">' + d.date + '</div></div>'
+      + '<div class="ibm-item"><div class="ibm-label">放行单号</div><div class="ibm-value num">' + d.re + '</div></div>'
+      + '<div class="ibm-item"><div class="ibm-label">放行决策</div><div class="ibm-value">' + d.dec + '</div></div>'
+      + '<div class="ibm-item"><div class="ibm-label">质量受权人</div><div class="ibm-value">' + d.owner + '</div></div>'
+      + '<div class="ibm-item"><div class="ibm-label">状态</div><div class="ibm-value">' + statusTag(d.status) + '</div></div>'
+    );
+  }
+  function renderTimeline(d) {
+    var h = '';
+    STAGES.forEach(function (s) {
+      var r = s.get(d);
+      var stageCls = s.cls;
+      if (r.nodeCls) stageCls = r.nodeCls;
+      var signCls = r.sign === '待签' ? 'warning' : 'normal';
+      h += '<div class="ebr-stage ' + stageCls + '">'
+        + '<div class="ebr-node">' + (r.nodeCls && r.nodeCls === 'block' ? '!' : s.idx) + '</div>'
+        + '<div class="ebr-head"><div class="ebr-stage-title">阶段 ' + s.key + '</div>'
+        + '<span class="ebr-stage-no" onclick="EBR.gotoNo(\'' + r.no + '\')">' + r.no + '</span></div>'
+        + '<div class="ebr-meta">'
+        + '<div class="em"><div class="em-l">操作人 / 角色</div><div class="em-v">' + r.who + ' · ' + r.role + '</div></div>'
+        + '<div class="em"><div class="em-l">时间</div><div class="em-v num">' + r.time + '</div></div>'
+        + '<div class="em"><div class="em-l">电子签名</div><div class="em-v"><span class="status-tag ' + signCls + '"><span class="dot"></span>' + r.sign + '</span></div></div>'
+        + '<div class="em" style="grid-column:1 / -1;"><div class="em-l">记录说明</div><div class="em-v">' + r.mean + '</div></div>'
+        + '</div></div>';
+    });
+    setHTML('ebrTimeline', h);
+  }
+  function renderSigns(d) {
+    var h = ''; var signed = 0;
+    STAGES.forEach(function (s) {
+      var r = s.get(d);
+      if (r.sign === '已签') signed++;
+      var st = r.sign === '待签' ? '<span class="status-tag warning"><span class="dot"></span>待签</span>' : '<span class="status-tag normal"><span class="dot"></span>已签</span>';
+      h += '<tr><td>' + s.key + '确认</td><td>' + r.role + '</td><td>' + r.who + '</td><td class="num">' + r.time + '</td><td>' + r.mean + '</td><td>' + st + '</td></tr>';
+    });
+    setHTML('signBody', h);
+    setText('mSign', signed + '/' + STAGES.length);
+  }
+  function renderAlcoa() {
+    var h = '';
+    ALCOA.forEach(function (a) {
+      h += '<div class="alcoa-card"><div class="k">' + a.k + ' <span class="ok">✓</span></div><div class="v">' + a.v + '</div></div>';
+    });
+    setHTML('alcoaGrid', h);
+  }
+  function renderAudit(d) {
+    var h = '';
+    STAGES.forEach(function (s) {
+      var r = s.get(d);
+      h += '<div class="audit-item"><span class="at">' + r.time + '</span><span class="ao">' + r.no + '</span><span class="am">' + s.key + '：' + r.who + ' ' + r.mean + '</span></div>';
+    });
+    if (d.dev) h += '<div class="audit-item"><span class="at">' + d.date + ' +1d</span><span class="ao">' + d.dev + '</span><span class="am">偏差发起：' + d.product + ' 过程参数超限，关联至本批次 EBR</span></div>';
+    if (d.chg) h += '<div class="audit-item"><span class="at">' + d.date + ' +1d</span><span class="ao">' + d.chg + '</span><span class="am">变更控制：工艺参数调整，关联至本批次 EBR</span></div>';
+    setHTML('auditLog', h);
+  }
+  function renderMetrics(d) {
+    var devN = (d.dev ? 1 : 0) + (d.chg ? 1 : 0);
+    setText('mNode', STAGES.length);
+    setText('mDev', devN);
+    setText('mEbr', d.ebr);
+    var stuck = d.status === '待审核';
+    setText('cbStatus', stuck ? '待放行' : '就绪');
+    $('cbStatus').style.color = stuck ? '#FAEEDA' : '#fff';
+  }
+
+  window.EBR = {
+    select: function () {
+      var code = $('ebrSel').value || 'RC-2608-002';
+      var d = EBR_DATA[code];
+      if (!d) { toast('未找到批次归档：' + code); return; }
+      renderHeader(d); renderTimeline(d); renderSigns(d); renderAudit(d); renderMetrics(d);
+      toast('已加载 EBR 归档：' + code);
+    },
+    gotoNo: function (no) { toast('跳转关联单号：' + no + '（跨模块联查）'); },
+    gotoTrace: function () { window.location.href = '批次追溯.html?rc=' + ($('ebrSel').value || 'RC-2608-002'); },
+    export: function () { toast('已生成 PDF 批记录：' + ($('ebrSel').value || 'RC-2608-002') + '（演示）'); }
+  };
+
+  // 初始化：填充下拉 + ?rc= 定位
+  (function init() {
+    var sel = $('ebrSel');
+    Object.keys(EBR_DATA).forEach(function (code) {
+      var d = EBR_DATA[code];
+      var o = document.createElement('option'); o.value = code; o.textContent = code + ' · ' + d.product + ' · ' + d.status; sel.appendChild(o);
+    });
+    var q = (location.search.match(/[?&]rc=([^&]+)/) || [])[1];
+    if (q && EBR_DATA[q]) sel.value = q;
+    EBR.select();
+  })();
+})();
+</script>
+<script src="sidebar.js"></script>
+  <script src="plant.js"></script>
+<script src="role.js"></script>
+</body>
+</html>
