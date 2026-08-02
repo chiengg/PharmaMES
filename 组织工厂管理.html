@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>组织工厂管理 · PharmaMES</title>
+<style>
+  :root{
+    --primary-400:#5AA0E0; --primary-500:#378ADD; --primary-600:#2C6FB8; --primary-800:#1E4E85; --primary-900:#163A63;
+    --bg:#F4F6F9; --page:#FFFFFF; --card:#FFFFFF; --text:#1F2A37; --text-sub:#475467; --text-sec:#8A94A6;
+    --border:#E5E9F0; --border-strong:#D2D9E4;
+    --ok:#1FA971; --ok-bg:#E7F6EF; --warn:#E8A33D; --warn-bg:#FCF3E3; --bad:#E5484D; --bad-bg:#FDECEC; --info:#378ADD; --info-bg:#E8F1FB;
+    --sidebar-bg:#163A63; --sidebar-bg2:#1E4E85;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);font-size:14px;-webkit-font-smoothing:antialiased;}
+  .app{display:flex;min-height:100vh;}
+  /* 侧边栏 v2 */
+  .sidebar{width:236px;background:linear-gradient(180deg,var(--sidebar-bg2),var(--sidebar-bg));color:#fff;display:flex;flex-direction:column;flex:none;position:relative;}
+  .sidebar-logo{display:flex;align-items:center;gap:10px;padding:18px 16px;background:rgba(0,0,0,.12);}
+  .logo-icon{width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;flex:none;}
+  .logo-name{font-size:15px;font-weight:600;color:#fff;}
+  .logo-slogan{font-size:10.5px;color:#93B5D9;margin-top:1px;}
+  .sidebar-nav{flex:1;overflow-y:auto;padding:6px 0;}
+  .nav-group-head{padding:14px 16px 5px;font-size:11px;color:#6FA9DA;letter-spacing:.5px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;}
+  .nav-group-head>span:first-child{font-weight:600;}
+  .nav-caret{font-size:10px;opacity:.75;transition:transform .18s;}
+  .nav-group-items{overflow:hidden;}
+  .nav-group.collapsed .nav-caret{transform:rotate(-90deg);}
+  .nav-group.collapsed .nav-group-items{display:none;}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:9px 16px 9px 22px;font-size:13px;color:#C7DCF1;cursor:pointer;border-left:3px solid transparent;transition:all .12s;}
+  .nav-item:hover{background:rgba(255,255,255,.07);color:#fff;}
+  .nav-item.active{background:rgba(90,160,224,.18);color:#fff;border-left-color:var(--primary-400);font-weight:500;}
+  .nav-item .ni-ico{width:18px;text-align:center;flex:none;}
+  .sidebar-collapse{padding:10px 16px;font-size:12px;color:#85B7EB;cursor:pointer;border-top:1px solid var(--primary-600);}
+  .sidebar-footer{padding:12px 16px;font-size:11px;color:#9DBBE0;display:flex;align-items:center;gap:8px;}
+  .status-dot{width:8px;height:8px;border-radius:50%;background:#22C55E;box-shadow:0 0 0 3px rgba(34,197,94,.25);}
+  /* 主区 */
+  .main{flex:1;display:flex;flex-direction:column;min-width:0;}
+  .topbar{height:56px;background:var(--page);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 22px;flex:none;}
+  .breadcrumb{font-size:13px;color:var(--text-sec);display:flex;align-items:center;gap:7px;}
+  .breadcrumb .current{color:var(--text);font-weight:500;}
+  .topbar-right{display:flex;align-items:center;gap:14px;}
+  .user-info{display:flex;align-items:center;gap:10px;cursor:pointer;padding:4px 8px;border-radius:8px;}
+  .user-info:hover{background:var(--bg);}
+  .avatar{width:32px;height:32px;border-radius:50%;background:var(--primary-500);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;}
+  .user-name{font-size:13px;font-weight:500;}
+  .user-role{font-size:11px;color:var(--text-sec);}
+  .content{padding:22px;flex:1;overflow-y:auto;}
+  .page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:16px;}
+  .page-title{font-size:20px;font-weight:600;}
+  .page-subtitle{font-size:12.5px;color:var(--text-sec);margin-top:4px;line-height:1.5;max-width:820px;}
+  .header-actions{display:flex;gap:10px;flex:none;}
+  .btn{border:1px solid var(--border-strong);background:var(--page);color:var(--text-sub);padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer;transition:all .15s;}
+  .btn:hover{border-color:var(--primary-400);color:var(--primary-600);}
+  .btn-primary{background:var(--primary-500);border-color:var(--primary-500);color:#fff;}
+  .btn-primary:hover{background:var(--primary-600);color:#fff;}
+  .metrics-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px;}
+  .metric-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;}
+  .metric-card.blue{border-top:3px solid var(--primary-500);}
+  .metric-card.green{border-top:3px solid var(--ok);}
+  .metric-card.amber{border-top:3px solid var(--warn);}
+  .metric-card.gray{border-top:3px solid var(--text-sec);}
+  .metric-label{font-size:12px;color:var(--text-sec);}
+  .metric-value{font-size:24px;font-weight:700;margin:4px 0 2px;}
+  .metric-detail{font-size:11px;color:var(--text-sec);}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:16px;}
+  .card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .card-title{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--primary-400);}
+  table.tbl{width:100%;border-collapse:collapse;font-size:13px;}
+  table.tbl th{text-align:left;padding:10px 12px;color:var(--text-sec);font-weight:500;font-size:12px;border-bottom:1px solid var(--border);background:var(--bg);}
+  table.tbl td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+  table.tbl tr:last-child td{border-bottom:none;}
+  .tag{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:500;}
+  .tag.ok{background:var(--ok-bg);color:var(--ok);}
+  .tag.warn{background:var(--warn-bg);color:var(--warn);}
+  .tag.info{background:var(--info-bg);color:var(--info);}
+  .num{font-family:"DIN",monospace;color:var(--text-sub);}
+  .op-link{color:var(--primary-600);cursor:pointer;}
+  .op-link:hover{text-decoration:underline;}
+  /* 架构树 */
+  .tree{font-size:13px;line-height:1.7;}
+  .tree .t-node{padding:4px 0;}
+  .tree .t-group{font-weight:600;color:var(--primary-700,#1E4E85);display:flex;align-items:center;gap:8px;}
+  .tree .t-factory{padding-left:22px;display:flex;align-items:center;gap:8px;}
+  .tree .t-ws{padding-left:44px;color:var(--text-sec);font-size:12.5px;}
+  .t-badge{font-size:10.5px;padding:1px 7px;border-radius:10px;background:var(--info-bg);color:var(--info);}
+  /* 演示区 */
+  .demo-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+  .demo-chip{border:1px solid var(--border-strong);background:var(--page);border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;gap:2px;}
+  .demo-chip:hover{border-color:var(--primary-400);}
+  .demo-chip.active{background:var(--primary-500);border-color:var(--primary-500);color:#fff;}
+  .demo-chip .dc-base{font-size:10.5px;opacity:.8;}
+  .demo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+  .demo-cell{border:1px solid var(--border);border-radius:10px;padding:14px;background:var(--bg);}
+  .demo-cell .dc-k{font-size:11px;color:var(--text-sec);margin-bottom:4px;}
+  .demo-cell .dc-v{font-size:14px;font-weight:600;}
+  .demo-cell .dc-sub{font-size:11px;color:var(--text-sec);margin-top:3px;}
+  .note{background:var(--info-bg);border:1px solid #C9E0F7;border-radius:10px;padding:12px 14px;font-size:12.5px;color:var(--text-sub);line-height:1.6;}
+  .note b{color:var(--text);}
+  .iso-note{border-left:3px solid var(--warn);background:var(--warn-bg);}
+  .toast{position:fixed;top:18px;left:50%;transform:translateX(-50%) translateY(-12px);background:var(--text);color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;z-index:80;opacity:0;transition:all .25s ease;pointer-events:none;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  ::-webkit-scrollbar{width:6px;height:6px;}::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:3px;}
+  /* 隔离条（与 plant.js 一致） */
+  .plant-isolated-bar{padding:40px 24px;text-align:center;color:var(--text-sec);font-size:13px;background:repeating-linear-gradient(45deg,#f8fafc,#f8fafc 10px,#f1f5f9 10px,#f1f5f9 20px);border:1px dashed var(--border);border-radius:10px;margin:8px 0;}
+  .plant-isolated-bar .pi-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;}
+  .plant-switch{display:inline-flex;align-items:center;gap:6px;position:relative;}
+  .plant-switch .ps-trigger{display:inline-flex;align-items:center;gap:6px;background:var(--page);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:12px;color:var(--text);cursor:pointer;white-space:nowrap;}
+  .plant-switch .ps-dot{width:7px;height:7px;border-radius:50%;background:#22c55e;}
+  .plant-switch .ps-menu{position:absolute;top:calc(100% + 6px);right:0;min-width:230px;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 32px rgba(15,35,70,.16);padding:6px;z-index:90;display:none;}
+  .plant-switch.open .ps-menu{display:block;}
+  .plant-switch .ps-item{display:flex;flex-direction:column;gap:1px;padding:8px 10px;border-radius:7px;cursor:pointer;}
+  .plant-switch .ps-item:hover{background:var(--bg);}
+  .plant-switch .ps-item.active{background:rgba(55,138,221,.10);}
+  .plant-switch .ps-item .ps-name{font-size:13px;font-weight:500;}
+  .plant-switch .ps-item .ps-base{font-size:11px;color:var(--text-sec);}
+  .plant-switch .ps-sep{height:1px;background:var(--border);margin:4px 2px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="appSidebar"></aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="breadcrumb"><span>基础配置</span><span>›</span><span class="current">组织工厂管理</span></div>
+      <div class="topbar-right"><div id="plantSwitch"></div>
+        <div id="roleSwitch"></div><div class="user-info"><div class="avatar">强</div><div><div class="user-name">陈有强</div><div class="user-role">车间管理者 · 合成一车间</div></div></div></div>
+    </header>
+
+    <div class="tabbar" id="tabBar"></div>
+      <div class="content">
+    
+      <div class="page-header">
+        <div>
+          <div class="page-title">组织工厂管理</div>
+          <div class="page-subtitle">集团-基地-工厂-车间 四级组织架构 · 多工厂数据隔离（Q-02）· 业务数据按工厂逻辑隔离、按角色授权、跨厂访问需集团管理员审批</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn" onclick="toast('已导出组织架构与隔离策略')">📤 导出架构</button>
+          <button class="btn btn-primary" onclick="toast('跳转至【用户与权限设置】配置跨厂授权')">＋ 跨厂授权</button>
+        </div>
+      </div>
+
+      <div class="metrics-row">
+        <div class="metric-card blue"><div class="metric-label">工厂 / 基地</div><div class="metric-value">3 / 2</div><div class="metric-detail">3 个生产工厂 · 2 个基地</div></div>
+        <div class="metric-card green"><div class="metric-label">车间</div><div class="metric-value">9</div><div class="metric-detail">覆盖原料药/制剂/综合</div></div>
+        <div class="metric-card amber"><div class="metric-label">隔离策略</div><div class="metric-value">逻辑</div><div class="metric-detail">行级 + 容器级 + 角色</div></div>
+        <div class="metric-card gray"><div class="metric-label">权限角色</div><div class="metric-value">4</div><div class="metric-detail">集团/工厂/车间/操作员</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="dot"></span>组织架构树（集团 → 基地 → 工厂 → 车间）</div></div>
+        <div class="tree">
+          <div class="t-node t-group">🏛 华润化工集团（集团级）</div>
+          <div class="t-node t-factory">🏭 <b>华东原料药基地</b> <span class="t-badge">基地</span></div>
+          <div class="t-node t-ws">├ 上海一厂（F-SH01）· 合成一车间 / 合成二车间 / 精制车间 / 中试车间</div>
+          <div class="t-node t-factory">🏭 <b>华东制剂基地</b> <span class="t-badge">基地</span></div>
+          <div class="t-node t-ws">├ 上海二厂（F-SH02）· 制剂一车间 / 制剂二车间</div>
+          <div class="t-node t-factory">🏭 <b>华南综合基地</b> <span class="t-badge">基地</span></div>
+          <div class="t-node t-ws">└ 广州厂（F-GZ01）· 一车间 / 二车间 / 三车间</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="dot"></span>工厂清单与数据范围</div><span class="tag info">全厂可见（配置类）</span></div>
+        <table class="tbl">
+          <thead><tr><th>工厂编码</th><th>工厂名称</th><th>所属基地</th><th>下属车间</th><th>数据范围</th><th>负责人</th><th>状态</th></tr></thead>
+          <tbody>
+            <tr data-plant="P1"><td class="num">F-SH01</td><td>上海一厂</td><td>华东原料药基地</td><td>合成一/二车间、精制、中试</td><td>原料药生产与归档</td><td>陈有强</td><td><span class="tag ok">运行中</span></td></tr>
+            <tr data-plant="P2"><td class="num">F-SH02</td><td>上海二厂</td><td>华东制剂基地</td><td>制剂一/二车间</td><td>制剂生产与包装</td><td>刘红</td><td><span class="tag ok">运行中</span></td></tr>
+            <tr data-plant="P3"><td class="num">F-GZ01</td><td>广州厂</td><td>华南综合基地</td><td>一/二/三车间</td><td>综合制剂与仓储</td><td>黄伟</td><td><span class="tag warn">试产</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="dot"></span>数据隔离机制</div></div>
+        <div class="note">
+          <b>① 组织切换：</b>顶部工厂切换器（🌐）持久化当前工厂（localStorage <code>mes_plant</code>），跨页面生效；切换后业务列表按工厂重算可见范围。<br>
+          <b>② 行级隔离：</b>带 <code>data-ws</code>（车间）的数据行，按「车间 → 工厂」映射自动过滤（如「一车间」归入广州厂 F-GZ01）。<br>
+          <b>③ 容器级隔离：</b>业务列表容器带 <code>data-plant-scope</code>，非本厂时整体隐藏并显示隔离提示条 🔒。<br>
+          <b>④ 角色授权（字段级，Q-07）：</b>顶部角色切换器（👤）持久化当前角色（localStorage <code>mes_role</code>），切换后按角色重算<b>字段可见性</b>与<b>操作权限</b>；变更管理「审批流配置/新增」、偏差CAPA「RCA/影响评估/CAPA 措施/QA 终审」等按角色字段级可见，操作员仅可查看、无审批/签名权限。与工厂隔离共同构成「组织 × 角色」双层权限。<br>
+          <b>⑤ 物理/逻辑：</b>原型以逻辑隔离演示；生产环境建议按工厂分库/分 Schema，MES 通过数据接口（FR-INT）路由。
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="dot"></span>字段级权限矩阵（Q-07 · 角色 × 字段/操作）</div><span class="tag info">与工厂隔离双层</span></div>
+        <table class="tbl">
+          <thead><tr><th>数据对象 / 字段 / 操作</th><th>操作员</th><th>车间管理者</th><th>工厂管理者</th><th>集团管理员</th></tr></thead>
+          <tbody>
+            <tr><td>基础信息（编号/产品/批次/状态）</td><td><span class="tag ok">可见</span></td><td><span class="tag ok">可见</span></td><td><span class="tag ok">可见</span></td><td><span class="tag ok">可见</span></td></tr>
+            <tr><td>根本原因分析 RCA / 影响评估（偏差）</td><td><span class="tag bad">隐藏</span></td><td><span class="tag ok">可见</span></td><td><span class="tag ok">可见</span></td><td><span class="tag ok">可见</span></td></tr>
+            <tr><td>CAPA 纠正 / 预防措施</td><td><span class="tag bad">隐藏</span></td><td><span class="tag ok">可见</span></td><td><span class="tag ok">可见</span></td><td><span class="tag ok">可见</span></td></tr>
+            <tr><td>审批 / 电子签名 / 驳回（变更·偏差）</td><td><span class="tag bad">不可</span></td><td><span class="tag ok">可(本级)</span></td><td><span class="tag ok">可</span></td><td><span class="tag ok">可</span></td></tr>
+            <tr><td>变更「审批流配置」</td><td><span class="tag bad">不可</span></td><td><span class="tag bad">不可</span></td><td><span class="tag ok">可</span></td><td><span class="tag ok">可</span></td></tr>
+            <tr><td>新增变更 / 报告偏差</td><td><span class="tag ok">可</span></td><td><span class="tag ok">可</span></td><td><span class="tag ok">可</span></td><td><span class="tag ok">可</span></td></tr>
+            <tr><td>跨厂数据 / 配置授权</td><td><span class="tag bad">不可</span></td><td><span class="tag bad">不可</span></td><td><span class="tag bad">不可</span></td><td><span class="tag ok">可</span></td></tr>
+          </tbody>
+        </table>
+        <div class="note" style="margin-top:12px;">演示：点击顶部 👤 角色切换器切换为「操作员」，进入 <a style="color:var(--primary-600);cursor:pointer;" onclick="window.location.href='变更管理.html'">变更管理</a> / <a style="color:var(--primary-600);cursor:pointer;" onclick="window.location.href='偏差CAPA.html'">偏差CAPA</a>，可见审批/签名按钮与 RCA/影响评估字段被字段级隐藏；切换为「工厂管理者」后恢复。</div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="dot"></span>字段级权限矩阵（Q-07 · 角色 × 字段/操作）</div><span class="tag info">与工厂隔离双层</span></div>
+        <table class="tbl">
+          <thead><tr><th>数据对象 / 字段 / 操作</th><th>操作员</th><th>车间管理者</th><th>工厂管理者</th><th>集团管理员</th></tr></thead>
+          <tbody>
+            <tr><td>基础信息（编号/产品/批次/状态）</td><td><span class="tag ok">可见</span></td><td><span class="tag ok">可见</span></td><td><span class="tag ok">可见</span></td><td><span class="tag ok">可见</span></td></tr>
+            <tr><td>根本原因分析 RCA / 影响评估（偏差）</td><td><span class="tag bad">隐藏</span></td><td><span class="tag ok">可见</span></td><td><span class="tag ok">可见</span></td><td><span class="tag ok">可见</span></td></tr>
+            <tr><td>CAPA 纠正 / 预防措施</td><td><span class="tag bad">隐藏</span></td><td><span class="tag ok">可见</span></td><td><span class="tag ok">可见</span></td><td><span class="tag ok">可见</span></td></tr>
+            <tr><td>审批 / 电子签名 / 驳回（变更·偏差）</td><td><span class="tag bad">不可</span></td><td><span class="tag ok">可(本级)</span></td><td><span class="tag ok">可</span></td><td><span class="tag ok">可</span></td></tr>
+            <tr><td>变更「审批流配置」</td><td><span class="tag bad">不可</span></td><td><span class="tag bad">不可</span></td><td><span class="tag ok">可</span></td><td><span class="tag ok">可</span></td></tr>
+            <tr><td>新增变更 / 报告偏差</td><td><span class="tag ok">可</span></td><td><span class="tag ok">可</span></td><td><span class="tag ok">可</span></td><td><span class="tag ok">可</span></td></tr>
+            <tr><td>跨厂数据 / 配置授权</td><td><span class="tag bad">不可</span></td><td><span class="tag bad">不可</span></td><td><span class="tag bad">不可</span></td><td><span class="tag ok">可</span></td></tr>
+          </tbody>
+        </table>
+        <div class="note" style="margin-top:12px;">演示：点击顶部 👤 角色切换器切换为「操作员」，进入 <a style="color:var(--primary-600);cursor:pointer;" onclick="window.location.href='变更管理.html'">变更管理</a> / <a style="color:var(--primary-600);cursor:pointer;" onclick="window.location.href='偏差CAPA.html'">偏差CAPA</a>，可见审批/签名按钮与 RCA/影响评估字段被字段级隐藏；切换为「工厂管理者」后恢复。</div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="dot"></span>权限矩阵（角色 × 数据范围）</div></div>
+        <table class="tbl">
+          <thead><tr><th>角色</th><th>本厂业务数据</th><th>跨厂数据</th><th>配置类数据</th><th>授权动作</th></tr></thead>
+          <tbody>
+            <tr><td>集团管理员</td><td><span class="tag ok">全部工厂</span></td><td><span class="tag ok">可见</span></td><td><span class="tag ok">可配</span></td><td>审批跨厂授权</td></tr>
+            <tr><td>工厂管理者</td><td><span class="tag ok">本厂</span></td><td><span class="tag bad">不可见</span></td><td><span class="tag ok">本厂</span></td><td>申请跨厂</td></tr>
+            <tr><td>车间管理者</td><td><span class="tag ok">本车间</span></td><td><span class="tag bad">不可见</span></td><td><span class="tag warn">受限</span></td><td>—</td></tr>
+            <tr><td>操作员</td><td><span class="tag ok">本岗</span></td><td><span class="tag bad">不可见</span></td><td><span class="tag bad">无</span></td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title"><span class="dot"></span>切换演示：各工厂数据范围</div><span class="tag info">点击切换查看</span></div>
+        <div class="demo-bar" id="demoBar">
+          <div class="demo-chip active" data-demo="P1" onclick="OrgDemo.pick('P1')"><span>上海一厂</span><span class="dc-base">华东原料药·F-SH01</span></div>
+          <div class="demo-chip" data-demo="P2" onclick="OrgDemo.pick('P2')"><span>上海二厂</span><span class="dc-base">华东制剂·F-SH02</span></div>
+          <div class="demo-chip" data-demo="P3" onclick="OrgDemo.pick('P3')"><span>广州厂</span><span class="dc-base">华南综合·F-GZ01</span></div>
+          <div class="demo-chip" data-demo="P0" onclick="OrgDemo.pick('P0')"><span>全厂视角</span><span class="dc-base">集团·超管</span></div>
+        </div>
+        <div class="demo-grid" id="demoGrid"></div>
+        <div class="note iso-note" style="margin-top:14px;">演示说明：切换工厂后，业务模块（生产工单 / 批次追溯 / 实时预警 等）将按隔离策略过滤；本页为<b>配置类</b>页面，全厂可见，不受隔离影响。</div>
+      </div>
+
+    
+    </div></div>
+  </div>
+
+
+<script src="sidebar.js"></script>
+<script src="plant.js"></script>
+<script>
+  // —— 侧边栏折叠（v2，与全站一致）——
+  var SB = {
+    toggle: function (g) { var el = document.querySelector('.nav-group[data-g="' + g + '"]'); if (el) el.classList.toggle('collapsed'); },
+    toggleAll: function () { var s = document.querySelector('.sidebar'); if (s) s.classList.toggle('collapsed'); }
+  };
+  // —— 页内切换演示 ——
+  var DEMO = {
+    P1: { scope: '原料药生产', rows: ['阿莫西林 · 合成一车间', '布洛芬 · 合成二车间', '对乙酰氨基酚 · 精制车间'], cnt: '计划 4 / 工单 6 / 批次 3' },
+    P2: { scope: '制剂生产', rows: ['阿莫西林胶囊 · 制剂一车间', '布洛芬片 · 制剂二车间'], cnt: '计划 2 / 工单 3 / 批次 2' },
+    P3: { scope: '综合试产', rows: ['对乙酰氨基酚颗粒 · 一车间', '头孢氨苄 · 二车间', '库存周转 · 三车间'], cnt: '计划 2 / 工单 3 / 批次 2' },
+    P0: { scope: '集团全量', rows: ['全部工厂汇总', '跨厂对标 / 集团看板', '统一 eBR 归档'], cnt: '计划 8 / 工单 12 / 批次 8' }
+  };
+  var OrgDemo = {
+    pick: function (code) {
+      var chips = document.querySelectorAll('#demoBar .demo-chip');
+      for (var i = 0; i < chips.length; i++) chips[i].classList.toggle('active', chips[i].getAttribute('data-demo') === code);
+      var d = DEMO[code]; var grid = document.getElementById('demoGrid'); if (!d || !grid) return;
+      var cells = '';
+      cells += '<div class="demo-cell"><div class="dc-k">数据范围</div><div class="dc-v">' + d.scope + '</div><div class="dc-sub">按工厂逻辑隔离</div></div>';
+      cells += '<div class="demo-cell"><div class="dc-k">业务量（示例）</div><div class="dc-v">' + d.cnt + '</div><div class="dc-sub">计划 / 工单 / 批次</div></div>';
+      cells += '<div class="demo-cell"><div class="dc-k">可见车间</div><div class="dc-v">' + d.rows.length + ' 类</div><div class="dc-sub">' + d.rows[0] + '</div></div>';
+      grid.innerHTML = cells;
+      toast('演示切换至「' + (code === 'P0' ? '全厂视角' : (code === 'P1' ? '上海一厂' : code === 'P2' ? '上海二厂' : '广州厂')) + '」');
+    }
+  };
+  function toast(m) { var t = document.createElement('div'); t.className = 'toast show'; t.textContent = m; document.body.appendChild(t); setTimeout(function () { t.style.opacity = '0'; setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 260); }, 1700); }
+  // 初始演示
+  OrgDemo.pick('P1');
+</script>
+<script src="role.js"></script>
+</body>
+</html>
