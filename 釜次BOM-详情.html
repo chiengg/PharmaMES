@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MES 精细化工 - BOM详情</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary-50: #E6F1FB; --primary-200: #B5D4F4; --primary-400: #378ADD;
+    --primary-600: #185FA5; --primary-800: #0C447C; --primary-900: #042C53;
+    --normal: #1D9E75; --normal-bg: #E1F5EE;
+    --info: #EF9F27; --info-bg: #FAEEDA;
+    --warning: #D85A30; --warning-bg: #FAECE7;
+    --block: #E24B4A; --block-bg: #FCEBEB;
+    --white: #FFFFFF; --page: #F1EFE8; --border: #D3D1C7;
+    --text-sec: #888780; --text-sub: #5F5E5A; --text: #2C2C2A;
+  }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif;
+    background: var(--page); color: var(--text);
+    font-size: 14px; line-height: 1.6; overflow: hidden; height: 100vh;
+  }
+  .app { display: flex; height: 100vh; }
+
+  /* === 侧边栏 === */
+  .sidebar { width: 200px; min-width: 200px; background: var(--primary-800); color: #85B7EB; display: flex; flex-direction: column; overflow-y: auto; }
+  .sidebar-logo { padding: 14px 16px; border-bottom: 1px solid var(--primary-600); display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .sidebar-nav { padding: 8px 0; flex: 1; }
+  .nav-item { padding: 8px 16px 8px 36px; font-size: 12.5px; color: #85B7EB; cursor: pointer; position: relative; transition: all 0.15s; display: flex; align-items: center; gap: 7px; }
+  .nav-item:hover { background: var(--primary-900); color: #B5D4F4; }
+  .nav-item.active { background: var(--primary-600); color: #FFF; font-weight: 500; }
+  .nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--primary-400); }
+  .nav-section-title { padding: 16px 20px 6px; font-size: 11px; color: #378ADD; text-transform: uppercase; letter-spacing: 0.5px; }
+  .sidebar-footer { padding: 12px 20px; border-top: 1px solid var(--primary-600); font-size: 12px; color: #5DCAA5; display: flex; align-items: center; gap: 6px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--normal); }
+
+  /* === 主区域 === */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { height: 52px; min-height: 52px; background: var(--white); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+  .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-sec); }
+  .breadcrumb .current { color: var(--text); font-weight: 500; }
+  .breadcrumb a { color: var(--text-sec); text-decoration: none; cursor: pointer; }
+  .breadcrumb a:hover { color: var(--primary-600); }
+  .topbar-right { display: flex; align-items: center; gap: 20px; }
+  .user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+  .user-info:hover { background: var(--page); }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-600); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }
+  .user-name { font-size: 13px; color: var(--text); }
+  .user-role { font-size: 11px; color: var(--text-sec); }
+
+  /* === 内容区 === */
+  .content { flex: 1; overflow-y: auto; padding: 14px 28px; }
+
+  /* === 页面标题 === */
+  .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; }
+  .page-title-row { display: flex; align-items: center; gap: 12px; }
+  .page-title { font-size: 22px; font-weight: 500; color: var(--text); }
+  .page-subtitle { font-size: 13px; color: var(--text-sec); margin-top: 4px; }
+  .header-actions { display: flex; gap: 10px; }
+  .btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+  .btn-primary { background: var(--primary-600); color: #fff; }
+  .btn-primary:hover { background: var(--primary-800); }
+  .btn-secondary { background: var(--white); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--primary-400); color: var(--primary-600); }
+
+  /* === 状态标签 === */
+  .status-tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 14px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+  .status-tag .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .status-tag.normal { background: var(--normal-bg); color: #085041; }
+  .status-tag.normal .dot { background: var(--normal); }
+  .status-tag.review { background: var(--primary-50); color: var(--primary-800); }
+  .status-tag.review .dot { background: var(--primary-400); }
+  .status-tag.draft { background: var(--page); color: var(--text-sub); }
+  .status-tag.draft .dot { background: var(--text-sec); }
+
+  /* === 信息概览卡 === */
+  .info-banner { background: var(--white); border-radius: 12px; border: 1px solid var(--border); padding: 20px 24px; margin-bottom: 16px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .info-item { display: flex; flex-direction: column; gap: 4px; }
+  .info-label { font-size: 11px; color: var(--text-sec); }
+  .info-value { font-size: 14px; color: var(--text); font-weight: 500; }
+  .info-value.num { font-family: "DIN Alternate", "Roboto", monospace; }
+  .info-value.link { color: var(--primary-600); cursor: pointer; }
+
+  /* === Tab导航 === */
+  .tab-nav { display: flex; gap: 0; background: var(--white); border-radius: 10px 10px 0 0; border: 1px solid var(--border); border-bottom: none; overflow: hidden; }
+  .tab-btn { padding: 12px 24px; font-size: 13px; color: var(--text-sub); cursor: pointer; border: none; background: none; font-family: inherit; transition: all 0.15s; position: relative; display: flex; align-items: center; gap: 6px; }
+  .tab-btn:hover { color: var(--primary-600); background: var(--primary-50); }
+  .tab-btn.active { color: var(--primary-600); font-weight: 500; }
+  .tab-btn.active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--primary-600); }
+  .tab-btn .badge { font-size: 10px; padding: 1px 6px; border-radius: 8px; background: var(--page); color: var(--text-sec); font-family: "DIN", monospace; }
+  .tab-btn.active .badge { background: var(--primary-50); color: var(--primary-600); }
+
+  /* === Tab内容区 === */
+  .tab-content { background: var(--white); border-radius: 0 0 12px 12px; border: 1px solid var(--border); margin-bottom: 16px; }
+  .tab-pane { display: none; padding: 20px 24px; }
+  .tab-pane.active { display: block; }
+
+  /* === 基本信息区 === */
+  .detail-section { margin-bottom: 24px; }
+  .detail-section:last-child { margin-bottom: 0; }
+  .detail-section-title { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--page); }
+  .detail-section-title .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .detail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 24px; }
+  .detail-item { display: flex; flex-direction: column; gap: 4px; }
+  .detail-label { font-size: 11px; color: var(--text-sec); }
+  .detail-value { font-size: 13px; color: var(--text); }
+  .detail-value.num { font-family: "DIN Alternate", "Roboto", monospace; }
+
+  /* === 数据表格 === */
+  .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .data-table th { text-align: left; padding: 8px 12px; background: var(--page); color: var(--text-sec); font-weight: 500; font-size: 11px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .data-table td { padding: 10px 12px; border-bottom: 1px solid var(--page); color: var(--text); vertical-align: middle; }
+  .data-table tbody tr:hover { background: var(--primary-50); }
+  .data-table .num { font-family: "DIN Alternate", "Roboto", monospace; }
+  .id-link { font-family: "DIN Alternate", "Roboto", monospace; font-weight: 500; color: var(--primary-600); cursor: pointer; }
+  .id-link:hover { text-decoration: underline; }
+
+  /* === 物料状态标签 === */
+  .mat-status { font-size: 11px; padding: 2px 8px; border-radius: 10px; display: inline-flex; align-items: center; gap: 4px; }
+  .mat-status .dot { width: 5px; height: 5px; border-radius: 50%; }
+  .mat-status.full { background: var(--normal-bg); color: #085041; }
+  .mat-status.full .dot { background: var(--normal); }
+  .mat-status.partial { background: var(--info-bg); color: #633806; }
+  .mat-status.partial .dot { background: var(--info); }
+  .mat-status.pending { background: var(--page); color: var(--text-sub); }
+  .mat-status.pending .dot { background: var(--text-sec); }
+
+  /* === 版本时间线 === */
+  .version-timeline { position: relative; padding-left: 24px; }
+  .version-timeline::before { content: ''; position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+  .version-item { position: relative; padding-bottom: 20px; }
+  .version-item:last-child { padding-bottom: 0; }
+  .version-item::before { content: ''; position: absolute; left: -21px; top: 4px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--border); background: var(--white); }
+  .version-item.current::before { border-color: var(--primary-600); background: var(--primary-600); }
+  .version-item.normal::before { border-color: var(--normal); background: var(--normal); }
+  .version-header { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .version-no { font-family: "DIN", monospace; font-size: 14px; font-weight: 500; color: var(--text); }
+  .version-item.current .version-no { color: var(--primary-600); }
+  .version-date { font-size: 11px; color: var(--text-sec); font-family: "DIN", monospace; }
+  .version-desc { font-size: 12px; color: var(--text-sub); margin-bottom: 4px; }
+  .version-changes { font-size: 11px; color: var(--text-sec); display: flex; flex-direction: column; gap: 2px; padding-left: 12px; border-left: 2px solid var(--page); margin-top: 4px; }
+
+  /* === 审批流程 === */
+  .approval-flow { display: flex; flex-direction: column; gap: 0; }
+  .approval-node { display: flex; gap: 16px; padding-bottom: 24px; position: relative; }
+  .approval-node:last-child { padding-bottom: 0; }
+  .approval-node::before { content: ''; position: absolute; left: 15px; top: 32px; bottom: 0; width: 2px; background: var(--border); }
+  .approval-node:last-child::before { display: none; }
+  .approval-node.done::before { background: var(--normal); }
+  .approval-icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; z-index: 1; }
+  .approval-icon.done { background: var(--normal); color: #fff; }
+  .approval-icon.current { background: var(--primary-600); color: #fff; }
+  .approval-icon.pending { background: var(--page); color: var(--text-sec); border: 2px solid var(--border); }
+  .approval-body { flex: 1; padding-top: 4px; }
+  .approval-name { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 2px; }
+  .approval-role { font-size: 11px; color: var(--text-sec); margin-bottom: 6px; }
+  .approval-result { font-size: 12px; color: var(--text-sub); padding: 6px 10px; background: var(--page); border-radius: 6px; }
+  .approval-result.done { background: var(--normal-bg); color: #085041; }
+  .approval-time { font-size: 11px; color: var(--text-sec); font-family: "DIN", monospace; margin-top: 4px; }
+
+  /* === 关联批次 === */
+  .batch-progress { display: flex; align-items: center; gap: 6px; }
+  .batch-progress-bar { width: 80px; height: 5px; background: var(--page); border-radius: 3px; overflow: hidden; }
+  .batch-progress-fill { height: 100%; border-radius: 3px; }
+  .batch-progress-text { font-family: "DIN", monospace; font-size: 11px; color: var(--text-sec); }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-sec); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .pulse { animation: pulse 1.5s ease-in-out infinite; }
+
+  /* === 侧边栏 v2：分组折叠 + 窄宽 + 新LOGO === */
+  .logo-text { line-height: 1.25; min-width: 0; }
+  .logo-name { font-size: 15px; font-weight: 500; color: #FFFFFF; letter-spacing: 0.3px; }
+  .logo-slogan { font-size: 10.5px; color: #93B5D9; margin-top: 1px; }
+  .nav-group-head { padding: 14px 16px 5px; font-size: 11px; color: #6FA9DA; letter-spacing: 0.6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; transition: color 0.15s; }
+  .nav-group-head:hover { color: #B5D4F4; }
+  .nav-group-head > span:first-child { font-weight: 500; }
+  .nav-caret { font-size: 10px; opacity: 0.75; transition: transform 0.18s; display: inline-block; }
+  .nav-group-items { overflow: hidden; }
+  .nav-group.collapsed .nav-caret { transform: rotate(-90deg); }
+  .nav-group.collapsed .nav-group-items { display: none; }
+  .sidebar-collapse { padding: 10px 16px; font-size: 12px; color: #85B7EB; cursor: pointer; display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--primary-600); transition: all 0.15s; }
+  .sidebar-collapse:hover { background: var(--primary-900); color: #B5D4F4; }
+  .collapse-caret { display: inline-block; transition: transform 0.2s; font-size: 14px; line-height: 1; }
+  .sidebar.collapsed .collapse-caret { transform: rotate(180deg); }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- 侧边栏 -->
+  <aside class="sidebar" id="appSidebar"></aside>
+
+  <!-- 主区域 -->
+  <div class="main">
+    <header class="topbar">
+      <div class="breadcrumb">
+        <a onclick="window.location.href='釜次BOM管理.html'">生产管理</a>
+        <span>›</span>
+        <a onclick="window.location.href='釜次BOM管理.html'">釜次BOM管理</a>
+        <span>›</span>
+        <span class="current">BOM-PAR-028 详情</span>
+      </div>
+      <div class="topbar-right">
+        <div id="plantSwitch"></div>
+        <div id="roleSwitch"></div>
+      <div class="user-info">
+          <div class="avatar">张</div>
+          <div><div class="user-name">张明</div><div class="user-role">车间主管</div></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="tabbar" id="tabBar"></div>
+      <div class="content">
+    
+      <!-- 页面标题 -->
+      <div class="page-header">
+        <div>
+          <div class="page-title-row">
+            <div class="page-title">对乙酰氨基酚片剂配方</div>
+            <span class="status-tag normal"><span class="dot"></span>启用</span>
+            <span style="font-family: 'DIN', monospace; font-size: 13px; color: var(--text-sec); padding: 3px 10px; background: var(--page); border-radius: 14px;">V3.2</span>
+          </div>
+          <div class="page-subtitle">BOM-PAR-028 · 最后更新: 2026-07-28 14:30 · 更新人: 张明</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="window.location.href='釜次BOM管理.html'">← 返回列表</button>
+          <button class="btn btn-secondary">📋 复制创建</button>
+          <button class="btn btn-secondary">📄 导出PDF</button>
+          <button class="btn btn-primary" onclick="window.location.href='釜次BOM-新增编辑.html'">✎ 编辑</button>
+        </div>
+      </div>
+
+      <!-- 信息概览 -->
+      <div class="info-banner">
+        <div class="info-item">
+          <div class="info-label">关联产品</div>
+          <div class="info-value">对乙酰氨基酚</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">产品编码</div>
+          <div class="info-value num">PRD-PAR-001</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">剂型</div>
+          <div class="info-value">片剂</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">所属车间</div>
+          <div class="info-value">一车间</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">理论产量</div>
+          <div class="info-value num">500 kg</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">物料种类</div>
+          <div class="info-value num">7 种</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">配比总量</div>
+          <div class="info-value num">597.9 kg</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">生效日期</div>
+          <div class="info-value num">2026-07-01</div>
+        </div>
+      </div>
+
+      <!-- Tab导航 -->
+      <div class="tab-nav">
+        <button class="tab-btn active" data-tab="materials">物料明细 <span class="badge">7</span></button>
+        <button class="tab-btn" data-tab="versions">版本历史 <span class="badge">4</span></button>
+        <button class="tab-btn" data-tab="batches">关联批次 <span class="badge">6</span></button>
+        <button class="tab-btn" data-tab="approval">审批记录 <span class="badge">3</span></button>
+      </div>
+
+      <!-- Tab内容 -->
+      <div class="tab-content">
+        <!-- 物料明细 -->
+        <div class="tab-pane active" id="tab-materials">
+          <div class="detail-section">
+            <div class="detail-section-title"><span class="dot" style="background: var(--primary-400);"></span>物料清单</div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>投料顺序</th>
+                  <th>物料编码</th>
+                  <th>物料名称</th>
+                  <th>规格型号</th>
+                  <th>配比量</th>
+                  <th>单位</th>
+                  <th>损耗率</th>
+                  <th>实际需求量</th>
+                  <th>供应商</th>
+                  <th>物料类型</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="num" style="font-weight: 500;">1</td>
+                  <td class="num id-link">MAT-PAR-001</td>
+                  <td>对乙酰氨基酚原料药</td>
+                  <td>API / ≥99.5%</td>
+                  <td class="num">450.0</td>
+                  <td>kg</td>
+                  <td class="num">1.0%</td>
+                  <td class="num">454.5</td>
+                  <td>华海药业</td>
+                  <td><span class="mat-status full"><span class="dot"></span>原料药</span></td>
+                </tr>
+                <tr>
+                  <td class="num" style="font-weight: 500;">2</td>
+                  <td class="num id-link">MAT-EXC-012</td>
+                  <td>微晶纤维素</td>
+                  <td>PH-102 / 80目</td>
+                  <td class="num">22.5</td>
+                  <td>kg</td>
+                  <td class="num">2.0%</td>
+                  <td class="num">23.0</td>
+                  <td>旭化成</td>
+                  <td><span class="mat-status partial"><span class="dot"></span>辅料</span></td>
+                </tr>
+                <tr>
+                  <td class="num" style="font-weight: 500;">3</td>
+                  <td class="num id-link">MAT-EXC-008</td>
+                  <td>交联羧甲基纤维素钠</td>
+                  <td>AC-Di-Sol / 80目</td>
+                  <td class="num">11.3</td>
+                  <td>kg</td>
+                  <td class="num">2.0%</td>
+                  <td class="num">11.5</td>
+                  <td>FMC</td>
+                  <td><span class="mat-status partial"><span class="dot"></span>辅料</span></td>
+                </tr>
+                <tr>
+                  <td class="num" style="font-weight: 500;">4</td>
+                  <td class="num id-link">MAT-EXC-003</td>
+                  <td>硬脂酸镁</td>
+                  <td>药用级 / 200目</td>
+                  <td class="num">5.6</td>
+                  <td>kg</td>
+                  <td class="num">1.0%</td>
+                  <td class="num">5.7</td>
+                  <td>湖南尔康</td>
+                  <td><span class="mat-status partial"><span class="dot"></span>辅料</span></td>
+                </tr>
+                <tr>
+                  <td class="num" style="font-weight: 500;">5</td>
+                  <td class="num id-link">MAT-SOL-005</td>
+                  <td>纯化水</td>
+                  <td>注射级</td>
+                  <td class="num">85.0</td>
+                  <td>L</td>
+                  <td class="num">5.0%</td>
+                  <td class="num">89.3</td>
+                  <td>车间制水</td>
+                  <td><span class="mat-status pending"><span class="dot"></span>溶媒</span></td>
+                </tr>
+                <tr>
+                  <td class="num" style="font-weight: 500;">6</td>
+                  <td class="num id-link">MAT-CT-021</td>
+                  <td>欧巴代包衣粉</td>
+                  <td>白色 / Y-1-7000</td>
+                  <td class="num">15.0</td>
+                  <td>kg</td>
+                  <td class="num">3.0%</td>
+                  <td class="num">15.5</td>
+                  <td>卡乐康</td>
+                  <td><span class="mat-status partial"><span class="dot"></span>辅料</span></td>
+                </tr>
+                <tr>
+                  <td class="num" style="font-weight: 500;">7</td>
+                  <td class="num id-link">MAT-EXC-021</td>
+                  <td>聚维酮K30</td>
+                  <td>K-30 / 药用级</td>
+                  <td class="num">8.5</td>
+                  <td>kg</td>
+                  <td class="num">2.0%</td>
+                  <td class="num">8.7</td>
+                  <td>BASF</td>
+                  <td><span class="mat-status partial"><span class="dot"></span>辅料</span></td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr style="background: var(--page); font-weight: 500;">
+                  <td colspan="4" style="text-align: right; padding: 10px 12px;">合计配比量：</td>
+                  <td class="num" style="color: var(--primary-600); font-size: 14px;">597.9</td>
+                  <td colspan="2" style="text-align: left;">kg</td>
+                  <td class="num" style="color: var(--normal);">608.2</td>
+                  <td colspan="2" style="text-align: left; font-weight: 400; color: var(--text-sec); font-size: 11px;">含损耗</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <div class="detail-section">
+            <div class="detail-section-title"><span class="dot" style="background: var(--normal);"></span>工艺路线</div>
+            <div style="display: flex; align-items: center; gap: 8px; padding: 12px 0; flex-wrap: wrap;">
+              <div style="padding: 8px 14px; background: var(--primary-50); border: 1px solid var(--primary-200); border-radius: 8px; font-size: 12px; color: var(--primary-800); font-weight: 500;">称量配料</div>
+              <span style="color: var(--text-sec);">→</span>
+              <div style="padding: 8px 14px; background: var(--primary-50); border: 1px solid var(--primary-200); border-radius: 8px; font-size: 12px; color: var(--primary-800); font-weight: 500;">混合制粒</div>
+              <span style="color: var(--text-sec);">→</span>
+              <div style="padding: 8px 14px; background: var(--primary-50); border: 1px solid var(--primary-200); border-radius: 8px; font-size: 12px; color: var(--primary-800); font-weight: 500;">干燥</div>
+              <span style="color: var(--text-sec);">→</span>
+              <div style="padding: 8px 14px; background: var(--primary-50); border: 1px solid var(--primary-200); border-radius: 8px; font-size: 12px; color: var(--primary-800); font-weight: 500;">压片</div>
+              <span style="color: var(--text-sec);">→</span>
+              <div style="padding: 8px 14px; background: var(--primary-50); border: 1px solid var(--primary-200); border-radius: 8px; font-size: 12px; color: var(--primary-800); font-weight: 500;">包衣</div>
+              <span style="color: var(--text-sec);">→</span>
+              <div style="padding: 8px 14px; background: var(--primary-50); border: 1px solid var(--primary-200); border-radius: 8px; font-size: 12px; color: var(--primary-800); font-weight: 500;">包装</div>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <div class="detail-section-title"><span class="dot" style="background: var(--text-sec);"></span>备注说明</div>
+            <div style="padding: 8px 12px; background: var(--page); border-radius: 8px; font-size: 12px; color: var(--text-sub);">
+              本配方为对乙酰氨基酚片剂标准配方，V3.2版本调整了聚维酮K30用量（8.0→8.5kg），以改善制粒效果。包衣粉采用欧巴代白色包衣，包衣增重约3%。
+            </div>
+          </div>
+        </div>
+
+        <!-- 版本历史 -->
+        <div class="tab-pane" id="tab-versions">
+          <div class="detail-section">
+            <div class="detail-section-title"><span class="dot" style="background: var(--primary-400);"></span>版本变更记录</div>
+            <div class="version-timeline">
+              <div class="version-item current">
+                <div class="version-header">
+                  <span class="version-no">V3.2</span>
+                  <span class="status-tag normal"><span class="dot"></span>当前版本</span>
+                  <span class="version-date">2026-07-28 14:30</span>
+                </div>
+                <div class="version-desc">修改人: 张明 · 审批人: 刘质检 · 生效日期: 2026-07-01</div>
+                <div class="version-changes">
+                  <div>✎ 聚维酮K30 用量从 8.0kg 调整为 8.5kg（改善制粒效果）</div>
+                  <div>✎ 聚维酮K30 实际需求量从 8.2kg 调整为 8.7kg</div>
+                </div>
+              </div>
+              <div class="version-item normal">
+                <div class="version-header">
+                  <span class="version-no">V3.1</span>
+                  <span class="version-date">2026-05-15 10:20</span>
+                </div>
+                <div class="version-desc">修改人: 张明 · 审批人: 刘质检 · 生效日期: 2026-05-20</div>
+                <div class="version-changes">
+                  <div>✎ 欧巴代包衣粉规格从 Y-1-7500 变更为 Y-1-7000</div>
+                </div>
+              </div>
+              <div class="version-item normal">
+                <div class="version-header">
+                  <span class="version-no">V3.0</span>
+                  <span class="version-date">2026-03-08 09:00</span>
+                </div>
+                <div class="version-desc">修改人: 王芳 · 审批人: 刘质检 · 生效日期: 2026-03-15</div>
+                <div class="version-changes">
+                  <div>+ 新增物料: 欧巴代包衣粉（MAT-CT-021）15.0kg</div>
+                  <div>✎ 工艺路线增加"包衣"工序</div>
+                  <div>✎ 理论产量从 450kg 调整为 500kg</div>
+                </div>
+              </div>
+              <div class="version-item normal">
+                <div class="version-header">
+                  <span class="version-no">V2.0</span>
+                  <span class="version-date">2025-11-20 14:00</span>
+                </div>
+                <div class="version-desc">修改人: 张明 · 审批人: 刘质检 · 生效日期: 2025-12-01</div>
+                <div class="version-changes">
+                  <div>✎ 微晶纤维素供应商从 JRS 变更为 旭化成</div>
+                  <div>✎ 交联CMC-Na 用量从 12.0kg 调整为 11.3kg</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 关联批次 -->
+        <div class="tab-pane" id="tab-batches">
+          <div class="detail-section">
+            <div class="detail-section-title"><span class="dot" style="background: var(--primary-400);"></span>使用此BOM的生产批次</div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>釜次编号</th>
+                  <th>产品名称</th>
+                  <th>计划产量</th>
+                  <th>实际产量</th>
+                  <th>合格率</th>
+                  <th>进度</th>
+                  <th>状态</th>
+                  <th>开始时间</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="num id-link">RC-0731-001</td>
+                  <td>对乙酰氨基酚</td>
+                  <td class="num">500 kg</td>
+                  <td class="num" style="color: var(--text-sec);">—</td>
+                  <td class="num" style="color: var(--text-sec);">—</td>
+                  <td><div class="batch-progress"><div class="batch-progress-bar"><div class="batch-progress-fill" style="width: 60%; background: var(--normal);"></div></div><span class="batch-progress-text">60%</span></div></td>
+                  <td><span class="status-tag normal"><span class="dot"></span>正常</span></td>
+                  <td class="num">07-31 08:30</td>
+                  <td><span style="font-size: 12px; color: var(--primary-600); cursor: pointer;">查看 →</span></td>
+                </tr>
+                <tr>
+                  <td class="num id-link">RC-0730-003</td>
+                  <td>对乙酰氨基酚</td>
+                  <td class="num">500 kg</td>
+                  <td class="num">498 kg</td>
+                  <td class="num" style="color: var(--normal);">99.6%</td>
+                  <td><div class="batch-progress"><div class="batch-progress-bar"><div class="batch-progress-fill" style="width: 100%; background: var(--text-sec);"></div></div><span class="batch-progress-text">100%</span></div></td>
+                  <td><span class="status-tag draft"><span class="dot"></span>已完工</span></td>
+                  <td class="num">07-30 06:00</td>
+                  <td><span style="font-size: 12px; color: var(--primary-600); cursor: pointer;">查看 →</span></td>
+                </tr>
+                <tr>
+                  <td class="num id-link">RC-0729-005</td>
+                  <td>对乙酰氨基酚</td>
+                  <td class="num">500 kg</td>
+                  <td class="num">500 kg</td>
+                  <td class="num" style="color: var(--normal);">100%</td>
+                  <td><div class="batch-progress"><div class="batch-progress-bar"><div class="batch-progress-fill" style="width: 100%; background: var(--text-sec);"></div></div><span class="batch-progress-text">100%</span></div></td>
+                  <td><span class="status-tag draft"><span class="dot"></span>已完工</span></td>
+                  <td class="num">07-29 08:00</td>
+                  <td><span style="font-size: 12px; color: var(--primary-600); cursor: pointer;">查看 →</span></td>
+                </tr>
+                <tr>
+                  <td class="num id-link">RC-0728-002</td>
+                  <td>对乙酰氨基酚</td>
+                  <td class="num">500 kg</td>
+                  <td class="num">496 kg</td>
+                  <td class="num" style="color: var(--normal);">99.2%</td>
+                  <td><div class="batch-progress"><div class="batch-progress-bar"><div class="batch-progress-fill" style="width: 100%; background: var(--text-sec);"></div></div><span class="batch-progress-text">100%</span></div></td>
+                  <td><span class="status-tag draft"><span class="dot"></span>已完工</span></td>
+                  <td class="num">07-28 07:00</td>
+                  <td><span style="font-size: 12px; color: var(--primary-600); cursor: pointer;">查看 →</span></td>
+                </tr>
+                <tr>
+                  <td class="num id-link">RC-0725-001</td>
+                  <td>对乙酰氨基酚</td>
+                  <td class="num">500 kg</td>
+                  <td class="num">497 kg</td>
+                  <td class="num" style="color: var(--normal);">99.4%</td>
+                  <td><div class="batch-progress"><div class="batch-progress-bar"><div class="batch-progress-fill" style="width: 100%; background: var(--text-sec);"></div></div><span class="batch-progress-text">100%</span></div></td>
+                  <td><span class="status-tag draft"><span class="dot"></span>已完工</span></td>
+                  <td class="num">07-25 06:30</td>
+                  <td><span style="font-size: 12px; color: var(--primary-600); cursor: pointer;">查看 →</span></td>
+                </tr>
+                <tr>
+                  <td class="num id-link">RC-0722-004</td>
+                  <td>对乙酰氨基酚</td>
+                  <td class="num">500 kg</td>
+                  <td class="num">495 kg</td>
+                  <td class="num" style="color: var(--normal);">99.0%</td>
+                  <td><div class="batch-progress"><div class="batch-progress-bar"><div class="batch-progress-fill" style="width: 100%; background: var(--text-sec);"></div></div><span class="batch-progress-text">100%</span></div></td>
+                  <td><span class="status-tag draft"><span class="dot"></span>已完工</span></td>
+                  <td class="num">07-22 08:00</td>
+                  <td><span style="font-size: 12px; color: var(--primary-600); cursor: pointer;">查看 →</span></td>
+                </tr>
+              </tbody>
+            </table>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0 0; font-size: 12px; color: var(--text-sec);">
+              <span>共 6 批次使用此BOM · 平均合格率 99.4% · 平均产量 497.2kg</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 审批记录 -->
+        <div class="tab-pane" id="tab-approval">
+          <div class="detail-section">
+            <div class="detail-section-title"><span class="dot" style="background: var(--info);"></span>V3.2 审批流程</div>
+            <div class="approval-flow">
+              <div class="approval-node done">
+                <div class="approval-icon done">✓</div>
+                <div class="approval-body">
+                  <div class="approval-name">张明 · 车间主管</div>
+                  <div class="approval-role">初审 · 确认配方基本合理性</div>
+                  <div class="approval-result done">审批通过 · 配方调整合理，聚维酮K30增量有助于改善颗粒成型度</div>
+                  <div class="approval-time">2026-07-28 14:30</div>
+                </div>
+              </div>
+              <div class="approval-node done">
+                <div class="approval-icon done">✓</div>
+                <div class="approval-body">
+                  <div class="approval-name">刘质检 · 质量管理部</div>
+                  <div class="approval-role">复审 · 确认物料规格与质量标准</div>
+                  <div class="approval-result done">审批通过 · 物料规格符合药典标准，配比调整在允许范围内</div>
+                  <div class="approval-time">2026-07-28 16:45</div>
+                </div>
+              </div>
+              <div class="approval-node done">
+                <div class="approval-icon done">✓</div>
+                <div class="approval-body">
+                  <div class="approval-name">王总 · 生产副总</div>
+                  <div class="approval-role">终审 · 最终批准生效</div>
+                  <div class="approval-result done">审批通过 · 同意生效，自2026-07-01起执行</div>
+                  <div class="approval-time">2026-07-29 09:15</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="detail-section">
+            <div class="detail-section-title"><span class="dot" style="background: var(--text-sec);"></span>历史审批记录</div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>版本</th>
+                  <th>审批类型</th>
+                  <th>初审</th>
+                  <th>复审</th>
+                  <th>终审</th>
+                  <th>生效日期</th>
+                  <th>状态</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="num">V3.2</td>
+                  <td>修改审批</td>
+                  <td>张明 ✓</td>
+                  <td>刘质检 ✓</td>
+                  <td>王总 ✓</td>
+                  <td class="num">2026-07-01</td>
+                  <td><span class="status-tag normal"><span class="dot"></span>已生效</span></td>
+                </tr>
+                <tr>
+                  <td class="num">V3.1</td>
+                  <td>修改审批</td>
+                  <td>张明 ✓</td>
+                  <td>刘质检 ✓</td>
+                  <td>王总 ✓</td>
+                  <td class="num">2026-05-20</td>
+                  <td><span class="status-tag draft"><span class="dot"></span>已归档</span></td>
+                </tr>
+                <tr>
+                  <td class="num">V3.0</td>
+                  <td>重大变更</td>
+                  <td>王芳 ✓</td>
+                  <td>刘质检 ✓</td>
+                  <td>王总 ✓</td>
+                  <td class="num">2026-03-15</td>
+                  <td><span class="status-tag draft"><span class="dot"></span>已归档</span></td>
+                </tr>
+                <tr>
+                  <td class="num">V2.0</td>
+                  <td>修改审批</td>
+                  <td>张明 ✓</td>
+                  <td>刘质检 ✓</td>
+                  <td>李总 ✓</td>
+                  <td class="num">2025-12-01</td>
+                  <td><span class="status-tag draft"><span class="dot"></span>已归档</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    
+    </div></div>
+  </div>
+
+
+<script>
+
+  // Tab切换
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const tabId = this.getAttribute('data-tab');
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      this.classList.add('active');
+      document.getElementById('tab-' + tabId).classList.add('active');
+    });
+  });
+</script>
+  <script src="sidebar.js"></script>
+  <script src="plant.js"></script>
+<script src="role.js"></script>
+</body>
+</html>
