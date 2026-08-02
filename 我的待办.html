@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MES 精细化工 - 我的待办</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary-50: #E6F1FB; --primary-200: #B5D4F4; --primary-400: #378ADD;
+    --primary-600: #185FA5; --primary-800: #0C447C; --primary-900: #042C53;
+    --normal: #1D9E75; --normal-bg: #E1F5EE;
+    --info: #EF9F27; --info-bg: #FAEEDA;
+    --warning: #D85A30; --warning-bg: #FAECE7;
+    --block: #E24B4A; --block-bg: #FCEBEB;
+    --white: #FFFFFF; --page: #F1EFE8; --border: #D3D1C7;
+    --text-sec: #888780; --text-sub: #5F5E5A; --text: #2C2C2A;
+  }
+  body { font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif; background: var(--page); color: var(--text); font-size: 14px; line-height: 1.6; overflow: hidden; height: 100vh; }
+  .app { display: flex; height: 100vh; }
+  .sidebar { width: 200px; min-width: 200px; background: var(--primary-800); color: #85B7EB; display: flex; flex-direction: column; overflow-y: auto; }
+  .sidebar-logo { padding: 14px 16px; border-bottom: 1px solid var(--primary-600); display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .sidebar-nav { padding: 8px 0; flex: 1; }
+  .nav-item { padding: 8px 16px 8px 36px; font-size: 12.5px; color: #85B7EB; cursor: pointer; position: relative; transition: all 0.15s; display: flex; align-items: center; gap: 7px; }
+  .nav-item:hover { background: var(--primary-900); color: #B5D4F4; }
+  .nav-item.active { background: var(--primary-600); color: #FFF; font-weight: 500; }
+  .nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--primary-400); }
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { height: 52px; min-height: 52px; background: var(--white); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+  .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-sec); }
+  .breadcrumb .current { color: var(--text); font-weight: 500; }
+  .topbar-right { display: flex; align-items: center; gap: 20px; }
+  .user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+  .user-info:hover { background: var(--page); }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-600); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }
+  .user-name { font-size: 13px; color: var(--text); }
+  .user-role { font-size: 11px; color: var(--text-sec); }
+  .content { flex: 1; overflow-y: auto; padding: 14px 28px; }
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+  .page-title { font-size: 22px; font-weight: 500; color: var(--text); }
+  .page-subtitle { font-size: 13px; color: var(--text-sec); margin-top: 2px; }
+  .header-actions { display: flex; gap: 10px; }
+  .btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+  .btn-primary { background: var(--primary-600); color: #fff; }
+  .btn-primary:hover { background: var(--primary-800); }
+  .btn-secondary { background: var(--white); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--primary-400); color: var(--primary-600); }
+  .metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+  .metric-card { background: var(--white); border-radius: 10px; padding: 14px 16px; border: 1px solid var(--border); position: relative; overflow: hidden; }
+  .metric-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .metric-card.blue::before { background: var(--primary-400); }
+  .metric-card.green::before { background: var(--normal); }
+  .metric-card.amber::before { background: var(--info); }
+  .metric-card.gray::before { background: var(--text-sec); }
+  .metric-label { font-size: 11px; color: var(--text-sec); margin-bottom: 6px; }
+  .metric-value { font-family: "DIN Alternate", "Roboto", monospace; font-size: 26px; font-weight: 500; line-height: 1.1; }
+  .metric-card.blue .metric-value { color: var(--primary-600); }
+  .metric-card.green .metric-value { color: var(--normal); }
+  .metric-card.amber .metric-value { color: var(--info); }
+  .metric-card.gray .metric-value { color: var(--text-sub); }
+  .metric-detail { font-size: 10px; color: var(--text-sec); margin-top: 4px; }
+  .trend { font-size: 11px; font-weight: 500; margin-left: 6px; }
+  .trend.up { color: var(--normal); }
+  .trend.down { color: var(--block); }
+  .filter-bar { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--page); flex-wrap: wrap; }
+  .filter-group { display: flex; align-items: center; gap: 6px; }
+  .filter-label { font-size: 12px; color: var(--text-sec); }
+  .filter-select { padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--text); background: var(--white); cursor: pointer; font-family: inherit; outline: none; }
+  .filter-select:focus { border-color: var(--primary-400); }
+  .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .card { background: var(--white); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
+  .card.span2 { grid-column: 1 / -1; }
+  .card-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .card-title { font-size: 15px; font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .card-title .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .card-sub { font-size: 11px; color: var(--text-sec); }
+  .card-body { padding: 16px 20px; }
+  .card.chart .card-body { display: flex; align-items: center; min-height: 222px; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-sub); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+  .donut-wrap { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .donut-legend { flex: 1; min-width: 160px; }
+  .donut-legend .dl-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--page); font-size: 13px; }
+  .donut-legend .dl-row:last-child { border-bottom: none; }
+  .dl-left { display: flex; align-items: center; gap: 8px; color: var(--text-sub); }
+  .dl-dot { width: 9px; height: 9px; border-radius: 50%; }
+  .dl-val { font-family: "DIN Alternate", monospace; font-weight: 500; }
+  .rank-row { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--page); }
+  .rank-row:last-child { border-bottom: none; }
+  .rank-no { width: 22px; height: 22px; border-radius: 6px; background: var(--primary-50); color: var(--primary-800); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex: none; font-family: "DIN", monospace; }
+  .rank-row.top1 .rank-no { background: var(--warning); color: #fff; }
+  .rank-row.top2 .rank-no { background: var(--info); color: #fff; }
+  .rank-row.top3 .rank-no { background: var(--primary-400); color: #fff; }
+  .rank-name { width: 130px; flex: none; font-size: 13px; color: var(--text); }
+  .rank-bar-bg { flex: 1; height: 10px; background: var(--page); border-radius: 6px; overflow: hidden; }
+  .rank-bar { height: 100%; border-radius: 6px; background: var(--primary-600); }
+  .rank-val { width: 52px; text-align: right; font-family: "DIN Alternate", monospace; font-weight: 500; font-size: 13px; }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .data-table thead th { text-align: left; padding: 11px 16px; background: var(--primary-50); color: var(--primary-800); font-weight: 500; font-size: 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .data-table tbody td { padding: 10px 16px; border-bottom: 1px solid var(--page); color: var(--text-sub); white-space: nowrap; }
+  .data-table tbody tr:hover { background: var(--page); }
+  .data-table .t-first { color: var(--text); font-weight: 500; }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+  .pill.ok { background: var(--normal-bg); color: var(--normal); }
+  .pill.warn { background: var(--info-bg); color: var(--warning); }
+  .pill.bad { background: var(--block-bg); color: var(--block); }
+  .pill.info { background: var(--primary-50); color: var(--primary-600); }
+  .toast { position: fixed; top: 18px; left: 50%; transform: translateX(-50%) translateY(-12px); background: var(--text); color: #fff; padding: 10px 20px; border-radius: 10px; font-size: 13px; z-index: 80; opacity: 0; transition: all 0.25s ease; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-sec); }
+  /* === 侧边栏 v2：分组折叠 + 窄宽 + 新LOGO === */
+  .logo-text { line-height: 1.25; min-width: 0; }
+  .logo-name { font-size: 15px; font-weight: 500; color: #FFFFFF; letter-spacing: 0.3px; }
+  .logo-slogan { font-size: 10.5px; color: #93B5D9; margin-top: 1px; }
+  .nav-group-head { padding: 14px 16px 5px; font-size: 11px; color: #6FA9DA; letter-spacing: 0.6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; transition: color 0.15s; }
+  .nav-group-head:hover { color: #B5D4F4; }
+  .nav-group-head > span:first-child { font-weight: 500; }
+  .nav-caret { font-size: 10px; opacity: 0.75; transition: transform 0.18s; display: inline-block; }
+  .nav-group-items { overflow: hidden; }
+  .nav-group.collapsed .nav-caret { transform: rotate(-90deg); }
+  .nav-group.collapsed .nav-group-items { display: none; }
+  .sidebar-collapse { padding: 10px 16px; font-size: 12px; color: #85B7EB; cursor: pointer; display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--primary-600); transition: all 0.15s; }
+  .sidebar-collapse:hover { background: var(--primary-900); color: #B5D4F4; }
+  .collapse-caret { display: inline-block; transition: transform 0.2s; font-size: 14px; line-height: 1; }
+  .sidebar.collapsed .collapse-caret { transform: rotate(180deg); }
+  .metric-card.red::before { background: var(--block); }
+  .metric-card.red .metric-value { color: var(--block); }
+  .todo-layout { display: grid; grid-template-columns: 1fr 320px; gap: 16px; align-items: start; }
+  .tabs { display: flex; gap: 2px; padding: 0 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .tab { padding: 11px 13px; font-size: 13px; color: var(--text-sec); cursor: pointer; border-bottom: 2px solid transparent; display: flex; align-items: center; gap: 6px; transition: all 0.15s; }
+  .tab:hover { color: var(--primary-600); }
+  .tab.active { color: var(--primary-600); border-bottom-color: var(--primary-600); font-weight: 500; }
+  .tab-badge { background: var(--page); color: var(--text-sec); border-radius: 10px; padding: 0 7px; font-size: 11px; font-family: "DIN Alternate", monospace; }
+  .tab.active .tab-badge { background: var(--primary-50); color: var(--primary-600); }
+  .list-tools { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 20px; border-bottom: 1px solid var(--page); background: #FCFCFA; }
+  .lt-left { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-sub); }
+  .lt-right { display: flex; gap: 8px; }
+  .todo-item { display: flex; gap: 12px; padding: 14px 20px 14px 17px; border-bottom: 1px solid var(--page); position: relative; transition: background 0.15s; }
+  .todo-item:hover { background: #FAFAF7; }
+  .todo-item::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .todo-item.p-high::before { background: var(--block); }
+  .todo-item.p-mid::before { background: var(--info); }
+  .todo-item.p-low::before { background: var(--primary-400); }
+  .todo-item.is-done { opacity: 0.55; }
+  .ti-check { padding-top: 3px; }
+  .ti-check input { width: 14px; height: 14px; cursor: pointer; accent-color: #185FA5; }
+  .ti-body { flex: 1; min-width: 0; }
+  .ti-line1 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .ti-title { font-size: 14px; color: var(--text); font-weight: 500; }
+  .ti-meta { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 5px; font-size: 11.5px; color: var(--text-sec); }
+  .ti-desc { margin-top: 7px; font-size: 12.5px; color: var(--text-sub); background: var(--page); border-radius: 6px; padding: 7px 10px; }
+  .ti-right { width: 128px; flex: none; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 12px; }
+  .ti-due { font-size: 11.5px; color: var(--text-sec); white-space: nowrap; }
+  .ti-due.soon { color: var(--warning); font-weight: 500; }
+  .ti-due.overdue { color: var(--block); font-weight: 600; }
+  .ti-actions { display: flex; gap: 6px; }
+  .btn-mini { padding: 5px 11px; border-radius: 6px; font-size: 12px; border: 1px solid var(--border); background: var(--white); color: var(--text-sub); cursor: pointer; font-family: inherit; transition: all 0.15s; }
+  .btn-mini:hover { border-color: var(--primary-400); color: var(--primary-600); }
+  .btn-mini.primary { background: var(--primary-600); border-color: var(--primary-600); color: #fff; }
+  .btn-mini.primary:hover { background: var(--primary-800); }
+  .side-card { background: var(--white); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 14px; overflow: hidden; }
+  .side-head { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 500; display: flex; justify-content: space-between; align-items: center; }
+  .side-head .card-sub { font-weight: 400; }
+  .side-body { padding: 12px 16px; }
+  .tl { position: relative; padding-left: 16px; }
+  .tl::before { content: ''; position: absolute; left: 3px; top: 10px; bottom: 10px; width: 2px; background: var(--page); }
+  .tl-row { position: relative; padding: 6px 0; font-size: 12.5px; color: var(--text-sub); }
+  .tl-row::before { content: ''; position: absolute; left: -16px; top: 12px; width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+  .tl-row.done::before { background: var(--normal); }
+  .tl-row.now::before { background: var(--info); box-shadow: 0 0 0 3px var(--info-bg); }
+  .tl-time { font-family: "DIN Alternate", monospace; color: var(--text-sec); font-size: 11.5px; margin-right: 7px; }
+  .tl-row.now .tl-txt { color: var(--primary-600); font-weight: 500; }
+  .watch-row { padding: 9px 0; border-bottom: 1px solid var(--page); }
+  .watch-row:last-child { border-bottom: none; }
+  .watch-top { display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; }
+  .watch-name { color: var(--text); font-weight: 500; }
+  .watch-sub { font-size: 11px; color: var(--text-sec); margin: 3px 0 6px; }
+  .pbar { height: 6px; background: var(--page); border-radius: 4px; overflow: hidden; }
+  .pbar > i { display: block; height: 100%; border-radius: 4px; background: var(--primary-600); }
+  .quick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .quick { padding: 10px 6px; border: 1px solid var(--border); border-radius: 8px; text-align: center; font-size: 12px; color: var(--text-sub); cursor: pointer; transition: all 0.15s; }
+  .quick:hover { border-color: var(--primary-400); color: var(--primary-600); background: var(--primary-50); }
+  .quick .qi { display: block; font-size: 17px; margin-bottom: 3px; }
+  .mask { position: fixed; top: 0; right: 0; bottom: 0; left: 0; background: rgba(0,0,0,0.35); opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 60; }
+  .mask.show { opacity: 1; pointer-events: auto; }
+  .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 560px; max-width: 92vw; background: var(--white); box-shadow: -4px 0 20px rgba(0,0,0,0.12); transform: translateX(100%); transition: transform 0.25s ease; z-index: 70; display: flex; flex-direction: column; }
+  .drawer.show { transform: translateX(0); }
+  .dw-head { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .dw-title { font-size: 16px; font-weight: 500; line-height: 1.4; }
+  .dw-sub { font-size: 12px; color: var(--text-sec); margin-top: 4px; }
+  .dw-close { font-size: 20px; color: var(--text-sec); cursor: pointer; line-height: 1; flex: none; }
+  .dw-close:hover { color: var(--text); }
+  .dw-body { flex: 1; overflow-y: auto; padding: 18px 20px; }
+  .dw-foot { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+  .sec-title { font-size: 13px; font-weight: 500; color: var(--text); margin: 18px 0 10px; padding-left: 8px; border-left: 3px solid var(--primary-400); }
+  .sec-title.first { margin-top: 0; }
+  .kv { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 16px; }
+  .kv-row { display: flex; font-size: 12.5px; }
+  .kv-k { width: 68px; flex: none; color: var(--text-sec); }
+  .kv-v { color: var(--text); word-break: break-all; }
+  .form-row { margin-bottom: 10px; }
+  .form-label { font-size: 12px; color: var(--text-sec); margin-bottom: 4px; display: block; }
+  .form-input, .form-area, .form-sel { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 13px; font-family: inherit; color: var(--text); background: var(--white); outline: none; }
+  .form-area { min-height: 66px; resize: vertical; }
+  .form-input:focus, .form-area:focus, .form-sel:focus { border-color: var(--primary-400); }
+  .sign-box { background: var(--primary-50); border: 1px dashed var(--primary-400); border-radius: 10px; padding: 12px 14px; }
+  .sign-tip { font-size: 11.5px; color: var(--primary-800); margin-bottom: 10px; line-height: 1.5; }
+  .sign-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .flow { display: flex; align-items: flex-start; }
+  .flow-node { flex: 1; text-align: center; position: relative; font-size: 11.5px; color: var(--text-sec); }
+  .flow-dot { width: 22px; height: 22px; border-radius: 50%; margin: 0 auto 6px; background: var(--page); color: var(--text-sec); display: flex; align-items: center; justify-content: center; font-size: 11px; position: relative; z-index: 2; }
+  .flow-node.done .flow-dot { background: var(--normal); color: #fff; }
+  .flow-node.now .flow-dot { background: var(--info); color: #fff; box-shadow: 0 0 0 3px var(--info-bg); }
+  .flow-node.done .flow-txt, .flow-node.now .flow-txt { color: var(--text); }
+  .flow-node.now .flow-txt { color: var(--primary-600); font-weight: 500; }
+  .flow-node::after { content: ''; position: absolute; top: 10px; left: calc(50% + 15px); right: calc(-50% + 15px); height: 2px; background: var(--page); }
+  .flow-node:last-child::after { display: none; }
+  .cmp-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .cmp-table th, .cmp-table td { padding: 7px 10px; border: 1px solid var(--border); text-align: left; }
+  .cmp-table th { background: var(--primary-50); color: var(--primary-800); font-weight: 500; }
+  .cmp-old { color: var(--text-sec); text-decoration: line-through; }
+  .cmp-new { color: var(--warning); font-weight: 600; }
+  .empty { padding: 54px 20px; text-align: center; color: var(--text-sec); font-size: 13px; }
+  .empty .ei { display: block; font-size: 30px; margin-bottom: 8px; opacity: 0.5; }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="appSidebar"></aside>
+  <div class="main">
+    <header class="topbar">
+      <div class="breadcrumb"><a>工作台</a><span>›</span><span class="current">我的待办</span></div>
+      <div class="topbar-right">
+        <div id="plantSwitch"></div>
+        <div id="roleSwitch"></div>
+      <div class="user-info"><div class="avatar">陈</div><div><div class="user-name">陈有强</div><div class="user-role">车间管理者 · 合成一车间</div></div></div>
+      </div>
+    </header>
+    <div class="tabbar" id="tabBar"></div>
+      <div class="content">
+    
+      <div class="page-header">
+        <div><div class="page-title">我的待办</div><div class="page-subtitle">合成一车间 · 白班 08:00-20:00 · 按优先级与到期时间排序，紧急事项需逐条电子签名</div></div>
+        <div class="header-actions"><button class="btn btn-secondary" onclick="TD.reset()">↺ 重置演示</button><button class="btn btn-primary" onclick="TD.refresh()">↻ 刷新</button></div>
+      </div>
+      <div class="metrics-row">
+        <div class="metric-card blue"><div class="metric-label">待我处理</div><div class="metric-value" id="kOpen">0</div><div class="metric-detail" id="kOpenD">—</div></div>
+        <div class="metric-card amber"><div class="metric-label">今日到期</div><div class="metric-value" id="kToday">0</div><div class="metric-detail" id="kTodayD">—</div></div>
+        <div class="metric-card red"><div class="metric-label">已超期 / 需立即处置</div><div class="metric-value" id="kOver">0</div><div class="metric-detail" id="kOverD">—</div></div>
+        <div class="metric-card green"><div class="metric-label">本周已办</div><div class="metric-value" id="kDone">0</div><div class="metric-detail" id="kDoneD">—</div></div>
+      </div>
+      <div class="todo-layout">
+        <div class="card">
+          <div class="tabs" id="tabs"></div>
+          <div class="filter-bar">
+            <div class="filter-group"><span class="filter-label">优先级</span><select class="filter-select"><option>全部</option><option>紧急</option><option>普通</option><option>低</option></select></div>
+            <div class="filter-group"><span class="filter-label">来源模块</span><select class="filter-select"><option>全部模块</option><option>生产工单</option><option>釜次BOM管理</option><option>生产准备</option><option>生产执行</option><option>质量控制</option><option>清场放行</option><option>偏差/CAPA</option><option>变更管理</option><option>维护&amp;校准</option></select></div>
+            <div class="filter-group"><span class="filter-label">到期</span><select class="filter-select"><option>全部</option><option>已超期</option><option>今日到期</option><option>本周到期</option></select></div>
+            <div class="filter-group"><span class="filter-label">关键字</span><input class="filter-select" style="width:150px;" placeholder="单号 / 标题 / 发起人"></div>
+          </div>
+          <div class="list-tools">
+            <div class="lt-left"><input type="checkbox" id="chkAll" onchange="TD.selAll()" style="accent-color:#185FA5;"><span>全选</span><span id="selCount" style="color:var(--text-sec)">已选 0 项</span></div>
+            <div class="lt-right"><button class="btn-mini" onclick="TD.batch()">批量通过</button><button class="btn-mini" onclick="TD.transfer()">批量转派</button></div>
+          </div>
+          <div id="list"></div>
+        </div>
+        <div>
+          <div class="side-card">
+            <div class="side-head">今日班次节点<span class="card-sub">白班</span></div>
+            <div class="side-body"><div class="tl">
+            <div class="tl-row done"><span class="tl-time">08:00</span><span class="tl-txt">交接班确认 · 夜班→白班</span></div>
+            <div class="tl-row done"><span class="tl-time">09:15</span><span class="tl-txt">R-102 投料复核（甲苯 860kg）</span></div>
+            <div class="tl-row now"><span class="tl-time">10:41</span><span class="tl-txt">R-101 转速预警处置</span></div>
+            <div class="tl-row now"><span class="tl-time">11:00</span><span class="tl-txt">中控取样送检 QC-2608-078</span></div>
+            <div class="tl-row wait"><span class="tl-time">13:00</span><span class="tl-txt">R-103 开工前清场/设备确认</span></div>
+            <div class="tl-row wait"><span class="tl-time">14:00</span><span class="tl-txt">WO-2608-007 计划开工</span></div>
+            <div class="tl-row wait"><span class="tl-time">16:30</span><span class="tl-txt">制剂一车间清场检查</span></div>
+            <div class="tl-row wait"><span class="tl-time">19:30</span><span class="tl-txt">交接班记录确认 · 白班→夜班</span></div>
+            </div></div>
+          </div>
+          <div class="side-card">
+            <div class="side-head">我关注的釜次<span class="card-sub">3 个在制</span></div>
+            <div class="side-body">
+            <div class="watch-row"><div class="watch-top"><span class="watch-name">FC-R101-2608-01</span><span class="pill bad">预警</span></div><div class="watch-sub">头孢克肟中间体 · 保温反应 · 进度 68%</div><div class="pbar"><i style="width:68%"></i></div></div>
+            <div class="watch-row"><div class="watch-top"><span class="watch-name">FC-R103-2608-02</span><span class="pill warn">锁定</span></div><div class="watch-sub">盐酸左氧氟沙星 · 降温结晶 · 进度 42%</div><div class="pbar"><i style="width:42%"></i></div></div>
+            <div class="watch-row"><div class="watch-top"><span class="watch-name">FC-R102-2608-03</span><span class="pill ok">正常</span></div><div class="watch-sub">头孢克肟中间体 · 精制 · 进度 91%</div><div class="pbar"><i style="width:91%"></i></div></div>
+            </div>
+          </div>
+          <div class="side-card">
+            <div class="side-head">快捷入口</div>
+            <div class="side-body"><div class="quick-grid">
+            <div class="quick" onclick="TD.go('生产执行管理.html')"><span class="qi">▶</span>生产执行</div>
+            <div class="quick" onclick="TD.go('实时预警.html')"><span class="qi">⚡</span>动作监控预警</div>
+            <div class="quick" onclick="TD.go('清场放行.html')"><span class="qi">✅</span>清场放行</div>
+            <div class="quick" onclick="TD.go('批次追溯.html')"><span class="qi">🔗</span>批次追溯</div>
+            <div class="quick" onclick="TD.go('釜次BOM管理.html')"><span class="qi">⚗</span>釜次管理</div>
+            <div class="quick" onclick="TD.go('生产监控大屏.html')"><span class="qi">🧭</span>生产驾驶舱</div>
+            </div></div>
+          </div>
+        </div>
+      </div>
+    
+    </div></div>
+  </div>
+
+<div class="mask" id="mask" onclick="TD.close()"></div>
+<aside class="drawer" id="drawer">
+  <div class="dw-head"><div><div class="dw-title" id="dwTitle">—</div><div class="dw-sub" id="dwSub">—</div></div><span class="dw-close" onclick="TD.close()">×</span></div>
+  <div class="dw-body" id="dwBody"></div>
+  <div class="dw-foot" id="dwFoot"></div>
+</aside>
+<div class="toast" id="toast"></div>
+<script>
+  function $(id){ return document.getElementById(id); }
+  function toast(msg){ var t=$("toast"); t.textContent=msg; t.classList.add("show"); setTimeout(function(){ t.classList.remove("show"); },2000); }
+  var TODOS=[{"id":"T01","type":"approve","prio":"high","title":"釜次 BOM 变更审批 · 头孢克肟中间体 精制工序","src":"釜次BOM管理","no":"CHG-2608-014","from":"李工（工艺）","time":"08-02 09:12","desc":"投料量由 1200.0kg 调整为 1150.0kg。理由：来料含量偏低（97.2%，标准 ≥99.0%），需按折干量补偿投料。","due":"已超期 2.1h","dueState":"overdue","link":"釜次BOM管理.html","cmp":[["主料 4-氯苯甲醛 投料量","1200.0 kg","1150.0 kg"],["溶剂 甲苯 投料量","3600.0 L","3450.0 L"],["理论收率","86.5%","86.5%（不变）"]],"flow":[["工艺发起","done"],["车间管理者审批","now"],["QA 复核","wait"],["变更生效","wait"]],"extra":[["影响批次","RC-2608-0203"],["变更类别","次要变更"],["是否需再验证","否"]]},{"id":"T02","type":"approve","prio":"mid","title":"生产工单下达确认 · 盐酸左氧氟沙星原料药","src":"生产工单","no":"WO-2608-007","from":"王敏（计划部）","time":"08-02 08:40","desc":"计划批次 RC-2608-0201，计划产量 850kg，计划开工 08-02 14:00，需确认车间资源（R-103、离心机 CF-02、干燥箱 DR-01）与人员排班可满足。","due":"今日 14:00 到期","dueState":"soon","link":"生产工单.html","flow":[["计划下达","done"],["车间接单确认","now"],["生产准备","wait"],["开工执行","wait"]],"extra":[["产品","盐酸左氧氟沙星"],["计划产量","850 kg"],["工艺路线","RT-LVF-03"],["占用设备","R-103 / CF-02 / DR-01"]]},{"id":"T03","type":"approve","prio":"high","title":"偏差初步评估审批 · R-102 反应温度超上限 3.2℃","src":"偏差/CAPA","no":"DR-2608-023","from":"张倩（QA）","time":"08-01 22:36","desc":"08-01 21:48 R-102 保温阶段温度达 88.2℃（工艺上限 85.0℃），持续 6 分钟后回落。需车间管理者确认现场描述、初步影响评估与是否继续生产。","due":"已超期 0.6h","dueState":"overdue","link":"偏差CAPA.html","flow":[["系统触发","done"],["现场记录","done"],["车间初评","now"],["QA 定级","wait"],["CAPA 关闭","wait"]],"extra":[["关联批次","RC-2608-0102"],["关联釜次","FC-R102-2608-02"],["初判等级","次要偏差"],["是否影响质量","待 QC 中控数据确认"]]},{"id":"T04","type":"approve","prio":"low","title":"超领料申请审批 · 活性炭 +15kg","src":"称量配料","no":"MR-2608-031","from":"赵磊（配料工）","time":"08-02 10:05","desc":"脱色工序色级未达标，申请二次脱色补加活性炭 15kg（原定 45kg，超领 33.3%，超出 ±10% 阈值需审批）。","due":"明日 10:00 到期","dueState":"normal","link":"称量配料.html","cmp":[["活性炭 领用量","45.0 kg","60.0 kg"],["单批物料成本","¥ 12,480","¥ 12,930"]],"flow":[["配料发起","done"],["车间管理者审批","now"],["仓库发料","wait"],["投料复核","wait"]],"extra":[["物料编码","RM-AC-0031"],["超领比例","+33.3%"],["关联批次","RC-2608-0105"]]},{"id":"T05","type":"approve","prio":"high","title":"返工方案审批 · 批次 RC-2607-3105 含量 98.1% 不合格","src":"质量控制","no":"RW-20260731-005","from":"刘颖（QC）","time":"07-31 16:20","desc":"成品含量 98.1%（标准 ≥98.5%），QC 判定不合格。拟采用「重结晶返工」方案，预计回收率 92%，需车间管理者确认返工资源与排产窗口。","due":"今日 17:00 到期","dueState":"soon","link":"质量控制.html","flow":[["QC 判定","done"],["偏差立案","done"],["车间审批","now"],["QA 批准","wait"],["返工执行","wait"],["复检放行","wait"]],"extra":[["批次","RC-2607-3105"],["不合格项","含量 98.1%"],["返工方案","重结晶（RW-SOP-014）"],["预计占用","R-101 · 18h"]]},{"id":"T06","type":"approve","prio":"mid","title":"CAPA 完成情况确认 · 称量室湿度超标整改","src":"偏差/CAPA","no":"CAPA-20260728-009","from":"孙浩（EHS）","time":"07-28 14:02","desc":"整改措施：新增除湿机 2 台并纳入日常点检。需车间管理者确认措施已落实、点检表已上线执行。","due":"08-05 到期","dueState":"normal","link":"偏差CAPA.html","flow":[["CAPA 立项","done"],["措施执行","done"],["车间确认","now"],["QA 有效性评价","wait"],["关闭","wait"]],"extra":[["来源偏差","DR-2607-017"],["措施类型","纠正 + 预防"],["计划完成","08-05"]]},{"id":"T07","type":"alarm","prio":"high","title":"动作监控预警 · R-101 搅拌转速低于工艺下限","src":"动作监控预警","no":"ALM-20260802-118","from":"系统自动","time":"08-02 10:41","desc":"实时转速 78 rpm，工艺下限 90 rpm，已持续 4 分 12 秒。自动处置策略已触发「声光报警 + 暂停计时」，需现场确认原因并选择处置动作。","due":"实时 · 需立即处置","dueState":"overdue","link":"实时预警.html","flow":[["规则触发","done"],["自动处置","done"],["车间处置确认","now"],["是否立偏差","wait"],["闭环","wait"]],"extra":[["设备","R-101 反应釜"],["关联釜次","FC-R101-2608-01"],["当前工序","保温反应"],["预警等级","严重"]]},{"id":"T08","type":"alarm","prio":"high","title":"SOP 跳步预警 · 精制工序「取样送检」未执行即进入下一步","src":"工序动作管理","no":"ALM-20260802-121","from":"系统自动","time":"08-02 10:55","desc":"操作工在未完成动作 A-0312「中控取样送检」的情况下点击进入 A-0313「降温结晶」。系统已锁定工步，需车间管理者授权补录或退回。","due":"实时 · 需立即处置","dueState":"overdue","link":"生产执行-动作指引.html","flow":[["跳步拦截","done"],["工步锁定","done"],["车间授权","now"],["补录/退回","wait"],["解锁继续","wait"]],"extra":[["釜次","FC-R103-2608-02"],["跳过动作","A-0312 中控取样送检"],["操作工","陈斌"],["SOP","SOP-PRD-0271 v3.2"]]},{"id":"T09","type":"alarm","prio":"mid","title":"设备异常 · 离心机 CF-03 振动值超标","src":"维护&校准","no":"EQ-20260801-046","from":"设备部","time":"08-01 19:14","desc":"振动值 7.8 mm/s（报警阈值 6.5 mm/s）。设备部建议停机检修 4h，需车间管理者确认停机窗口并调整排产。","due":"今日 18:00 到期","dueState":"soon","link":"维护校准.html","flow":[["点检发现","done"],["设备部诊断","done"],["车间确认停机","now"],["检修执行","wait"],["复用验证","wait"]],"extra":[["设备","CF-03 三足离心机"],["影响工单","WO-2608-004"],["建议停机","4 h"],["备用设备","CF-02（可用）"]]},{"id":"T10","type":"alarm","prio":"low","title":"物料效期预警 · 二氯甲烷 批次 M2605-118 剩余 7 天","src":"物料主数据","no":"MAT-20260802-009","from":"系统自动","time":"08-02 06:00","desc":"库存 320L，有效期至 08-09。建议优先排产消耗或申请复验延期，避免报废损失。","due":"08-09 到期","dueState":"normal","link":"物料主数据.html","flow":[["效期扫描","done"],["车间处置","now"],["优先消耗/复验","wait"],["关闭","wait"]],"extra":[["物料","二氯甲烷（DCM）"],["库存","320 L"],["有效期","2026-08-09"],["预估金额","¥ 4,160"]]},{"id":"T11","type":"confirm","prio":"high","title":"生产准备确认 · R-103 开工前清场确认","src":"生产准备","no":"PRE-20260802-012","from":"班组长 周涛","time":"08-02 09:30","desc":"上批次 RC-2608-0105 已完成清场，清场记录与残留检测（棉签擦拭 <10ppm）已上传，需车间管理者签署清场确认，方可开工。","due":"今日 13:00 到期","dueState":"soon","link":"生产准备.html","flow":[["清场执行","done"],["残留检测","done"],["车间确认","now"],["QA 放行","wait"],["开工","wait"]],"extra":[["设备","R-103"],["上批次","RC-2608-0105"],["残留结果","< 10 ppm 合格"],["清场有效期","72 h"]]},{"id":"T12","type":"confirm","prio":"mid","title":"设备状态确认 · R-103 密封性 / 校准有效期核对","src":"维护&校准","no":"PRE-20260802-013","from":"班组长 周涛","time":"08-02 09:32","desc":"R-103 压力表校准有效期至 09-15，温度探头校准有效期至 08-20，密封性试压合格（0.35MPa 保压 30min 无泄漏）。需确认设备可投入使用。","due":"今日 13:00 到期","dueState":"soon","link":"维护校准.html","flow":[["设备自检","done"],["试压合格","done"],["车间确认","now"],["投用","wait"]],"extra":[["设备","R-103"],["压力表校准","有效至 09-15"],["温度探头","有效至 08-20"],["试压","0.35 MPa / 30 min 合格"]]},{"id":"T13","type":"confirm","prio":"high","title":"关键工序双人复核 · 投料称量 甲苯 860.0kg","src":"生产执行","no":"EXE-20260802-055","from":"配料工 赵磊","time":"08-02 10:38","desc":"称量结果 860.2kg（理论 860.0kg，允差 ±1%），已由赵磊操作、需车间管理者作为第二人复核并电子签名后方可投料。","due":"今日 10:40 · 进行中","dueState":"overdue","link":"称量配料.html","flow":[["称量执行","done"],["一次录入","done"],["第二人复核","now"],["投料","wait"]],"extra":[["物料","甲苯（工业级）"],["理论量","860.0 kg"],["实称量","860.2 kg"],["偏差","+0.02%（合格）"]]},{"id":"T14","type":"confirm","prio":"mid","title":"清场结果确认 · 制剂一车间 上批次遗留物清理","src":"清场放行","no":"CLR-20260801-020","from":"保洁班 吴敏","time":"08-01 17:50","desc":"制剂一车间上批次遗留包材、标签已全部清出并销毁，清场照片 6 张已上传，需确认后转 QA 放行。","due":"今日 16:30 到期","dueState":"soon","link":"清场放行.html","flow":[["清场执行","done"],["车间确认","now"],["QA 检查","wait"],["放行","wait"]],"extra":[["区域","制剂一车间 D-201"],["上批次","RC-2607-3108"],["照片","6 张"],["清场类型","批间清场"]]},{"id":"T15","type":"confirm","prio":"low","title":"交接班记录确认 · 白班 → 夜班","src":"生产执行","no":"SHF-20260802-002","from":"系统排班","time":"08-02 08:00","desc":"需在 19:30 前确认白班生产完成情况、在制釜次状态、未闭环异常与夜班注意事项，形成交接班记录。","due":"今日 19:30 到期","dueState":"soon","link":"生产执行管理.html","flow":[["白班执行","now"],["记录填写","wait"],["双方签字","wait"],["归档","wait"]],"extra":[["班次","白班 08:00-20:00"],["在制釜次","3 个"],["未闭环异常","2 项"],["接班人","夜班 郑凯"]]},{"id":"T16","type":"sign","prio":"mid","title":"批生产记录审核签名 · 批次 RC-2607-3104","src":"批次追溯","no":"BR-20260731-004","from":"记录员 何静","time":"07-31 18:20","desc":"该批次 12 个工序、48 项关键动作记录已完整，无空项。需车间管理者作为工序审核人签名，之后转 QA 审核放行。","due":"08-03 到期","dueState":"normal","link":"批次追溯.html","flow":[["记录汇总","done"],["车间审核签名","now"],["QA 审核","wait"],["放行","wait"],["归档","wait"]],"extra":[["批次","RC-2607-3104"],["产品","头孢克肟原料药"],["工序数","12"],["关键动作","48 项 · 无空项"]]},{"id":"T17","type":"sign","prio":"mid","title":"中控检测结果确认签名 · pH 6.8 / 含量 99.2%","src":"质量控制","no":"QC-2608-078","from":"QC 刘颖","time":"08-02 11:05","desc":"釜次 FC-R101-2608-01 中控检测：pH 6.8（标准 6.5-7.5）、含量 99.2%（标准 ≥98.5%），均合格。需签名确认后进入下一工序。","due":"今日 12:00 到期","dueState":"soon","link":"质量控制.html","flow":[["取样","done"],["QC 检测","done"],["车间确认签名","now"],["进入下工序","wait"]],"extra":[["釜次","FC-R101-2608-01"],["pH","6.8（合格）"],["含量","99.2%（合格）"],["检测时间","08-02 10:50"]]},{"id":"T18","type":"sign","prio":"low","title":"培训记录签名 · 新版 SOP-PRD-0271 宣贯","src":"审计追踪","no":"TRN-20260730-011","from":"培训专员 林芳","time":"07-30 15:00","desc":"合成一车间 14 人已完成新版 SOP 宣贯与考核（平均 92 分），需车间管理者签名确认培训有效性。","due":"08-06 到期","dueState":"normal","link":"审计追踪.html","flow":[["组织培训","done"],["考核","done"],["车间签名","now"],["归档","wait"]],"extra":[["文件","SOP-PRD-0271 v3.2"],["参训人数","14 人"],["平均分","92"],["未通过","0 人"]]},{"id":"T19","type":"cc","prio":"low","title":"变更已生效 · 精制工序温度参数调整（知会）","src":"变更管理","no":"CHG-2608-011","from":"QA 张倩","time":"08-01 16:40","desc":"精制工序结晶降温终点由 5℃ 调整为 3℃，已于 08-02 00:00 生效，后续批次按新参数执行。","due":"知会 · 无需处理","dueState":"normal","link":"变更管理.html","flow":[["发起","done"],["审批","done"],["生效","done"]],"extra":[["变更单","CHG-2608-011"],["生效时间","08-02 00:00"],["影响工序","精制-结晶"]]},{"id":"T20","type":"cc","prio":"low","title":"偏差已关闭 · 干燥失重超标（知会）","src":"偏差/CAPA","no":"DR-2607-019","from":"QA 张倩","time":"07-31 09:15","desc":"批次 RC-2607-3102 干燥失重 0.62%（标准 ≤0.5%），经延长干燥 2h 后复测 0.38% 合格，偏差已关闭，CAPA 已归档。","due":"知会 · 无需处理","dueState":"normal","link":"偏差CAPA.html","flow":[["立案","done"],["调查","done"],["CAPA","done"],["关闭","done"]],"extra":[["批次","RC-2607-3102"],["偏差等级","次要"],["关闭时间","07-31 09:10"]]},{"id":"T21","type":"cc","prio":"low","title":"检验报告已出具 · 批次 RC-2608-0101 放行合格（知会）","src":"质量控制","no":"QC-2608-066","from":"QC 刘颖","time":"08-01 20:30","desc":"成品全检合格（含量 99.5%、有关物质 0.21%、水分 0.28%），COA 已生成，批次进入待放行状态。","due":"知会 · 无需处理","dueState":"normal","link":"质量控制.html","flow":[["取样","done"],["全检","done"],["报告出具","done"]],"extra":[["批次","RC-2608-0101"],["含量","99.5%"],["有关物质","0.21%"],["结论","合格"]]}];
+  var TM={"approve":{"label":"审批","pill":"info"},"alarm":{"label":"异常处置","pill":"bad"},"confirm":{"label":"执行确认","pill":"warn"},"sign":{"label":"电子签名","pill":"ok"},"cc":{"label":"知会抄送","pill":"info"}}, PM={"high":{"label":"紧急","pill":"bad"},"mid":{"label":"普通","pill":"warn"},"low":{"label":"低","pill":"info"}};
+  var DONE=[]; try{ DONE=JSON.parse(localStorage.getItem("pharma_todo_done")||"[]"); }catch(e){ DONE=[]; }
+  var curTab="all", curId=null;
+  function isDone(id){ return DONE.indexOf(id)>-1; }
+  function saveDone(){ try{ localStorage.setItem("pharma_todo_done", JSON.stringify(DONE)); }catch(e){} }
+  function listOf(tab){
+    return TODOS.filter(function(t){
+      if(tab==="done") return isDone(t.id);
+      if(isDone(t.id)) return false;
+      if(tab==="all") return t.type!=="cc";
+      return t.type===tab;
+    });
+  }
+  function counts(){
+    return { all:listOf("all").length, approve:listOf("approve").length, alarm:listOf("alarm").length,
+             confirm:listOf("confirm").length, sign:listOf("sign").length, cc:listOf("cc").length, done:listOf("done").length };
+  }
+  function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  function renderTabs(){
+    var c=counts();
+    var defs=[["all","全部",c.all],["approve","待审批",c.approve],["alarm","异常处置",c.alarm],["confirm","执行确认",c.confirm],["sign","电子签名",c.sign],["cc","抄送我的",c.cc],["done","已办",c.done]];
+    var h="";
+    defs.forEach(function(d){ h+="<div class=\"tab"+(curTab===d[0]?" active":"")+"\" onclick=\"TD.tab('"+d[0]+"')\">"+d[1]+"<span class=\"tab-badge\">"+d[2]+"</span></div>"; });
+    $("tabs").innerHTML=h;
+  }
+  function renderKPI(){
+    var open=TODOS.filter(function(t){ return t.type!=="cc" && !isDone(t.id); });
+    var over=open.filter(function(t){ return t.dueState==="overdue"; }).length;
+    var today=open.filter(function(t){ return t.dueState==="soon"; }).length;
+    var urg=open.filter(function(t){ return t.prio==="high"; }).length;
+    $("kOpen").innerHTML=open.length+'<span class="trend up">▲3</span>';
+    $("kOpenD").textContent="较昨日 +3 项 · 紧急 "+urg+" 项";
+    $("kToday").textContent=today;
+    $("kTodayD").textContent="其中紧急 "+open.filter(function(t){return t.prio==="high"&&t.dueState==="soon";}).length+" 项 · 需当班闭环";
+    $("kOver").textContent=over;
+    var rt=open.filter(function(t){ return t.due.indexOf("实时")>-1; }).length;
+    $("kOverD").textContent=over?("含实时预警 "+rt+" 项 · 最长超期 2.1h"):"无超期事项";
+    $("kDone").textContent=43+DONE.length;
+    $("kDoneD").textContent="平均处理时长 26 min";
+  }
+  function renderList(){
+    var arr=listOf(curTab); var h="";
+    if(!arr.length){ $("list").innerHTML='<div class="empty"><span class="ei">✓</span>该分类下暂无待办事项</div>'; $("selCount").textContent="已选 0 项"; return; }
+    arr.forEach(function(t){
+      var tm=TM[t.type], pm=PM[t.prio], done=isDone(t.id);
+      h+='<div class="todo-item p-'+t.prio+(done?" is-done":"")+'">';
+      h+=  '<div class="ti-check">'+(t.type==="cc"||done?"":'<input type="checkbox" data-id="'+t.id+'" onchange="TD.sel()">')+'</div>';
+      h+=  '<div class="ti-body">';
+      h+=    '<div class="ti-line1"><span class="pill '+tm.pill+'">'+tm.label+'</span><span class="ti-title">'+esc(t.title)+'</span>'+(t.prio==="high"&&!done?'<span class="pill bad">'+pm.label+'</span>':"")+(done?'<span class="pill ok">已办</span>':"")+'</div>';
+      h+=    '<div class="ti-meta"><span>来源：'+t.src+'</span><span>单号：'+t.no+'</span><span>发起：'+t.from+'</span><span>'+t.time+'</span></div>';
+      h+=    '<div class="ti-desc">'+esc(t.desc)+'</div>';
+      h+=  '</div>';
+      h+=  '<div class="ti-right"><div class="ti-due '+(done?"":t.dueState)+'">'+(done?"已完成":t.due)+'</div><div class="ti-actions">';
+      if(done){ h+='<button class="btn-mini" onclick="TD.open(\''+t.id+'\')">查看</button>'; }
+      else if(t.type==="cc"){ h+='<button class="btn-mini" onclick="TD.open(\''+t.id+'\')">查看</button><button class="btn-mini" onclick="TD.read(\''+t.id+'\')">已读</button>'; }
+      else { h+='<button class="btn-mini primary" onclick="TD.open(\''+t.id+'\')">处理</button><button class="btn-mini" onclick="TD.transfer(\''+t.id+'\')">转派</button>'; }
+      h+=  '</div></div></div>';
+    });
+    $("list").innerHTML=h; $("selCount").textContent="已选 0 项"; $("chkAll").checked=false;
+  }
+  function renderAll(){ renderTabs(); renderKPI(); renderList(); }
+  function find(id){ for(var i=0;i<TODOS.length;i++){ if(TODOS[i].id===id) return TODOS[i]; } return null; }
+  var TD={};
+  TD.tab=function(k){ curTab=k; renderAll(); };
+  TD.sel=function(){ var n=document.querySelectorAll('#list input[type=checkbox]:checked').length; $("selCount").textContent="已选 "+n+" 项"; };
+  TD.selAll=function(){ var c=$("chkAll").checked; var bs=document.querySelectorAll('#list input[type=checkbox]'); for(var i=0;i<bs.length;i++){ bs[i].checked=c; } TD.sel(); };
+  TD.batch=function(){
+    var bs=document.querySelectorAll('#list input[type=checkbox]:checked'); if(!bs.length){ toast("请先勾选待办事项"); return; }
+    var n=0; for(var i=0;i<bs.length;i++){ var id=bs[i].getAttribute("data-id"); var t=find(id); if(t&&t.prio==="high"){ continue; } if(DONE.indexOf(id)<0){ DONE.push(id); n++; } }
+    saveDone(); renderAll();
+    toast(n?("已批量通过 "+n+" 项（紧急事项需单独签名处理）"):"勾选项均为紧急事项，需逐条签名处理");
+  };
+  TD.read=function(id){ if(DONE.indexOf(id)<0){ DONE.push(id); saveDone(); } renderAll(); toast("已标记为已读"); };
+  TD.transfer=function(id){ toast("已发起转派流程，请在弹窗中选择接收人"); };
+  TD.open=function(id){
+    var t=find(id); if(!t) return; curId=id;
+    var tm=TM[t.type], done=isDone(id);
+    $("dwTitle").textContent=t.title;
+    $("dwSub").innerHTML='<span class="pill '+tm.pill+'">'+tm.label+'</span> &nbsp;'+t.no+' · 来源 '+t.src+' · 发起 '+t.from+' · '+t.time;
+    var h="";
+    h+='<div class="sec-title first">处理流程</div><div class="flow">';
+    t.flow.forEach(function(f,i){ var st=f[1]; h+='<div class="flow-node '+st+'"><div class="flow-dot">'+(st==="done"?"✓":(i+1))+'</div><div class="flow-txt">'+f[0]+'</div></div>'; });
+    h+='</div>';
+    h+='<div class="sec-title">事项说明</div><div style="font-size:13px;color:var(--text-sub);line-height:1.7;">'+esc(t.desc)+'</div>';
+    if(t.extra&&t.extra.length){ h+='<div class="sec-title">关键信息</div><div class="kv">'; t.extra.forEach(function(e){ h+='<div class="kv-row"><span class="kv-k">'+e[0]+'</span><span class="kv-v">'+e[1]+'</span></div>'; }); h+='</div>'; }
+    if(t.cmp&&t.cmp.length){ h+='<div class="sec-title">变更前后对比</div><table class="cmp-table"><thead><tr><th style="width:38%">项目</th><th>变更前</th><th>变更后</th></tr></thead><tbody>'; t.cmp.forEach(function(c){ h+='<tr><td>'+c[0]+'</td><td class="cmp-old">'+c[1]+'</td><td class="cmp-new">'+c[2]+'</td></tr>'; }); h+='</tbody></table>'; }
+    h+='<div class="sec-title">关联单据</div><div style="font-size:12.5px;"><a href="'+t.link+'" style="color:var(--primary-600);text-decoration:none;">→ 打开「'+t.src+'」查看完整单据 '+t.no+'</a></div>';
+    if(!done && t.type!=="cc"){
+      h+='<div class="sec-title">处理意见</div><div class="form-row"><textarea class="form-area" id="dwOpinion" placeholder="请填写处理意见（驳回时必填）"></textarea></div>';
+      h+='<div class="sec-title">电子签名（符合 21 CFR Part 11 / GMP 附录）</div><div class="sign-box"><div class="sign-tip">签名即代表本人已知悉并对上述内容负责，签名记录将写入审计追踪，不可删除、不可修改。</div><div class="sign-grid"><div class="form-row"><label class="form-label">用户名</label><input class="form-input" value="chenyq（陈有强）" readonly></div><div class="form-row"><label class="form-label">签名口令 <span style="color:var(--block)">*</span></label><input class="form-input" type="password" id="dwPwd" placeholder="请输入签名口令"></div></div><div class="form-row" style="margin-bottom:0;"><label class="form-label">签名含义</label><select class="form-sel" id="dwMean"><option>审核通过（Reviewed &amp; Approved）</option><option>确认执行（Confirmed）</option><option>第二人复核（Double Check）</option><option>知悉（Acknowledged）</option></select></div></div>';
+    } else if(done) {
+      h+='<div class="sec-title">处理结果</div><div style="font-size:13px;color:var(--normal);">✓ 已于本次会话完成处理，签名记录已写入审计追踪。</div>';
+    }
+    $("dwBody").innerHTML=h;
+    var ft="";
+    if(done||t.type==="cc"){ ft='<button class="btn btn-secondary" onclick="TD.close()">关闭</button>'; }
+    else { ft='<button class="btn btn-secondary" onclick="TD.submit(\'reject\')">驳回</button><button class="btn btn-secondary" onclick="TD.transfer()">转派</button><button class="btn btn-primary" onclick="TD.submit(\'agree\')">同意并签名</button>'; }
+    $("dwFoot").innerHTML=ft;
+    $("mask").classList.add("show"); $("drawer").classList.add("show");
+  };
+  TD.close=function(){ $("mask").classList.remove("show"); $("drawer").classList.remove("show"); curId=null; };
+  TD.submit=function(act){
+    var pwd=$("dwPwd"), op=$("dwOpinion");
+    if(act==="reject" && op && !op.value.trim()){ toast("驳回时必须填写处理意见"); return; }
+    if(!pwd || !pwd.value.trim()){ toast("请输入电子签名口令后再提交"); return; }
+    if(DONE.indexOf(curId)<0){ DONE.push(curId); saveDone(); }
+    var t=find(curId);
+    TD.close(); renderAll();
+    toast((act==="agree"?"已同意并完成电子签名 · ":"已驳回 · ")+(t?t.no:"")+" 已写入审计追踪");
+  };
+  TD.go=function(u){ location.href=u; };
+  TD.refresh=function(){ renderAll(); toast("待办列表已刷新"); };
+  TD.reset=function(){ DONE=[]; saveDone(); renderAll(); toast("演示数据已重置"); };
+  window.TD=TD;
+  renderAll();
+</script>
+  <script src="sidebar.js"></script>
+  <script src="plant.js"></script>
+<script src="role.js"></script>
+</body>
+</html>
