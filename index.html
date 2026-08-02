@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>精细化工 MES 系统 · 门户</title>
+<style>
+  :root{
+    --primary-50:#eef4ff; --primary-100:#dbe7ff; --primary-200:#bcd0ff; --primary-300:#8fb0ff;
+    --primary-400:#5b86f5; --primary-500:#3b66e0; --primary-600:#2a4fc4; --primary-700:#213da0;
+    --primary-800:#1c3385; --primary-900:#172a6b;
+    --bg:#f4f6fb; --surface:#ffffff; --surface-2:#fafbff; --border:#e6eaf2;
+    --text:#1f2a44; --text-2:#5b6b8c; --text-3:#8a97b3;
+    --ok:#16a34a; --warn:#d97706; --info:#2563eb; --block:#dc2626;
+    --shadow:0 1px 3px rgba(20,40,90,.06),0 8px 24px rgba(20,40,90,.06);
+    --radius:14px;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    font-family:"PingFang SC","Microsoft YaHei","Segoe UI",system-ui,-apple-system,sans-serif;
+    background:
+      radial-gradient(1200px 600px at 85% -10%, rgba(59,102,224,.10), transparent 60%),
+      radial-gradient(900px 500px at -5% 0%, rgba(43,79,196,.08), transparent 55%),
+      var(--bg);
+    color:var(--text); line-height:1.55; -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  a{ color:inherit; text-decoration:none; }
+
+  /* Top bar */
+  .topbar{
+    position:sticky; top:0; z-index:30;
+    display:flex; align-items:center; gap:16px;
+    padding:14px 28px;
+    background:rgba(255,255,255,.82); backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border);
+  }
+  .brand{ display:flex; align-items:center; gap:12px; }
+  .logo{
+    width:42px; height:42px; border-radius:12px; flex:0 0 auto;
+    background:linear-gradient(135deg,var(--primary-500),var(--primary-800));
+    display:flex; align-items:center; justify-content:center; font-size:22px; color:#fff;
+    box-shadow:0 6px 16px rgba(43,79,196,.35);
+  }
+  .brand h1{ font-size:18px; margin:0; letter-spacing:.3px; }
+  .brand p{ font-size:12px; margin:0; color:var(--text-2); }
+  .topbar .spacer{ flex:1; }
+  .switch-wrap{ display:flex; align-items:center; gap:10px; }
+  .switch-wrap > div{ min-width:160px; }
+  .switch-label{ font-size:11px; color:var(--text-3); margin-bottom:2px; }
+
+  /* Hero */
+  .hero{
+    max-width:1180px; margin:30px auto 0; padding:0 28px;
+  }
+  .hero-card{
+    background:linear-gradient(135deg, rgba(43,79,196,.95), rgba(33,61,160,.92));
+    color:#fff; border-radius:20px; padding:30px 34px;
+    box-shadow:0 18px 40px rgba(28,51,133,.30);
+    position:relative; overflow:hidden;
+  }
+  .hero-card::after{
+    content:""; position:absolute; right:-60px; top:-60px; width:240px; height:240px;
+    background:radial-gradient(circle,rgba(255,255,255,.18),transparent 70%);
+  }
+  .hero-card h2{ margin:0 0 8px; font-size:24px; }
+  .hero-card p{ margin:0; opacity:.92; max-width:760px; }
+  .badges{ display:flex; gap:10px; flex-wrap:wrap; margin-top:18px; }
+  .badge{
+    background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.25);
+    padding:6px 12px; border-radius:999px; font-size:12.5px;
+  }
+  .badge.ok{ background:rgba(22,163,74,.22); border-color:rgba(110,231,160,.5); }
+
+  /* Quick entries */
+  .section{ max-width:1180px; margin:26px auto 0; padding:0 28px; }
+  .sec-title{ display:flex; align-items:center; gap:10px; margin:6px 0 14px; }
+  .sec-title h3{ font-size:16px; margin:0; }
+  .sec-title .line{ flex:1; height:1px; background:var(--border); }
+  .quick-grid{ display:grid; grid-template-columns:repeat(6,1fr); gap:14px; }
+  .quick{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:16px; text-align:center; transition:.18s; box-shadow:var(--shadow); cursor:pointer;
+  }
+  .quick:hover{ transform:translateY(-3px); border-color:var(--primary-300); box-shadow:0 10px 24px rgba(43,79,196,.14); }
+  .quick .qi{ font-size:24px; }
+  .quick .qt{ font-size:13px; margin-top:6px; font-weight:600; }
+
+  /* Modules */
+  .mod-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+  .mod{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:18px 18px 14px; box-shadow:var(--shadow);
+  }
+  .mod-head{ display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .mod-ico{
+    width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center;
+    font-size:18px; background:var(--primary-50); color:var(--primary-700);
+  }
+  .mod-head h4{ margin:0; font-size:15px; }
+  .mod-head .cnt{ margin-left:auto; font-size:11px; color:var(--text-3); background:var(--surface-2); border:1px solid var(--border); padding:2px 8px; border-radius:999px; }
+  .links{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .links a{
+    display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-2);
+    padding:8px 10px; border-radius:9px; border:1px solid transparent; transition:.15s;
+  }
+  .links a:hover{ background:var(--primary-50); color:var(--primary-700); border-color:var(--primary-100); }
+  .links a .dot{ width:6px; height:6px; border-radius:50%; background:var(--primary-400); flex:0 0 auto; }
+
+  .report-card{
+    display:flex; align-items:center; gap:14px; margin-top:18px;
+    background:linear-gradient(135deg,#0f766e,#0d9488); color:#fff;
+    border-radius:var(--radius); padding:18px 22px; box-shadow:var(--shadow);
+  }
+  .report-card .ri{ font-size:26px; }
+  .report-card h4{ margin:0; font-size:15px; }
+  .report-card p{ margin:2px 0 0; font-size:12.5px; opacity:.9; }
+  .report-card .go{ margin-left:auto; background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.3); padding:8px 16px; border-radius:10px; font-size:13px; font-weight:600; }
+
+  .footer{ max-width:1180px; margin:30px auto 40px; padding:0 28px; color:var(--text-3); font-size:12px; }
+  .footer code{ background:var(--surface); border:1px solid var(--border); padding:2px 6px; border-radius:6px; color:var(--text-2); }
+  .me-info{ font-size:12px; color:var(--text-2); margin-top:4px; }
+
+  @media (max-width:980px){
+    .quick-grid{ grid-template-columns:repeat(3,1fr); }
+    .mod-grid{ grid-template-columns:1fr; }
+  }
+  @media (max-width:560px){
+    .quick-grid{ grid-template-columns:repeat(2,1fr); }
+    .topbar{ flex-wrap:wrap; padding:12px 16px; }
+    .switch-wrap{ width:100%; }
+  }
+</style>
+  <script src="sidebar.js"></script>
+</head>
+<body>
+
+  <div class="app">
+    <aside class="sidebar" id="appSidebar"></aside>
+    <div class="main">
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo">🧪</div>
+      <div>
+        <h1>精细化工 MES 系统</h1>
+        <p>高保真交互原型 · 生产执行 · 质量合规 · 数据闭环</p>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <div class="switch-wrap">
+      <div>
+        <div class="switch-label">🌐 工厂 / 组织</div>
+        <div id="plantSwitch"></div>
+      </div>
+      <div>
+        <div class="switch-label">👤 角色权限</div>
+        <div id="roleSwitch"></div>
+      </div>
+    </div>
+  </div>
+    <div class="tabbar" id="tabBar"></div>
+  <div class="content">
+  <div class="hero">
+    <div class="hero-card">
+      <h2>欢迎进入 MES 一体化工作平台</h2>
+      <p>覆盖「计划 → 工单 → 称量配料 → 生产执行 → 质量检验 → 清场放行 → 批次追溯 → 电子批记录归档」全链路，并与 ERP / LIMS / WMS 实现接口联调闭环。顶部可切换<b>工厂组织</b>与<b>角色权限</b>，全站页面随双层权限联动。</p>
+      <div class="badges">
+        <span class="badge ok">✓ Q-01 移动端 / PDA 采集</span>
+        <span class="badge ok">✓ Q-02 多工厂数据隔离</span>
+        <span class="badge ok">✓ Q-03 AI 投料推荐</span>
+        <span class="badge ok">✓ Q-04 断网续传</span>
+        <span class="badge ok">✓ Q-05 eBR 电子批记录</span>
+        <span class="badge ok">✓ Q-06 接口联调</span>
+        <span class="badge ok">✓ Q-07 字段级权限</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title"><h3>⚡ 常用入口</h3><div class="line"></div></div>
+    <div class="quick-grid" id="quickGrid"></div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title"><h3>🗂 业务模块</h3><div class="line"></div></div>
+    <div class="mod-grid" id="modGrid"></div>
+
+    <a class="report-card" href="系统功能检查报告.html">
+      <div class="ri">📑</div>
+      <div>
+        <h4>系统功能检查报告（闭环证明）</h4>
+        <p>全模块审计、流程与数据闭环验证、原始缺口 Q-01~Q-07 修复记录。</p>
+      </div>
+      <div class="go">查看报告 →</div>
+    </a>
+    <div class="me-info" id="meInfo"></div>
+  </div>
+
+  <div class="footer">
+    原型说明：本系统为纯前端高保真原型（HTML/CSS/原生 JS，无后端依赖）。跨页数据通过 <code>localStorage</code> 与共享脚本 <code>mes-nav.js / role.js / plant.js</code> 联动；ERP / LIMS / WMS 联调为模拟异步调用，数据真实回写对应业务页。
+  </div>
+  <script src="plant.js"></script>
+  <script src="role.js"></script>
+  <script>
+  (function(){
+    var GROUP = {
+      '生产运营中心':['生产驾驶舱','我的待办','生产计划','生产工单','生产准备','生产执行','PDA 现场采集','清场放行','批次追溯','电子批记录归档'],
+      '工艺与质量':['釜次管理','工序动作管理','动作监控预警','质量控制','变更管理','偏差/CAPA','审计追踪','标准动作库','质量偏差追溯'],
+      '物料与配方':['物料主数据','称量配料','AI 投料推荐','工艺配方','动作库/BOM'],
+      '设备与合规':['维护&校准','用户与权限设置','组织工厂管理','设备管理报表'],
+      '系统集成':['数据接口','系统集成联调'],
+      '分析报表':['生产计划执行','决策分析','产能釜次统计','物耗能耗成本','库存分析']
+    };
+    var GROUP_ICON = {
+      '生产运营中心':'🏭','工艺与质量':'🔬','物料与配方':'⚗️','设备与合规':'🛠','系统集成':'🔌','分析报表':'📊'
+    };
+    var QUICK = ['生产驾驶舱','我的待办','生产工单','批次追溯','系统集成联调','电子批记录归档'];
+
+    function build(){
+      var routes = window.MES_ROUTES || [];
+      var byKey = {};
+      routes.forEach(function(r){ byKey[r.key] = r.url; });
+
+      // quick
+      var qg = document.getElementById('quickGrid');
+      qg.innerHTML = QUICK.map(function(k){
+        var url = byKey[k] || '#';
+        return '<a class="quick" href="'+url+'"><div class="qi">🚀</div><div class="qt">'+k+'</div></a>';
+      }).join('');
+
+      // modules
+      var mg = document.getElementById('modGrid');
+      var html = '';
+      Object.keys(GROUP).forEach(function(g){
+        var keys = GROUP[g];
+        var items = keys.map(function(k){
+          var url = byKey[k] || '#';
+          return '<a href="'+url+'"><span class="dot"></span>'+k+'</a>';
+        }).join('');
+        html += '<div class="mod">'+
+                  '<div class="mod-head"><div class="mod-ico">'+GROUP_ICON[g]+'</div><h4>'+g+'</h4><span class="cnt">'+keys.length+' 页</span></div>'+
+                  '<div class="links">'+items+'</div>'+
+                '</div>';
+      });
+      mg.innerHTML = html;
+
+      refreshMe();
+    }
+
+    function refreshMe(){
+      try{
+        var p = (document.getElementById('plantSwitch') && plantSwitch.textContent.trim()) || localStorage.getItem('mes_plant') || 'P1 · 上海一厂';
+        var r = (document.getElementById('roleSwitch') && roleSwitch.textContent.trim()) || localStorage.getItem('mes_role') || 'plant_mgr';
+        document.getElementById('meInfo').textContent = '当前视图：工厂「'+p+'」 · 角色「'+r+'」 · 共 '+((window.MES_ROUTES||[]).length)+' 个核心页面';
+      }catch(e){}
+    }
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', build); else build();
+    document.addEventListener('click', function(){ setTimeout(refreshMe, 0); });
+  })();
+  </script>
+  </div>
+  </div>
+</div>
+</body>
+</html>
