@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MES 精细化工 - 釜次详情</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary-50: #E6F1FB; --primary-200: #B5D4F4; --primary-400: #378ADD;
+    --primary-600: #185FA5; --primary-800: #0C447C; --primary-900: #042C53;
+    --normal: #1D9E75; --normal-bg: #E1F5EE;
+    --info: #EF9F27; --info-bg: #FAEEDA;
+    --warning: #D85A30; --warning-bg: #FAECE7;
+    --block: #E24B4A; --block-bg: #FCEBEB;
+    --white: #FFFFFF; --page: #F1EFE8; --border: #D3D1C7;
+    --text-sec: #888780; --text-sub: #5F5E5A; --text: #2C2C2A;
+  }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif;
+    background: var(--page); color: var(--text);
+    font-size: 14px; line-height: 1.6; overflow: hidden; height: 100vh;
+  }
+  .app { display: flex; height: 100vh; }
+
+  /* === 侧边栏 === */
+  .sidebar { width: 200px; min-width: 200px; background: var(--primary-800); color: #85B7EB; display: flex; flex-direction: column; overflow-y: auto; }
+  .sidebar-logo { padding: 14px 16px; border-bottom: 1px solid var(--primary-600); display: flex; align-items: center; gap: 10px; }
+  .logo-icon { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; flex: none; }
+  .sidebar-nav { padding: 8px 0; flex: 1; }
+  .nav-item { padding: 8px 16px 8px 36px; font-size: 12.5px; color: #85B7EB; cursor: pointer; position: relative; transition: all 0.15s; display: flex; align-items: center; gap: 7px; }
+  .nav-item:hover { background: var(--primary-900); color: #B5D4F4; }
+  .nav-item.active { background: var(--primary-600); color: #FFF; font-weight: 500; }
+  .nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--primary-400); }
+  .nav-section-title { padding: 16px 20px 6px; font-size: 11px; color: #378ADD; text-transform: uppercase; letter-spacing: 0.5px; }
+  .sidebar-footer { padding: 12px 20px; border-top: 1px solid var(--primary-600); font-size: 12px; color: #5DCAA5; display: flex; align-items: center; gap: 6px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--normal); }
+
+  /* === 主区域 === */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { height: 52px; min-height: 52px; background: var(--white); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+  .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-sec); }
+  .breadcrumb .current { color: var(--text); font-weight: 500; }
+  .breadcrumb a { color: var(--text-sec); text-decoration: none; cursor: pointer; }
+  .breadcrumb a:hover { color: var(--primary-600); }
+  .topbar-right { display: flex; align-items: center; gap: 20px; }
+  .user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+  .user-info:hover { background: var(--page); }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-600); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; }
+  .user-name { font-size: 13px; color: var(--text); }
+  .user-role { font-size: 11px; color: var(--text-sec); }
+
+  /* === 内容区 === */
+  .content { flex: 1; overflow-y: auto; padding: 14px 28px; }
+
+  /* === 页面标题 === */
+  .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; }
+  .page-title-row { display: flex; align-items: center; gap: 12px; }
+  .page-title { font-size: 22px; font-weight: 500; color: var(--text); }
+  .page-subtitle { font-size: 13px; color: var(--text-sec); margin-top: 4px; }
+  .header-actions { display: flex; gap: 10px; }
+  .btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+  .btn-primary { background: var(--primary-600); color: #fff; }
+  .btn-primary:hover { background: var(--primary-800); }
+  .btn-secondary { background: var(--white); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--primary-400); color: var(--primary-600); }
+  .btn-success { background: var(--normal); color: #fff; }
+  .btn-success:hover { background: #16805e; }
+
+  /* === 状态标签 === */
+  .status-tag { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 14px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+  .status-tag .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .status-tag.normal { background: var(--normal-bg); color: #085041; }
+  .status-tag.normal .dot { background: var(--normal); }
+  .status-tag.info { background: var(--info-bg); color: #633806; }
+  .status-tag.info .dot { background: var(--info); }
+  .status-tag.warning { background: var(--warning-bg); color: #712B13; }
+  .status-tag.warning .dot { background: var(--warning); }
+  .status-tag.block { background: var(--block-bg); color: #501313; }
+  .status-tag.block .dot { background: var(--block); }
+  .status-tag.executing { background: var(--primary-50); color: var(--primary-800); }
+  .status-tag.executing .dot { background: var(--primary-400); }
+  .status-tag.done { background: var(--page); color: var(--text-sub); }
+  .status-tag.done .dot { background: var(--text-sec); }
+
+  /* === 概览横幅 === */
+  .info-banner { background: var(--white); border-radius: 12px; border: 1px solid var(--border); padding: 20px 24px; margin-bottom: 16px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .info-item { display: flex; flex-direction: column; gap: 4px; }
+  .info-label { font-size: 11px; color: var(--text-sec); }
+  .info-value { font-size: 14px; color: var(--text); font-weight: 500; }
+  .info-value.num { font-family: "DIN Alternate", "Roboto", monospace; }
+  .info-value.link { color: var(--primary-600); cursor: pointer; }
+  .info-value.link:hover { text-decoration: underline; }
+
+  /* === Tab导航 === */
+  .tab-nav { display: flex; gap: 0; background: var(--white); border-radius: 10px 10px 0 0; border: 1px solid var(--border); border-bottom: none; overflow: hidden; }
+  .tab-btn { padding: 12px 24px; font-size: 13px; color: var(--text-sub); cursor: pointer; border: none; background: none; font-family: inherit; transition: all 0.15s; position: relative; display: flex; align-items: center; gap: 6px; }
+  .tab-btn:hover { color: var(--primary-600); background: var(--primary-50); }
+  .tab-btn.active { color: var(--primary-600); font-weight: 500; }
+  .tab-btn.active::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--primary-600); }
+  .tab-btn .badge { font-size: 10px; padding: 1px 6px; border-radius: 8px; background: var(--page); color: var(--text-sec); font-family: "DIN", monospace; }
+  .tab-btn.active .badge { background: var(--primary-50); color: var(--primary-600); }
+
+  /* === Tab内容区 === */
+  .tab-content { background: var(--white); border-radius: 0 0 12px 12px; border: 1px solid var(--border); margin-bottom: 16px; }
+  .tab-pane { display: none; padding: 20px 24px; }
+  .tab-pane.active { display: block; }
+
+  /* === 详情区 === */
+  .detail-section { margin-bottom: 24px; }
+  .detail-section:last-child { margin-bottom: 0; }
+  .detail-section-title { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--page); }
+  .detail-section-title .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .detail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 24px; }
+  .detail-item { display: flex; flex-direction: column; gap: 4px; }
+  .detail-label { font-size: 11px; color: var(--text-sec); }
+  .detail-value { font-size: 13px; color: var(--text); }
+  .detail-value.num { font-family: "DIN Alternate", "Roboto", monospace; }
+
+  /* === 进度横条 === */
+  .progress-overview { display: flex; align-items: center; gap: 0; padding: 16px 0; flex-wrap: wrap; }
+  .proc-step { display: flex; flex-direction: column; align-items: center; gap: 6px; position: relative; min-width: 100px; }
+  .proc-circle { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; font-family: "DIN", monospace; z-index: 1; }
+  .proc-circle.done { background: var(--normal); color: #fff; }
+  .proc-circle.current { background: var(--primary-600); color: #fff; }
+  .proc-circle.pending { background: var(--page); color: var(--text-sec); border: 2px solid var(--border); }
+  .proc-name { font-size: 12px; color: var(--text); font-weight: 500; }
+  .proc-name.pending { color: var(--text-sec); }
+  .proc-time { font-size: 10px; color: var(--text-sec); font-family: "DIN", monospace; }
+  .proc-line { flex: 1; height: 2px; background: var(--border); min-width: 30px; margin: 0 -6px; margin-bottom: 22px; }
+  .proc-line.done { background: var(--normal); }
+
+  /* === 数据表格 === */
+  .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .data-table th { text-align: left; padding: 8px 12px; background: var(--page); color: var(--text-sec); font-weight: 500; font-size: 11px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .data-table td { padding: 10px 12px; border-bottom: 1px solid var(--page); color: var(--text); vertical-align: middle; }
+  .data-table tbody tr:hover { background: var(--primary-50); }
+  .data-table .num { font-family: "DIN Alternate", "Roboto", monospace; }
+  .id-link { font-family: "DIN Alternate", "Roboto", monospace; font-weight: 500; color: var(--primary-600); cursor: pointer; }
+  .id-link:hover { text-decoration: underline; }
+
+  /* === 物料状态 === */
+  .mat-status { font-size: 11px; padding: 2px 8px; border-radius: 10px; display: inline-flex; align-items: center; gap: 4px; }
+  .mat-status .dot { width: 5px; height: 5px; border-radius: 50%; }
+  .mat-status.full { background: var(--normal-bg); color: #085041; } .mat-status.full .dot { background: var(--normal); }
+  .mat-status.partial { background: var(--info-bg); color: #633806; } .mat-status.partial .dot { background: var(--info); }
+  .mat-status.pending { background: var(--page); color: var(--text-sub); } .mat-status.pending .dot { background: var(--text-sec); }
+
+  /* === 参数记录卡片 === */
+  .param-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .param-card { border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .param-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .param-name { font-size: 13px; color: var(--text-sub); font-weight: 500; }
+  .param-unit { font-size: 11px; color: var(--text-sec); }
+  .param-value { font-family: "DIN Alternate", "Roboto", monospace; font-size: 28px; font-weight: 500; line-height: 1.1; }
+  .param-range { font-size: 11px; color: var(--text-sec); margin-top: 4px; font-family: "DIN", monospace; }
+  .param-value.normal { color: var(--normal); }
+  .param-value.warning { color: var(--warning); }
+  .param-value.block { color: var(--block); }
+
+  /* === 工序时间线 === */
+  .proc-timeline { position: relative; padding-left: 28px; }
+  .proc-timeline::before { content: ''; position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+  .timeline-item { position: relative; padding-bottom: 20px; }
+  .timeline-item:last-child { padding-bottom: 0; }
+  .timeline-item::before { content: ''; position: absolute; left: -25px; top: 4px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--border); background: var(--white); }
+  .timeline-item.done::before { border-color: var(--normal); background: var(--normal); }
+  .timeline-item.current::before { border-color: var(--primary-600); background: var(--primary-600); }
+  .timeline-item.warning::before { border-color: var(--warning); background: var(--warning); }
+  .timeline-header { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
+  .timeline-name { font-size: 14px; font-weight: 500; color: var(--text); }
+  .timeline-item.current .timeline-name { color: var(--primary-600); }
+  .timeline-time { font-size: 11px; color: var(--text-sec); font-family: "DIN", monospace; }
+  .timeline-detail { font-size: 12px; color: var(--text-sub); margin-bottom: 4px; }
+  .timeline-params { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 6px; padding: 8px 12px; background: var(--page); border-radius: 6px; }
+  .timeline-param { font-size: 11px; color: var(--text-sub); }
+  .timeline-param .val { font-family: "DIN", monospace; font-weight: 500; color: var(--text); margin-left: 4px; }
+
+  /* === 异常事件 === */
+  .event-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--page); }
+  .event-item:last-child { border-bottom: none; }
+  .event-bar { width: 3px; min-width: 3px; border-radius: 2px; }
+  .event-bar.block { background: var(--block); }
+  .event-bar.warning { background: var(--warning); }
+  .event-bar.info { background: var(--info); }
+  .event-content { flex: 1; }
+  .event-header { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .event-title { font-size: 13px; font-weight: 500; color: var(--text); }
+  .event-time { font-size: 11px; color: var(--text-sec); font-family: "DIN", monospace; }
+  .event-desc { font-size: 12px; color: var(--text-sub); margin-bottom: 4px; }
+  .event-action { font-size: 11px; color: var(--normal); display: flex; align-items: center; gap: 4px; }
+
+  /* === 质检结果 === */
+  .qc-result { display: flex; align-items: center; gap: 6px; }
+  .qc-icon { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; }
+  .qc-icon.pass { background: var(--normal); color: #fff; }
+  .qc-icon.fail { background: var(--block); color: #fff; }
+  .qc-icon.pending { background: var(--page); color: var(--text-sec); border: 1px solid var(--border); }
+
+  /* === 双栏 === */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-sec); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .pulse { animation: pulse 1.5s ease-in-out infinite; }
+  /* === 异常事件卡片（与生产执行-动作指引.html 一致）=== */
+  .ex-event-list{display:flex;flex-direction:column;gap:14px;}
+  .ex-event-card{border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#fff;}
+  .ex-event-card.block{border-color:var(--block,#E5484D);}
+  .ex-event-card.warn{border-color:#EF9F27;}
+  .ex-event-card.closed{border-color:var(--normal,#16A34A);}
+  .ex-event-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--page);}
+  .ex-event-head .title-row{display:flex;align-items:center;gap:10px;}
+  .ex-event-head .ex-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex:none;}
+  .ex-event-head .ex-icon.block{background:#FEF0F0;color:var(--block,#E5484D);}
+  .ex-event-head .ex-icon.warn{background:#FEF6E7;color:#EF9F27;}
+  .ex-event-head .ex-icon.closed{background:#F0FDF4;color:var(--normal,#16A34A);}
+  .ex-event-head .ex-title{font-size:14px;font-weight:600;color:var(--text);}
+  .ex-event-head .ex-sub{font-size:12px;color:var(--text-sec);margin-top:2px;}
+  .ex-event-body{padding:16px 18px;display:flex;gap:24px;align-items:flex-start;}
+  .ex-event-detail{flex:1;}
+  .ex-event-detail .row{display:flex;gap:8px;font-size:12.5px;line-height:2;color:var(--text-sec);}
+  .ex-event-detail .row b{color:var(--text);min-width:64px;}
+  .ex-flow-mini{flex:none;width:340px;display:flex;align-items:center;gap:0;padding:12px 16px;background:var(--page);border-radius:10px;}
+  .ex-flow-step{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;}
+  .ex-flow-step .dot{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;}
+  .ex-flow-step.done .dot{background:var(--normal,#16A34A);color:#fff;}
+  .ex-flow-step.cur .dot{background:var(--block,#E5484D);color:#fff;box-shadow:0 0 0 4px rgba(229,72,77,.15);}
+  .ex-flow-step.todo .dot{background:#fff;border:1.5px solid var(--border);color:var(--text-sec);}
+  .ex-flow-step .label{font-size:10.5px;color:var(--text-sec);text-align:center;white-space:nowrap;}
+  .ex-flow-step.cur .label{color:var(--block,#E5484D);font-weight:600;}
+  .ex-flow-step.done .label{color:var(--normal,#16A34A);}
+  .ex-flow-line{width:20px;height:2px;background:var(--border);flex:none;}
+  .ex-flow-line.done{background:var(--normal,#16A34A);}
+  .ex-event-foot{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-top:1px solid var(--page);background:#FAFBFC;}
+  .ex-event-foot .node-info{font-size:12px;color:var(--text-sec);}
+  .ex-event-foot .node-info b{color:var(--block,#E5484D);}
+  .ex-event-foot .node-info.closed b{color:var(--normal,#16A34A);}
+  .k-handle-btn{background:var(--block,#E5484D);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;font-weight:500;font-family:inherit;}
+  .k-handle-btn:hover{opacity:.9;}
+  /* === 异常处理抽屉 === */
+  .kdt-mask{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.3);z-index:9998;display:none;}
+  .kdt-mask.open{display:block;}
+  .kdt-drawer{position:fixed;top:0;right:0;width:460px;height:100vh;background:#fff;box-shadow:-4px 0 24px rgba(0,0,0,.1);z-index:9999;transform:translateX(100%);transition:transform .3s;overflow-y:auto;}
+  .kdt-drawer.open{transform:translateX(0);}
+  .kdt-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);}
+  .kdt-badge{font-size:13px;font-weight:600;color:var(--block,#E5484D);}
+  .kdt-close{background:none;border:none;font-size:20px;color:var(--text-sec);cursor:pointer;}
+  .kdt-body{padding:20px;}
+  .kdt-meta{font-size:12px;color:var(--text-sec);line-height:1.8;background:var(--page);border-radius:8px;padding:12px 14px;margin-bottom:16px;}
+  .kdt-meta b{color:var(--text);}
+  .kdt-steps{display:flex;flex-direction:column;gap:0;margin-bottom:16px;}
+  .kdt-step{display:flex;align-items:flex-start;gap:12px;padding:10px 0;position:relative;}
+  .kdt-step:not(:last-child)::after{content:'';position:absolute;left:15px;top:36px;width:2px;height:calc(100% - 26px);background:var(--border);}
+  .kdt-step.done:not(:last-child)::after{background:var(--normal,#16A34A);}
+  .kdt-step .kdt-dot{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex:none;z-index:1;}
+  .kdt-step.done .kdt-dot{background:var(--normal,#16A34A);color:#fff;}
+  .kdt-step.cur .kdt-dot{background:var(--block,#E5484D);color:#fff;box-shadow:0 0 0 4px rgba(229,72,77,.15);}
+  .kdt-step.todo .kdt-dot{background:#fff;border:1.5px solid var(--border);color:var(--text-sec);}
+  .kdt-step .kdt-info b{font-size:13px;font-weight:600;color:var(--text);}
+  .kdt-step .kdt-info span{display:block;font-size:12px;color:var(--text-sec);margin-top:3px;line-height:1.6;}
+  .kdt-act{width:100%;background:var(--primary-600,#2563EB);color:#fff;border:none;border-radius:8px;padding:11px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;}
+  .kdt-closed{font-size:15px;font-weight:600;color:var(--normal,#16A34A);line-height:1.7;text-align:center;padding:20px 0;}
+  .kdt-closed span{display:block;font-size:12.5px;font-weight:400;color:var(--text-sec);margin-top:6px;}
+
+  /* === 侧边栏 v2：分组折叠 + 窄宽 + 新LOGO === */
+  .logo-text { line-height: 1.25; min-width: 0; }
+  .logo-name { font-size: 15px; font-weight: 500; color: #FFFFFF; letter-spacing: 0.3px; }
+  .logo-slogan { font-size: 10.5px; color: #93B5D9; margin-top: 1px; }
+  .nav-group-head { padding: 14px 16px 5px; font-size: 11px; color: #6FA9DA; letter-spacing: 0.6px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; transition: color 0.15s; }
+  .nav-group-head:hover { color: #B5D4F4; }
+  .nav-group-head > span:first-child { font-weight: 500; }
+  .nav-caret { font-size: 10px; opacity: 0.75; transition: transform 0.18s; display: inline-block; }
+  .nav-group-items { overflow: hidden; }
+  .nav-group.collapsed .nav-caret { transform: rotate(-90deg); }
+  .nav-group.collapsed .nav-group-items { display: none; }
+  .sidebar-collapse { padding: 10px 16px; font-size: 12px; color: #85B7EB; cursor: pointer; display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--primary-600); transition: all 0.15s; }
+  .sidebar-collapse:hover { background: var(--primary-900); color: #B5D4F4; }
+  .collapse-caret { display: inline-block; transition: transform 0.2s; font-size: 14px; line-height: 1; }
+  .sidebar.collapsed .collapse-caret { transform: rotate(180deg); }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- 侧边栏 -->
+  <aside class="sidebar" id="appSidebar"></aside>
+
+  <!-- 主区域 -->
+  <div class="main">
+    <header class="topbar">
+      <div class="breadcrumb">
+        <a onclick="window.location.href='生产执行管理.html'">生产管理</a>
+        <span>›</span>
+        <a onclick="window.location.href='生产执行管理.html'">生产执行</a>
+        <span>›</span>
+        <span class="current">RC-0731-001 釜次详情</span>
+      </div>
+      <div class="topbar-right">
+        <div id="plantSwitch"></div>
+        <div id="roleSwitch"></div>
+      <div class="user-info">
+          <div class="avatar">张</div>
+          <div><div class="user-name">张明</div><div class="user-role">车间主管</div></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="tabbar" id="tabBar"></div>
+      <div class="content">
+    
+      <!-- 页面标题 -->
+      <div class="page-header">
+        <div>
+          <div class="page-title-row">
+            <div class="page-title">对乙酰氨基酚片剂 · 釜次 RC-0731-001</div>
+            <span class="status-tag normal"><span class="dot pulse"></span>执行中</span>
+            <span style="font-family: 'DIN', monospace; font-size: 13px; color: var(--text-sec); padding: 3px 10px; background: var(--page); border-radius: 14px;">投料反应 (3/5)</span>
+          </div>
+          <div class="page-subtitle">创建时间: 2026-07-31 07:50 · 开始时间: 08:30 · 预计完工: 12:00 · 操作员: 张明</div>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="window.location.href='生产执行管理.html'">← 返回列表</button>
+          <button class="btn btn-secondary">📄 导出批记录</button>
+          <button class="btn btn-secondary" onclick="window.location.href='生产执行-动作指引.html'">📋 动作指引</button>
+          <button class="btn btn-primary">✎ 补录数据</button>
+        </div>
+      </div>
+
+      <!-- 信息概览 -->
+      <div class="info-banner">
+        <div class="info-item">
+          <div class="info-label">关联BOM</div>
+          <div class="info-value link" onclick="window.location.href='釜次BOM-详情.html'">BOM-PAR-028 V3.2</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">产品编码</div>
+          <div class="info-value num">PRD-PAR-001</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">所属车间</div>
+          <div class="info-value">一车间</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">反应釜</div>
+          <div class="info-value num">R-201 (500L)</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">计划产量</div>
+          <div class="info-value num">500 kg</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">当前进度</div>
+          <div class="info-value num" style="color: var(--normal);">60%</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">班次</div>
+          <div class="info-value">白班 08:00-20:00</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">质检员</div>
+          <div class="info-value">刘质检</div>
+        </div>
+      </div>
+
+      <!-- 质量与放行追溯入口 -->
+      <div class="detail-section" style="margin-bottom:16px;">
+        <div class="detail-section-title"><span class="dot" style="background: var(--info);"></span>质量 · 放行 · 批次追溯</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <button class="btn btn-secondary" onclick="window.location.href='质量控制.html'">🔬 质量控制（QC）</button>
+          <button class="btn btn-secondary" onclick="window.location.href='清场放行.html'">✅ 清场放行（QA）</button>
+          <button class="btn btn-secondary" onclick="window.location.href='批次追溯.html'">🔗 批次追溯</button>
+        </div>
+      </div>
+
+      <!-- Tab导航 -->
+      <div class="tab-nav">
+        <button class="tab-btn active" data-tab="overview">执行概览</button>
+        <button class="tab-btn" data-tab="process">工序记录 <span class="badge">5</span></button>
+        <button class="tab-btn" data-tab="material">物料使用 <span class="badge">7</span></button>
+        <button class="tab-btn" data-tab="quality">质量检验 <span class="badge">4</span></button>
+        <button class="tab-btn" data-tab="anomaly">异常事件 <span class="badge" style="background: var(--block, #E5484D); color: #fff;">3</span></button>
+        <button class="tab-btn" data-tab="record">电子批记录</button>
+      </div>
+
+      <!-- Tab内容 -->
+      <div class="tab-content">
+        <!-- 执行概览 -->
+        <div class="tab-pane active" id="tab-overview">
+          <!-- 工序进度 -->
+          <div class="detail-section">
+            <div class="detail-section-title"><span class="dot" style="background: var(--primary-400);"></span>工序执行进度</div>
+            <div class="progress-overview">
+              <div class="proc-step">
+                <div class="proc-circle done">✓</div>
+                <div class="proc-name">称量配料</div>
+                <div class="proc-time">08:30-09:15</div>
+              </div>
+              <div class="proc-line done"></div>
+              <div class="proc-step">
+                <div class="proc-circle done">✓</div>
+                <div class="proc-name">混合制粒</div>
+                <div class="proc-time">09:15-10:00</div>
+              </div>
+              <div class="proc-line done"></div>
+              <div class="proc-step">
+                <div class="proc-circle current">3</div>
+                <div class="proc-name">投料反应</div>
+                <div class="proc-time">10:00-进行中</div>
+              </div>
+              <div class="proc-line"></div>
+              <div class="proc-step">
+                <div class="proc-circle pending">4</div>
+                <div class="proc-name pending">干燥</div>
+                <div class="proc-time">待开始</div>
+              </div>
+              <div class="proc-line"></div>
+              <div class="proc-step">
+                <div class="proc-circle pending">5</div>
+                <div class="proc-name pending">压片包装</div>
+                <div class="proc-time">待开始</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 实时关键参数 -->
+          <div class="detail-section">
+            <div class="detail-section-title"><span class="dot" style="background: var(--normal);"></span>实时关键参数（当前工序：投料反应）</div>
+            <div class="param-grid">
+              <div class="param-card">
+                <div class="param-header"><span class="param-name">反应釜温度</span><span class="param-unit">°C</span></div>
+                <div class="param-value normal">76.2</div>
+                <div class="param-range">标准范围: 70.0 ~ 80.0</div>
+              </div>
+              <div class="param-card">
+                <div class="param-header"><span class="param-name">釜内压力</span><span class="param-unit">MPa</span></div>
+                <div class="param-value normal">1.42</div>
+                <div class="param-range">标准范围: 1.2 ~ 1.8</div>
+              </div>
+              <div class="param-card">
+                <div class="param-header"><span class="param-name">搅拌转速</span><span class="param-unit">rpm</span></div>
+                <div class="param-value normal">85</div>
+                <div class="param-range">标准范围: 80 ~ 100</div>
+              </div>
+              <div class="param-card">
+                <div class="param-header"><span class="param-name">投料量累计</span><span class="param-unit">kg</span></div>
+                <div class="param-value normal">272.7</div>
+                <div class="param-range">目标: 454.5 · 已投 60%</div>
+              </div>
+              <div class="param-card">
+                <div class="param-header"><span class="param-name">反应pH值</span><span class="param-unit">—</span></div>
+                <div class="param-value normal">6.8</div>
+                <div class="param-range">标准范围: 6.5 ~ 7.5</div>
+              </div>
+              <div class="param-card">
+                <div class="param-header"><span class="param-name">已耗时</span><span class="param-unit">min</span></div>
+                <div class="param-value" style="color: var(--primary-600);">28</div>
+                <div class="param-range">预计剩余: 32 min</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 基本信息 -->
+          <div class="detail-section">
+            <div class="detail-section-title"><span class="dot" style="background: var(--text-sec);"></span>批次基本信息</div>
+            <div class="detail-grid">
+              <div class="detail-item"><div class="detail-label">釜次编号</div><div class="detail-value num">RC-0731-001</div></div>
+              <div class="detail-item"><div class="detail-label">产品名称</div><div class="detail-value">对乙酰氨基酚片剂</div></div>
+              <div class="detail-item"><div class="detail-label">产品编码</div><div class="detail-value num">PRD-PAR-001</div></div>
+              <div class="detail-item"><div class="detail-label">剂型</div><div class="detail-value">片剂</div></div>
+              <div class="detail-item"><div class="detail-label">规格</div><div class="detail-value">500mg × 100片/瓶</div></div>
+              <div class="detail-item"><div class="detail-label">工艺路线</div><div class="detail-value">称量→制粒→反应→干燥→压片包装</div></div>
+              <div class="detail-item"><div class="detail-label">计划产量</div><div class="detail-value num">500 kg</div></div>
+              <div class="detail-item"><div class="detail-label">计划开始</div><div class="detail-value num">2026-07-31 08:30</div></div>
+              <div class="detail-item"><div class="detail-label">计划结束</div><div class="detail-value num">2026-07-31 12:00</div></div>
+              <div class="detail-item"><div class="detail-label">实际开始</div><div class="detail-value num">2026-07-31 08:30</div></div>
+              <div class="detail-item"><div class="detail-label">操作员</div><div class="detail-value">张明</div></div>
+              <div class="detail-item"><div class="detail-label">质检员</div><div class="detail-value">刘质检</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 工序记录 -->
+        <div class="tab-pane" id="tab-process">
+          <div class="detail-section">
+            <div class="detail-section-title"><span class="dot" style="background: var(--primary-400);"></span>工序执行时间线</div>
+            <div class="proc-timeline">
+              <div class="timeline-item done">
+                <div class="timeline-header">
+                  <span class="timeline-name">工序1 · 称量配料</span>
+                  <span class="status-tag normal"><span class="dot"></span>已完成</span>
+                  <span class="timeline-time">08:30 → 09:15 (45min)</span>
+                </div>
+                <div class="timeline-detail">操作员: 张明 · 称量7种物料，全部符合BOM配方要求</div>
+                <div class="timeline-params">
+                  <span class="timeline-param">称量精度:<span class="val">±0.1%</span></span>
+                  <span class="timeline-param">校验结果:<span class="val" style="color: var(--normal);">通过</span></span>
+                  <span class="timeline-param">物料种类:<span class="val">7/7</span></span>
+                </div>
+              </div>
+              <div class="timeline-item done">
+                <div class="timeline-header">
+                  <span class="timeline-name">工序2 · 混合制粒</span>
+                  <span class="status-tag normal"><span class="dot"></span>已完成</span>
+                  <span class="timeline-time">09:15 → 10:00 (45min)</span>
+                </div>
+                <div class="timeline-detail">操作员: 张明 · 制粒完成，颗粒均匀度合格</div>
+                <div class="timeline-params">
+                  <span class="timeline-param">混合时间:<span class="val">15min</span></span>
+                  <span class="timeline-param">制粒温度:<span class="val">45°C</span></span>
+                  <span class="timeline-param">颗粒目数:<span class="val">20目</span></span>
+                  <span class="timeline-param">含水率:<span class="val">3.2%</span></span>
+                </div>
+              </div>
+              <div class="timeline-item current">
+                <div class="timeline-header">
+                  <span class="timeline-name">工序3 · 投料反应</span>
+                  <span class="status-tag executing"><span class="dot pulse"></span>执行中</span>
+                  <span class="timeline-time">10:00 → 进行中</span>
+                </div>
+                <div class="timeline-detail">操作员: 张明 · 正在进行投料反应，当前投料进度60%</div>
+                <div class="timeline-params">
+                  <span class="timeline-param">当前温度:<span class="val" style="color: var(--normal);">76.2°C</span></span>
+                  <span class="timeline-param">当前压力:<span class="val" style="color: var(--normal);">1.42MPa</span></span>
+                  <span class="timeline-param">搅拌转速:<span class="val">85rpm</span></span>
+                  <span class="timeline-param">pH值:<span class="val">6.8</span></span>
+                  <span class="timeline-param">已投料:<span class="val">272.7/454.5kg</span></span>
+                </div>
+              </div>
+              <div class="timeline-item">
+                <div class="timeline-header">
+                  <span class="timeline-name pending" style="color: var(--text-sec);">工序4 · 干燥</span>
+                  <span class="status-tag done"><span class="dot"></span>待开始</span>
+                  <span class="timeline-time">预计 11:00 → 11:30</span>
+                </div>
+                <div class="timeline-detail">计划参数: 干燥温度 60°C · 目标含水率 ≤2.0%</div>
+              </div>
+              <div class="timeline-item">
+                <div class="timeline-header">
+                  <span class="timeline-name pending" style="color: var(--text-sec);">工序5 · 压片包装</span>
+                  <span class="status-tag done"><span class="dot"></span>待开始</span>
+                  <span class="timeline-time">预计 11:30 → 12:00</span>
+                </div>
+                <div class="timeline-detail">计划参数: 片重 500mg ± 5% · 包衣增重 3%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 物料使用 -->
+        <div class="tab-pane" id="tab-material">
+          <div class="detail-section">
+            <div class="detail-section-title"><span class="dot" style="background: var(--normal);"></span>物料投料记录</div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>投料顺序</th>
+                  <th>物料编码</th>
+                  <th>物料名称</th>
+                  <th>规格</th>
+                  <th>BOM需求量</th>
+                  <th>实际投料量</th>
+                  <th>偏差</th>
+                  <th>投料状态</th>
+                  <th>投料时间</th>
+                  <th>批次号</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="num" style="font-weight:500;">1</td>
+                  <td class="num id-link" onclick="window.location.href='釜次BOM-详情.html'">MAT-PAR-001</td>
+                  <td>对乙酰氨基酚原料药</td>
+                  <td>API / ≥99.5%</td>
+                  <td class="num">454.5 kg</td>
+                  <td class="num">272.7 kg</td>
+                  <td class="num" style="color: var(--normal);">0.0%</td>
+                  <td><span class="mat-status partial"><span class="dot"></span>投料中 60%</span></td>
+                  <td class="num">10:05</td>
+                  <td class="num">LOT-20260715-A03</td>
+                </tr>
+                <tr>
+                  <td class="num" style="font-weight:500;">2</td>
+                  <td class="num id-link" onclick="window.location.href='釜次BOM-详情.html'">MAT-EXC-012</td>
+                  <td>微晶纤维素</td>
+                  <td>PH-102 / 80目</td>
+                  <td class="num">23.0 kg</td>
+                  <td class="num">23.0 kg</td>
+                  <td class="num" style="color: var(--normal);">0.0%</td>
+                  <td><span class="mat-status full"><span class="dot"></span>已投完</span></td>
+                  <td class="num">08:45</td>
+                  <td class="num">LOT-20260710-B12</td>
+                </tr>
+                <tr>
+                  <td class="num" style="font-weight:500;">3</td>
+                  <td class="num id-link" onclick="window.location.href='釜次BOM-详情.html'">MAT-EXC-008</td>
+                  <td>交联羧甲基纤维素钠</td>
+                  <td>AC-Di-Sol</td>
+                  <td class="num">11.5 kg</td>
+                  <td class="num">11.5 kg</td>
+                  <td class="num" style="color: var(--normal);">0.0%</td>
+                  <td><span class="mat-status full"><span class="dot"></span>已投完</span></td>
+                  <td class="num">08:50</td>
+                  <td class="num">LOT-20260628-C05</td>
+                </tr>
+                <tr>
+                  <td class="num" style="font-weight:500;">4</td>
+                  <td class="num id-link" onclick="window.location.href='釜次BOM-详情.html'">MAT-EXC-003</td>
+                  <td>硬脂酸镁</td>
+                  <td>药用级 / 200目</td>
+                  <td class="num">5.7 kg</td>
+                  <td class="num">5.7 kg</td>
+                  <td class="num" style="color: var(--normal);">0.0%</td>
+                  <td><span class="mat-status full"><span class="dot"></span>已投完</span></td>
+                  <td class="num">08:55</td>
+                  <td class="num">LOT-20260705-D08</td>
+                </tr>
+                <tr>
+                  <td class="num" style="font-weight:500;">5</td>
+                  <td class="num id-link" onclick="window.location.href='釜次BOM-详情.html'">MAT-SOL-005</td>
+                  <td>纯化水</td>
+                  <td>注射级</td>
+                  <td class="num">89.3 L</td>
+                  <td class="num">89.3 L</td>
+                  <td class="num" style="color: var(--normal);">0.0%</td>
+                  <td><span class="mat-status full"><span class="dot"></span>已投完</span></td>
+                  <td class="num">09:20</td>
+                  <td class="num">车间制水 07-31</td>
+                </tr>
+                <tr>
+                  <td class="num" style="font-weight:500;">6</td>
+                  <td class="num id-link" onclick="window.location.href='釜次BOM-详情.html'">MAT-CT-021</td>
+                  <td>欧巴代包衣粉</td>
+                  <td>白色 / Y-1-7000</td>
+                  <td class="num">15.5 kg</td>
+                  <td class="num">—</td>
+                  <td class="num" style="color: var(--text-sec);">—</td>
+                  <td><span class="mat-status pending"><span class="dot"></span>待投料</span></td>
+                  <td class="num">—</td>
+                  <td class="num">LOT-20260720-E03</td>
+                </tr>
+                <tr>
+                  <td class="num" style="font-weight:500;">7</td>
+                  <td class="num id-link" onclick="window.location.href='釜次BOM-详情.html'">MAT-EXC-021</td>
+                  <td>聚维酮K30</td>
+                  <td>K-30 / 药用级</td>
+                  <td class="num">8.7 kg</td>
+                  <td class="num">8.7 kg</td>
+                  <td class="num" style="color: var(--normal);">0.0%</td>
+                  <td><span class="mat-status full"><span class="dot"></span>已投完</span></td>
+                  <td class="num">09:10</td>
+                  <td class="num">LOT-20260712-F07</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr style="background: var(--page); font-weight: 500;">
+                  <td colspan="4" style="text-align: right; padding: 10px 12px;">合计：</td>
+                  <td class="num">608.2</td>
+                  <td class="num" style="color: var(--primary-600);">410.9</td>
+                  <td colspan="2" style="font-weight: 400; color: var(--text-sec); font-size: 11px;">5/7 已投完 · 1 投料中 · 1 待投料</td>
+                  <td colspan="2"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <!-- 质量检验 -->
+        <div class="tab-pane" id="tab-quality">
+          <div class="detail-section">
+            <div class="detail-section-title"><span class="dot" style="background: var(--info);"></span>质检记录</div>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>检验项</th>
+                  <th>检验标准</th>
+                  <th>实际值</th>
+                  <th>检验结果</th>
+                  <th>检验人</th>
+                  <th>检验时间</th>
+                  <th>检验方法</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>原料药含量</td>
+                  <td>≥99.5%</td>
+                  <td class="num" style="color: var(--normal);">99.7%</td>
+                  <td><div class="qc-result"><div class="qc-icon pass">✓</div><span style="font-size:12px; color:#085041;">合格</span></div></td>
+                  <td>刘质检</td>
+                  <td class="num">08:20</td>
+                  <td>HPLC法</td>
+                </tr>
+                <tr>
+                  <td>颗粒均匀度</td>
+                  <td>20目过筛率 ≥95%</td>
+                  <td class="num" style="color: var(--normal);">97.3%</td>
+                  <td><div class="qc-result"><div class="qc-icon pass">✓</div><span style="font-size:12px; color:#085041;">合格</span></div></td>
+                  <td>刘质检</td>
+                  <td class="num">10:05</td>
+                  <td>筛分法</td>
+                </tr>
+                <tr>
+                  <td>颗粒含水率</td>
+                  <td>≤4.0%</td>
+                  <td class="num" style="color: var(--normal);">3.2%</td>
+                  <td><div class="qc-result"><div class="qc-icon pass">✓</div><span style="font-size:12px; color:#085041;">合格</span></div></td>
+                  <td>刘质检</td>
+                  <td class="num">10:08</td>
+                  <td>卡尔费休法</td>
+                </tr>
+                <tr>
+                  <td>反应液pH值</td>
+                  <td>6.5 ~ 7.5</td>
+                  <td class="num" style="color: var(--normal);">6.8</td>
+                  <td><div class="qc-result"><div class="qc-icon pass">✓</div><span style="font-size:12px; color:#085041;">合格</span></div></td>
+                  <td>刘质检</td>
+                  <td class="num">10:25</td>
+                  <td>pH计法</td>
+                </tr>
+                <tr>
+                  <td>片重差异</td>
+                  <td>±5%</td>
+                  <td class="num" style="color: var(--text-sec);">—</td>
+                  <td><div class="qc-result"><div class="qc-icon pending">—</div><span style="font-size:12px; color:var(--text-sec);">待检</span></div></td>
+                  <td>—</td>
+                  <td class="num">—</td>
+                  <td>称重法</td>
+                </tr>
+                <tr>
+                  <td>溶出度</td>
+                  <td>30min ≥80%</td>
+                  <td class="num" style="color: var(--text-sec);">—</td>
+                  <td><div class="qc-result"><div class="qc-icon pending">—</div><span style="font-size:12px; color:var(--text-sec);">待检</span></div></td>
+                  <td>—</td>
+                  <td class="num">—</td>
+                  <td>溶出仪法</td>
+                </tr>
+              </tbody>
+            </table>
+            <div style="margin-top: 12px; padding: 10px 14px; background: var(--normal-bg); border-radius: 8px; font-size: 12px; color: #085041; display: flex; align-items: center; gap: 8px;">
+              <span>✓</span><span>已完成4项质检 · 全部合格 · 2项待工序完成后检验（片重差异、溶出度）</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 异常事件 -->
+        <div class="tab-pane" id="tab-anomaly">
+          <div class="detail-section">
+            <div class="detail-section-title"><span class="dot" style="background: var(--block);"></span>生产异常事件</div>
+            <div class="ex-event-list">
+
+              <!-- 异常事件 1：阻断 · 主管审批中 -->
+              <div class="ex-event-card block" id="kevt-1">
+                <div class="ex-event-head">
+                  <div class="title-row">
+                    <div class="ex-icon block">⚠</div>
+                    <div>
+                      <div class="ex-title">投料温度超限</div>
+                      <div class="ex-sub">RC-0731-003 · 投料反应 · 10:15 · 操作员 李伟</div>
+                    </div>
+                  </div>
+                  <span class="status-tag block"><span class="dot pulse"></span>阻断</span>
+                </div>
+                <div class="ex-event-body">
+                  <div class="ex-event-detail">
+                    <div class="row"><b>异常类型</b>温度超限</div>
+                    <div class="row"><b>实际值</b>85.6°C</div>
+                    <div class="row"><b>标准值</b>≤ 80°C</div>
+                    <div class="row"><b>偏差</b>+5.6°C（超限 7%）</div>
+                    <div class="row"><b>设备</b>反应釜 R-205 · 温度变送器 TT-205</div>
+                    <div class="row"><b>影响</b>投料反应暂停，釜次阻断，需审批后处理</div>
+                  </div>
+                  <div class="ex-flow-mini" id="kflow-1">
+                    <div class="ex-flow-step done"><div class="dot">✓</div><div class="label">异常上报</div></div>
+                    <div class="ex-flow-line done"></div>
+                    <div class="ex-flow-step cur"><div class="dot">2</div><div class="label">主管审批</div></div>
+                    <div class="ex-flow-line"></div>
+                    <div class="ex-flow-step todo"><div class="dot">3</div><div class="label">现场处理</div></div>
+                    <div class="ex-flow-line"></div>
+                    <div class="ex-flow-step todo"><div class="dot">4</div><div class="label">质量复核</div></div>
+                    <div class="ex-flow-line"></div>
+                    <div class="ex-flow-step todo"><div class="dot">5</div><div class="label">闭环确认</div></div>
+                  </div>
+                </div>
+                <div class="ex-event-foot">
+                  <div class="node-info">当前节点：<b>② 主管审批</b> · 等待车间主管确认处理方案</div>
+                  <button class="k-handle-btn" onclick="KDT.open('kevt-1','kflow-1',1)">处理 →</button>
+                </div>
+              </div>
+
+              <!-- 异常事件 2：处理中 · 现场处理 -->
+              <div class="ex-event-card warn" id="kevt-2">
+                <div class="ex-event-head">
+                  <div class="title-row">
+                    <div class="ex-icon warn">⚠</div>
+                    <div>
+                      <div class="ex-title">压力值偏高</div>
+                      <div class="ex-sub">RC-0731-005 · 混合反应 · 10:08 · 操作员 王芳</div>
+                    </div>
+                  </div>
+                  <span class="status-tag warning"><span class="dot pulse"></span>处理中</span>
+                </div>
+                <div class="ex-event-body">
+                  <div class="ex-event-detail">
+                    <div class="row"><b>异常类型</b>压力超限</div>
+                    <div class="row"><b>实际值</b>2.18 MPa</div>
+                    <div class="row"><b>标准值</b>≤ 2.0 MPa</div>
+                    <div class="row"><b>偏差</b>+0.18 MPa（超限 9%）</div>
+                    <div class="row"><b>设备</b>反应釜 R-208 · 压力变送器 PT-208</div>
+                    <div class="row"><b>影响</b>混合反应暂停，现场隔离排料中</div>
+                  </div>
+                  <div class="ex-flow-mini" id="kflow-2">
+                    <div class="ex-flow-step done"><div class="dot">✓</div><div class="label">异常上报</div></div>
+                    <div class="ex-flow-line done"></div>
+                    <div class="ex-flow-step done"><div class="dot">✓</div><div class="label">主管审批</div></div>
+                    <div class="ex-flow-line done"></div>
+                    <div class="ex-flow-step cur"><div class="dot">3</div><div class="label">现场处理</div></div>
+                    <div class="ex-flow-line"></div>
+                    <div class="ex-flow-step todo"><div class="dot">4</div><div class="label">质量复核</div></div>
+                    <div class="ex-flow-line"></div>
+                    <div class="ex-flow-step todo"><div class="dot">5</div><div class="label">闭环确认</div></div>
+                  </div>
+                </div>
+                <div class="ex-event-foot">
+                  <div class="node-info">当前节点：<b style="color:#EF9F27;">③ 现场处理</b> · 现场人员执行隔离、排料、清洁</div>
+                  <button class="k-handle-btn" style="background:#EF9F27;" onclick="KDT.open('kevt-2','kflow-2',2)">处理 →</button>
+                </div>
+              </div>
+
+              <!-- 异常事件 3：已闭环 -->
+              <div class="ex-event-card closed" id="kevt-3">
+                <div class="ex-event-head">
+                  <div class="title-row">
+                    <div class="ex-icon closed">✓</div>
+                    <div>
+                      <div class="ex-title">阀门开启顺序错误</div>
+                      <div class="ex-sub">RC-0731-003 · 投料反应 · 09:12 · 操作员 李伟</div>
+                    </div>
+                  </div>
+                  <span class="status-tag normal"><span class="dot"></span>已闭环</span>
+                </div>
+                <div class="ex-event-body">
+                  <div class="ex-event-detail">
+                    <div class="row"><b>异常类型</b>操作顺序错误</div>
+                    <div class="row"><b>描述</b>V-203 应在 V-201 之后开启</div>
+                    <div class="row"><b>实际</b>V-203 先于 V-201 开启</div>
+                    <div class="row"><b>设备</b>反应釜 R-205 · 冷却水阀 V-203 / 蒸汽阀 V-201</div>
+                    <div class="row"><b>处理</b>已纠正阀门顺序，QA 复检通过</div>
+                    <div class="row"><b>闭环时间</b>09:45 · 复核人 QA-陈静</div>
+                  </div>
+                  <div class="ex-flow-mini" id="kflow-3">
+                    <div class="ex-flow-step done"><div class="dot">✓</div><div class="label">异常上报</div></div>
+                    <div class="ex-flow-line done"></div>
+                    <div class="ex-flow-step done"><div class="dot">✓</div><div class="label">主管审批</div></div>
+                    <div class="ex-flow-line done"></div>
+                    <div class="ex-flow-step done"><div class="dot">✓</div><div class="label">现场处理</div></div>
+                    <div class="ex-flow-line done"></div>
+                    <div class="ex-flow-step done"><div class="dot">✓</div><div class="label">质量复核</div></div>
+                    <div class="ex-flow-line done"></div>
+                    <div class="ex-flow-step done"><div class="dot">✓</div><div class="label">闭环确认</div></div>
+                  </div>
+                </div>
+                <div class="ex-event-foot">
+                  <div class="node-info closed">当前节点：<b>⑤ 闭环确认</b> · 异常已闭环，釜次恢复执行</div>
+                  <span style="font-size:12px;color:var(--normal,#16A34A);font-weight:500;">已闭环 ✓</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+          <div class="detail-section">
+            <div class="detail-section-title"><span class="dot" style="background: var(--text-sec);"></span>系统自动监控项</div>
+            <div class="detail-grid">
+              <div class="detail-item"><div class="detail-label">温度监控</div><div class="detail-value" style="color: var(--normal);">✓ 全程在控</div></div>
+              <div class="detail-item"><div class="detail-label">压力监控</div><div class="detail-value" style="color: var(--normal);">✓ 全程在控</div></div>
+              <div class="detail-item"><div class="detail-label">投料顺序</div><div class="detail-value" style="color: var(--normal);">✓ 符合BOM</div></div>
+              <div class="detail-item"><div class="detail-label">投料量偏差</div><div class="detail-value" style="color: var(--normal);">✓ 均在允许范围</div></div>
+              <div class="detail-item"><div class="detail-label">阀门操作顺序</div><div class="detail-value" style="color: var(--normal);">✓ 符合规范</div></div>
+              <div class="detail-item"><div class="detail-label">设备运行状态</div><div class="detail-value" style="color: var(--normal);">✓ 正常</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 电子批记录 -->
+        <div class="tab-pane" id="tab-record">
+          <div class="detail-section">
+            <div class="detail-section-title"><span class="dot" style="background: var(--primary-400);"></span>电子批记录（EBR）</div>
+            <div class="detail-grid">
+              <div class="detail-item"><div class="detail-label">批记录编号</div><div class="detail-value num">EBR-20260731-001</div></div>
+              <div class="detail-item"><div class="detail-label">记录状态</div><div class="detail-value"><span class="status-tag executing"><span class="dot"></span>生成中</span></div></div>
+              <div class="detail-item"><div class="detail-label">GMP版本</div><div class="detail-value">GMP 2025版</div></div>
+              <div class="detail-item"><div class="detail-label">数据完整性</div><div class="detail-value" style="color: var(--normal);">✓ ALCOA+合规</div></div>
+              <div class="detail-item"><div class="detail-label">审计追踪</div><div class="detail-value" style="color: var(--normal);">✓ 已启用</div></div>
+              <div class="detail-item"><div class="detail-label">电子签名</div><div class="detail-value" style="color: var(--normal);">✓ 2/3 已签</div></div>
+            </div>
+          </div>
+          <div style="margin:4px 0 16px; display:flex; justify-content:flex-end;">
+            <button class="btn btn-secondary" onclick="window.location.href='电子批记录归档.html?rc=RC-2608-001'">🗂 查看 eBR 电子批记录归档</button>
+          </div>
+          <div class="detail-section">
+            <div class="detail-section-title"><span class="dot" style="background: var(--info);"></span>电子签名记录</div>
+            <table class="data-table">
+              <thead>
+                <tr><th>签名步骤</th><th>签名角色</th><th>签名人</th><th>签名时间</th><th>签名含义</th><th>状态</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>工序确认</td>
+                  <td>操作员</td>
+                  <td>张明</td>
+                  <td class="num">2026-07-31 08:30:15</td>
+                  <td>确认开始生产，设备检查通过</td>
+                  <td><span class="status-tag normal"><span class="dot"></span>已签</span></td>
+                </tr>
+                <tr>
+                  <td>中间体检验</td>
+                  <td>质检员</td>
+                  <td>刘质检</td>
+                  <td class="num">2026-07-31 10:25:42</td>
+                  <td>确认中间体质量合格，可继续生产</td>
+                  <td><span class="status-tag normal"><span class="dot"></span>已签</span></td>
+                </tr>
+                <tr>
+                  <td>成品放行</td>
+                  <td>QA主管</td>
+                  <td>—</td>
+                  <td class="num" style="color: var(--text-sec);">—</td>
+                  <td>确认成品质量合格，准予放行</td>
+                  <td><span class="status-tag done"><span class="dot"></span>待签</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="detail-section">
+            <div class="detail-section-title"><span class="dot" style="background: var(--text-sec);"></span>数据采集记录</div>
+            <div class="two-col">
+              <div>
+                <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 8px; font-weight: 500;">自动采集数据</div>
+                <table class="data-table">
+                  <thead><tr><th>数据项</th><th>采集频率</th><th>数据点数</th><th>状态</th></tr></thead>
+                  <tbody>
+                    <tr><td>反应釜温度</td><td>10秒</td><td class="num">168</td><td style="color: var(--normal);">✓ 正常</td></tr>
+                    <tr><td>釜内压力</td><td>10秒</td><td class="num">168</td><td style="color: var(--normal);">✓ 正常</td></tr>
+                    <tr><td>搅拌转速</td><td>30秒</td><td class="num">56</td><td style="color: var(--normal);">✓ 正常</td></tr>
+                    <tr><td>pH值</td><td>1分钟</td><td class="num">28</td><td style="color: var(--normal);">✓ 正常</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div>
+                <div style="font-size: 12px; color: var(--text-sub); margin-bottom: 8px; font-weight: 500;">人工录入数据</div>
+                <table class="data-table">
+                  <thead><tr><th>数据项</th><th>录入人</th><th>录入时间</th><th>状态</th></tr></thead>
+                  <tbody>
+                    <tr><td>称量记录</td><td>张明</td><td class="num">09:15</td><td style="color: var(--normal);">✓ 已录入</td></tr>
+                    <tr><td>制粒参数</td><td>张明</td><td class="num">10:00</td><td style="color: var(--normal);">✓ 已录入</td></tr>
+                    <tr><td>投料确认</td><td>张明</td><td class="num">10:05</td><td style="color: var(--normal);">✓ 已录入</td></tr>
+                    <tr><td>干燥参数</td><td>—</td><td class="num" style="color: var(--text-sec);">—</td><td style="color: var(--text-sec);">待录入</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    
+    </div></div>
+  </div>
+
+
+<script>
+
+  // Tab切换
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const tabId = this.getAttribute('data-tab');
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      this.classList.add('active');
+      document.getElementById('tab-' + tabId).classList.add('active');
+    });
+  });
+</script>
+<!-- 异常处理抽屉 -->
+<div class="kdt-mask" id="kdtMask" onclick="KDT.close()"></div>
+<div class="kdt-drawer" id="kdtDrawer">
+  <div class="kdt-head">
+    <span class="kdt-badge" id="kdtTitle">异常处理</span>
+    <button class="kdt-close" onclick="KDT.close()">×</button>
+  </div>
+  <div class="kdt-body" id="kdtBody"></div>
+</div>
+
+<script>
+var KDT = (function(){
+  var STEP = 0; var CARD = ''; var FLOW = '';
+  var META = [
+    { t:'异常上报', d:'产线发现异常，系统已自动暂停该釜次并生成异常工单。点击「推进」提交工单进入主管审批。' },
+    { t:'主管审批', d:'车间主管收到异常工单，确认并批准现场处理方案（设备隔离 / 物料排料 / 现场清洁）。' },
+    { t:'现场处理', d:'现场人员按 SOP 执行隔离、排料、清洁，消除异常根因，恢复设备可用。' },
+    { t:'质量复核', d:'QA 对处理产物抽样复检，确认关键指标恢复正常、无交叉污染。' },
+    { t:'闭环确认', d:'异常已闭环，釜次恢复可执行状态，生产继续推进。' }
+  ];
+  function draw(){
+    var h = '';
+    h += '<div class="kdt-meta">异常处理流程 · <b>5 步闭环</b><br>当前节点：<b style="color:var(--block,#E5484D);">'+META[STEP].t+'</b></div>';
+    h += '<div class="kdt-steps">';
+    for(var i=0;i<5;i++){
+      var cls = (STEP>4)?'done':(i===STEP?'cur':(i<STEP?'done':'todo'));
+      var num = (i<STEP||STEP>4)?'✓':(i+1);
+      h += '<div class="kdt-step '+cls+'"><div class="kdt-dot">'+num+'</div><div class="kdt-info"><b>'+META[i].t+'</b><span>'+META[i].d+'</span></div></div>';
+    }
+    h += '</div>';
+    if(STEP<4){
+      h += '<button class="kdt-act" onclick="KDT.go()">推进到：「'+META[STEP+1].t+'」 →</button>';
+    } else {
+      h += '<button class="kdt-act" onclick="KDT.done()">确认闭环 →</button>';
+    }
+    document.getElementById('kdtBody').innerHTML = h;
+  }
+  function open(cardId, flowId, startStep){
+    CARD = cardId; FLOW = flowId; STEP = startStep;
+    draw();
+    document.getElementById('kdtMask').classList.add('open');
+    document.getElementById('kdtDrawer').classList.add('open');
+  }
+  function go(){
+    if(STEP<4){ STEP++; draw(); updateFlow(); }
+  }
+  function updateFlow(){
+    var flow = document.getElementById(FLOW);
+    if(!flow) return;
+    var steps = flow.querySelectorAll('.ex-flow-step');
+    var lines = flow.querySelectorAll('.ex-flow-line');
+    steps.forEach(function(s,i){
+      s.classList.remove('done','cur','todo');
+      if(STEP>4||i<STEP) s.classList.add('done');
+      else if(i===STEP) s.classList.add('cur');
+      else s.classList.add('todo');
+      s.querySelector('.dot').textContent = (i<STEP||STEP>4)?'✓':(i+1);
+    });
+    lines.forEach(function(l,i){
+      l.classList.toggle('done', i<STEP);
+    });
+  }
+  function done(){
+    STEP = 5; updateFlow();
+    var card = document.getElementById(CARD);
+    if(card){
+      card.className = 'ex-event-card closed';
+      var tag = card.querySelector('.status-tag');
+      if(tag){ tag.className='status-tag normal'; tag.innerHTML='<span class="dot"></span>已闭环'; }
+      var icon = card.querySelector('.ex-icon');
+      if(icon){ icon.className='ex-icon closed'; icon.textContent='✓'; }
+      var foot = card.querySelector('.ex-event-foot');
+      if(foot){
+        var info = foot.querySelector('.node-info');
+        if(info){ info.className = 'node-info closed'; info.innerHTML = '当前节点：<b>⑤ 闭环确认</b> · 异常已闭环，釜次恢复执行'; }
+        var btn = foot.querySelector('.k-handle-btn');
+        if(btn){ btn.outerHTML = '<span style="font-size:12px;color:var(--normal,#16A34A);font-weight:500;">已闭环 ✓</span>'; }
+      }
+    }
+    document.getElementById('kdtBody').innerHTML = '<div class="kdt-closed">✓ 异常已闭环<span>该异常事件已处理完成，釜次恢复执行状态。</span></div>';
+    setTimeout(function(){ close(); }, 1500);
+  }
+  function close(){
+    document.getElementById('kdtMask').classList.remove('open');
+    document.getElementById('kdtDrawer').classList.remove('open');
+  }
+  return { open:open, go:go, done:done, close:close };
+})();
+</script>
+<script>
+  /* 预警中心处理后，同步「异常事件」状态（读取 localStorage） */
+  (function () {
+    function markKevtClosed(id) {
+      var card = document.getElementById(id);
+      if (!card) return;
+      card.className = 'ex-event-card closed';
+      var tag = card.querySelector('.status-tag');
+      if (tag) { tag.className = 'status-tag normal'; tag.innerHTML = '<span class="dot"></span>已闭环'; }
+      var icon = card.querySelector('.ex-icon');
+      if (icon) { icon.className = 'ex-icon closed'; icon.textContent = '✓'; }
+      var foot = card.querySelector('.ex-event-foot');
+      if (foot) {
+        var info = foot.querySelector('.node-info');
+        if (info) { info.className = 'node-info closed'; info.innerHTML = '当前节点：<b>⑤ 闭环确认</b> · 异常已闭环，釜次恢复执行'; }
+        var btn = foot.querySelector('.k-handle-btn');
+        if (btn) { btn.outerHTML = '<span style="font-size:12px;color:var(--normal,#16A34A);font-weight:500;">已闭环 ✓</span>'; }
+      }
+    }
+    try {
+      var store = JSON.parse(localStorage.getItem('mes_warn_state') || '{}');
+      Object.keys(store).forEach(function (k) {
+        var e = store[k];
+        if (e && e.closed && e.kevt) markKevtClosed(e.kevt);
+      });
+    } catch (err) {}
+  })();
+</script>
+  <script src="sidebar.js"></script>
+  <script src="plant.js"></script>
+<script src="role.js"></script>
+</body>
+</html>
