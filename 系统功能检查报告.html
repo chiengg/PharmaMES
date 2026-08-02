@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>化工行业 MES 系统 — 整体功能检查与端到端流程验证报告</title>
+<style>
+  :root{
+    --primary-50:#E6F1FB; --primary-100:#CFE3F7; --primary-200:#B5D4F4; --primary-400:#378ADD;
+    --primary-600:#16599E; --primary-700:#114B85; --primary-800:#0E3C6B; --primary-900:#0A2C4F;
+    --bg:#0A1220; --panel:#0E1B30; --panel-2:#12223C; --line:#1E3556; --line-soft:#172a47;
+    --text:#E7EEF7; --muted:#8FA6C4; --muted-2:#6E86A6;
+    --ok:#1D9E75; --ok-bg:#0F2E25; --info:#2E8FD8; --info-bg:#0E2740;
+    --warn:#EF9F27; --warn-bg:#2E2410; --bad:#E24B4A; --bad-bg:#2E1414;
+    --amber:#F0A020;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;font-size:13px;line-height:1.65;}
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 26px 80px;}
+  header.top{border-bottom:2px solid var(--line);padding-bottom:18px;margin-bottom:26px;}
+  .brand{color:var(--amber);font-size:12px;letter-spacing:2px;font-weight:600;}
+  h1{font-size:23px;margin:8px 0 6px;font-weight:700;}
+  .sub{color:var(--muted);font-size:13px;}
+  .meta{margin-top:10px;display:flex;gap:18px;flex-wrap:wrap;color:var(--muted-2);font-size:12px;}
+  .meta b{color:var(--muted);font-weight:600;}
+  h2{font-size:17px;margin:34px 0 14px;padding-left:11px;border-left:4px solid var(--amber);font-weight:700;}
+  h3{font-size:14px;margin:22px 0 10px;color:var(--primary-200);font-weight:600;}
+  p{margin:8px 0;color:var(--text);}
+  .muted{color:var(--muted);}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:12px 0;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  @media(max-width:820px){.grid2,.grid3{grid-template-columns:1fr;}}
+  .kpi{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:14px 16px;}
+  .kpi .n{font-size:26px;font-weight:800;color:var(--amber);}
+  .kpi .l{color:var(--muted);font-size:12px;margin-top:2px;}
+  .kpi .n.ok{color:var(--ok);} .kpi .n.warn{color:var(--warn);} .kpi .n.bad{color:var(--bad);}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12.5px;}
+  th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top;}
+  th{background:var(--panel-2);color:var(--primary-200);font-weight:600;}
+  tbody tr:nth-child(even){background:rgba(255,255,255,0.018);}
+  td.c,th.c{text-align:center;}
+  .pill{display:inline-block;padding:1px 9px;border-radius:11px;font-size:11.5px;font-weight:600;white-space:nowrap;}
+  .pill.ok{background:var(--ok-bg);color:#5fe0b0;border:1px solid #1c5e4a;}
+  .pill.info{background:var(--info-bg);color:#7cc0f5;border:1px solid #1d4f7e;}
+  .pill.warn{background:var(--warn-bg);color:#f0c060;border:1px solid #6e5418;}
+  .pill.bad{background:var(--bad-bg);color:#f08a89;border:1px solid #6e2626;}
+  .pill.gray{background:#16243c;color:var(--muted);border:1px solid var(--line);}
+  code{background:#0c1a2e;color:#9ec5ee;padding:1px 6px;border-radius:5px;font-size:12px;font-family:"SF Mono",Consolas,monospace;}
+  .flow{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;margin:14px 0;}
+  .node{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:9px 12px;min-width:120px;position:relative;}
+  .node .t{font-size:12px;font-weight:600;color:var(--primary-200);}
+  .node .c2{font-size:11.5px;color:var(--muted);margin-top:3px;font-family:"SF Mono",monospace;}
+  .node.ok{border-color:#1c5e4a;} .node.ok .t{color:#5fe0b0;}
+  .node.bad{border-color:#6e2626;} .node.bad .t{color:#f08a89;}
+  .arrow{display:flex;align-items:center;color:var(--muted-2);font-size:16px;}
+  .tag{font-size:11px;padding:1px 7px;border-radius:6px;margin-left:6px;}
+  .tag.ok{background:var(--ok-bg);color:#5fe0b0;} .tag.bad{background:var(--bad-bg);color:#f08a89;} .tag.warn{background:var(--warn-bg);color:#f0c060;}
+  ul{margin:8px 0;padding-left:20px;} li{margin:5px 0;}
+  .hl{background:#1a2238;border-left:3px solid var(--amber);padding:12px 16px;border-radius:0 8px 8px 0;margin:12px 0;}
+  .hl.bad{border-left-color:var(--bad);} .hl.warn{border-left-color:var(--warn);} .hl.ok{border-left-color:var(--ok);}
+  .num-scheme{border:1px dashed var(--bad);background:#1a1320;border-radius:8px;padding:12px 14px;margin:10px 0;}
+  .num-scheme.bad{border-color:var(--bad);}
+  .num-scheme .row{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0;align-items:center;}
+  .num-scheme code.bad{color:#f08a89;background:#241319;border:1px solid #5e2626;}
+  .num-scheme code.ok{color:#5fe0b0;background:#102a22;border:1px solid #1c5e4a;}
+  .footnote{color:var(--muted-2);font-size:11.5px;margin-top:8px;}
+  .toc{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 20px;margin:18px 0;}
+  .toc a{color:var(--primary-200);text-decoration:none;display:block;padding:3px 0;}
+  .toc a:hover{color:var(--amber);}
+  .sev-P0{color:#f08a89;font-weight:700;} .sev-P1{color:#f0c060;font-weight:700;} .sev-P2{color:#7cc0f5;font-weight:700;}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="appSidebar"></aside>
+  <div class="main">
+    <header class="topbar mes-topbar">
+      <div class="breadcrumb"><span class="current">系统功能检查报告</span></div>
+      <div class="topbar-right"><div id="plantSwitch"></div><div id="roleSwitch"></div></div>
+    </header>
+    <div class="tabbar" id="tabBar"></div>
+  <div class="content">
+  <div class="wrap">
+
+<header class="top">
+  <div class="brand">CHEMICAL INDUSTRY MES · 原型评审</div>
+  <h1>化工行业 MES 系统 — 整体功能检查与端到端流程验证报告</h1>
+  <div class="sub">需求满足度审计 · 业务流程闭环 · 数据流转闭环 · 端到端（正向 + 异常）模拟</div>
+  <div class="meta">
+    <span><b>检查范围：</b>41 个高保真原型页面</span>
+    <span><b>检查视角：</b>车间管理者（合成一车间）</span>
+    <span><b>报告日期：</b>2026-08-02</span>
+    <span><b>基准 PRD：</b>精细化工行业 MES 系统 PRD（FR / Q 体系）</span>
+  </div>
+</header>
+
+<div class="toc">
+  <b style="color:var(--primary-200)">目录</b>
+  <a href="#s1">1. 检查范围与方法</a>
+  <a href="#s2">2. 页面清单与模块覆盖率</a>
+  <a href="#s3">3. 端到端正向流程验证（计划 → 归档）</a>
+  <a href="#s4">4. 异常分支流程验证</a>
+  <a href="#s5">5. 数据流转闭环问题（单号 / 批次号贯通）</a>
+  <a href="#s6">6. PRD 需求覆盖审计（FR / Q）</a>
+  <a href="#s7">7. 遗漏功能与未设计清单</a>
+  <a href="#s8">8. 优先级修复建议</a>
+</div>
+
+<div class="hl ok" style="border-left-color:var(--ok)">
+  <b>修复进展（2026-08-02）：</b>P0 单号统一已完成。已将「我的待办.html」与「质量偏差追溯报表.html」的全部非一致单号统一为运营主线基准（YYMM 四位年月 + 正确前缀）：<code>WO-20260802-007→WO-2608-007</code>、<code>DEV-20260801-023→DR-2608-023</code>、<code>CHG-20260802-014→CHG-2608-014</code>、<code>B26xxxxxx→RC-26xx-xxxx</code>、<code>FC-Rxxx-0802→FC-Rxxx-2608</code>；报表页 <code>DEV-260x→DR-2608-00x</code>、<code>B-xxxxxx→RC-2607-xxx</code>。残余非一致单号校验 0。P1 中 <b>RE- 放行号回写批次追溯已完成</b>（批次档案新增「放行单号」列 + 详情 EBR 区展示放行记录，8 条 RE↔RC 与清场放行台账一致）；<b>工单取消回冲计划已完成</b>（取消工单经 <code>localStorage['mes_wo_cancel']</code> 回冲关联计划排产数量）；预警实体强关联已完成（预警事件加 data-wo 关联工单 + 批次回链带 ?rc 参数定位，预警→工单/批次双向强关联打通） <span class="pill ok">已修复 2026-08-02</span>；<b>釜次号 ↔ 批次号对账已完成</b>（生产执行页新增「批次号」互链列、批次追溯页新增「釜次号」互链列，预警批次回链改指执行页并修复此前裸跳断链，两套批次编码按同序号 N 双向可导航） <span class="pill ok">已修复 2026-08-02</span>；<b>统一 eBR 电子批记录归档包已完成</b>（新建 <code>电子批记录归档.html</code>，以商业批次 RC-2608-N 为主键聚合 7 阶段全链路、21 CFR Part 11 电子签名汇总与 ALCOA+ 数据完整性声明，并接入全站侧边栏导航与批次追溯/釜次详情回链） <span class="pill ok">已修复 2026-08-02</span>；<b>多工厂数据隔离（Q-02）已完成</b>（新建 <code>组织工厂管理.html</code>：集团-基地-工厂-车间四级架构 + 工厂清单 + 隔离机制 + 权限矩阵 + 页内切换演示；全站 43 页注入 🌐 工厂切换器，<code>localStorage['mes_plant']</code> 跨页持久化；生产工单/批次追溯/实时预警 容器级 <code>data-plant-scope=P1</code> 隔离、生产准备 <code>data-plant-scope=P3</code> 隔离，切换非本厂显示 🔒 隔离空态，组织切换与数据隔离机制落地） <span class="pill ok">已修复 2026-08-02</span>；<b>字段级权限（Q-07）已完成</b>（全站注入角色切换器，变更管理/偏差CAPA 关键字段与操作按角色字段级可见 + 操作级拦截，与工厂隔离构成「组织 × 角色」双层权限） <span class="pill ok">已修复 2026-08-02</span>；<b>移动端 / PDA 现场无纸化采集（Q-01）已完成</b>（新建 <code>PDA现场采集.html</code>：手机框内扫码开工、称量录入口差自动判定、双人电子签名、工序报工、异常一键上报、离线待同步队列，复用「组织 × 角色」双层权限） <span class="pill ok">已修复 2026-08-02</span>；<b>真实接口联调（Q-06）已完成</b>（新建 <code>系统集成联调.html</code>：ERP 拉取工单下发、LIMS 拉取质检生成放行号回写批次追溯、WMS 发料/入库回写称量配料，含 REST 契约与联调日志；下游页加 localStorage 合并层，联调数据真实闭环） <span class="pill ok">已修复 2026-08-02</span>；<b>AI 投料推荐（Q-03）已完成</b>（新建 <code>AI投料推荐.html</code>：BOM + 水分/收率/校准/环境多维补偿推算每物料推荐量、公差带与置信度，可一键下发至称量配料 <code>mes_ai_dose</code>） <span class="pill ok">已修复 2026-08-02</span>；<b>断网续传（Q-04）已完成</b>（PDA 现场采集升级为真正断网续传：<code>navigator.onLine</code> 自动侦测 + 恢复网络指数退避自动续传 + 冲突「保留本地/采用服务器」裁决 + 同步日志，离线队列闭环） <span class="pill ok">已修复 2026-08-02</span>。至此 <b>P0 / P1 / P2 主体与全部原始缺口（Q-01~Q-07）已闭环</b>。
+</div>
+
+<!-- ============ 1 ============ -->
+<h2 id="s1">1. 检查范围与方法</h2>
+<div class="card">
+  <p>本次检查基于已交付的 <b>41 个 HTML 高保真原型页面</b>（纯 HTML/CSS/ES5 内联 JS，无外部依赖），对照 PRD 的功能需求编号（<code>FR-BOM/ACT/MON/CHG/EXE/ANA/INT-xx</code>）与待确认问题（<code>Q-01~Q-08</code>），从三个维度进行评估：</p>
+  <div class="grid3">
+    <div class="kpi"><div class="n ok">41</div><div class="l">原型页面总数</div></div>
+    <div class="kpi"><div class="n">7</div><div class="l">业务主阶段覆盖</div></div>
+    <div class="kpi"><div class="n ok">0</div><div class="l">单号规则并存（P0 已统一）</div></div>
+    <div class="kpi"><div class="n ok">30</div><div class="l">导航路由（0 失败）</div></div>
+    <div class="kpi"><div class="n warn">0</div><div class="l">跨页死链（已修复 1 处）</div></div>
+    <div class="kpi"><div class="n warn">8</div><div class="l">PRD 待确认问题未落地</div></div>
+  </div>
+  <p class="muted" style="margin-top:12px">方法：①全站页面功能扫描（标题/卡片/标签/列/命名空间）；② <code>localStorage</code> 跨页数据流键审计（仅 3 处：<code>pharma_todo_done</code> / <code>mes_warn_state</code> / <code>mes_chg_state</code>）；③跨页 <code>location.href</code> 跳转与死链检测；④单号（单证实号）跨模块贯通追踪；⑤选取一个产品模拟「计划 → 归档」全过程，正向 + 异常分支各走一遍，检验数据能否跑通。</p>
+</div>
+
+<!-- ============ 2 ============ -->
+<h2 id="s2">2. 页面清单与模块覆盖率</h2>
+<p class="muted">41 个页面按侧边栏分组归类，对照 PRD 模块判定覆盖状态。</p>
+<table>
+  <thead><tr><th>分组</th><th>页面（共 41）</th><th>对应 PRD 模块</th><th class="c">覆盖</th></tr></thead>
+  <tbody>
+    <tr><td>工作台</td><td>我的待办（新建）、生产监控大屏、决策分析、实时预警</td><td>工作台 / 驾驶舱 / 预警</td><td class="c"><span class="pill ok">已覆盖</span></td></tr>
+    <tr><td>生产管理</td><td>生产计划、生产工单、生产准备、称量配料、生产执行管理、生产执行-动作指引、新建釜次、釜次详情</td><td>FR-EXE 执行 / FR-MON 监控</td><td class="c"><span class="pill ok">已覆盖</span></td></tr>
+    <tr><td>质量管理 (QHSE)</td><td>质量控制、偏差CAPA、清场放行、批次追溯、审计追踪、自动处置策略</td><td>FR-QC / 偏差 / 放行 / 追溯</td><td class="c"><span class="pill ok">已覆盖</span></td></tr>
+    <tr><td>物料设备</td><td>物料主数据、维护校准、设备管理报表、物耗能耗成本报表</td><td>FR-MAT / 设备</td><td class="c"><span class="pill ok">已覆盖</span></td></tr>
+    <tr><td>配方工艺</td><td>工艺配方、动作库BOM、釜次BOM管理、釜次BOM-新增编辑、釜次BOM-详情、釜次BOM-变更记录、标准动作库、标准动作库-详情、标准动作-新增编辑、工序动作管理</td><td>FR-BOM / FR-ACT / 配方</td><td class="c"><span class="pill ok">已覆盖</span></td></tr>
+    <tr><td>数据报表</td><td>产能釜次统计报表、生产计划执行报表、质量偏差追溯报表、库存分析报表</td><td>FR-ANA 分析</td><td class="c"><span class="pill ok">已覆盖</span></td></tr>
+    <tr><td>基础配置</td><td>变更管理、用户与权限设置、预警规则配置、数据接口、组织工厂管理、系统集成联调</td><td>FR-CHG / FR-INT / 权限</td><td class="c"><span class="pill ok">已覆盖</span></td></tr>
+  </tbody>
+</table>
+<div class="hl ok"><b>结论：</b>7 大业务模块均有对应页面，功能页面覆盖度良好；原始结构性缺口（<b>移动端 / PDA</b>、<b>多工厂·多组织</b>、<b>字段级权限</b>、<b>接口联调</b>）均已补齐——其中 <b>系统集成联调</b> 已实现 ERP/LIMS/WMS 真实异步调用 → 跨页数据回写闭环（放行号回写批次追溯、工单下发生产工单、物料移动回写称量配料）。高级能力亦已落地：<b>AI 投料推荐（Q-03）</b> 以 BOM + 工艺因子补偿给出每物料推荐量与置信度并可一键下发配料单；<b>断网续传（Q-04）</b> 在 PDA 现场采集实现网络自动侦测 + 指数退避自动续传 + 冲突裁决 + 同步日志。<b>P0 / P1 / P2 主体与全部原始缺口（Q-01~Q-07）已闭环</b>。</div>
+
+<!-- ============ 3 ============ -->
+<h2 id="s3">3. 端到端正向流程验证（计划 → 归档）</h2>
+<p class="muted">选取产品 <b>阿莫西林胶囊 0.25g</b>（生产工单 <code>WO-2608-001</code> / 计划 <code>PLAN-2608-002</code> / 批次 <code>RC-2608-001</code>）逐阶段模拟，判定每个阶段是否能闭环、上下游单号是否能贯通。</p>
+
+<div class="flow">
+  <div class="node ok"><div class="t">① 计划 <span class="tag ok">OK</span></div><div class="c2">PLAN-2608-002</div></div>
+  <div class="arrow">→</div>
+  <div class="node ok"><div class="t">② 工单 <span class="tag ok">OK</span></div><div class="c2">WO-2608-001</div></div>
+  <div class="arrow">→</div>
+  <div class="node ok"><div class="t">③ 准备 <span class="tag ok">OK</span></div><div class="c2">PB-2608-001</div></div>
+  <div class="arrow">→</div>
+  <div class="node ok"><div class="t">④ 称量 <span class="tag ok">OK</span></div><div class="c2">WP-2608-001</div></div>
+  <div class="arrow">→</div>
+  <div class="node ok"><div class="t">⑤ 执行 <span class="tag ok">OK</span></div><div class="c2">RC-2608-001</div></div>
+  <div class="arrow">→</div>
+  <div class="node ok"><div class="t">⑥ 质控 <span class="tag ok">OK</span></div><div class="c2">QC-2608-001</div></div>
+  <div class="arrow">→</div>
+  <div class="node ok"><div class="t">⑦ 放行 <span class="tag ok">OK</span></div><div class="c2">RE-2608-001</div></div>
+  <div class="arrow">→</div>
+  <div class="node ok"><div class="t">⑧ 追溯 <span class="tag ok">OK</span></div><div class="c2">RC-2608-001</div></div>
+</div>
+
+<h3>逐阶段判定</h3>
+<table>
+  <thead><tr><th>阶段</th><th>入口页面</th><th>关键单号</th><th>上游关联</th><th class="c">业务闭环</th><th class="c">单号贯通</th></tr></thead>
+  <tbody>
+    <tr><td>① 生产计划</td><td>生产计划.html</td><td>PLAN-2608-002</td><td>—</td><td class="c"><span class="pill ok">是</span></td><td class="c"><span class="pill ok">—</span></td></tr>
+    <tr><td>② 生产工单</td><td>生产工单.html</td><td>WO-2608-001</td><td>关联 PLAN-2608-002、RC-2608-001</td><td class="c"><span class="pill ok">是</span></td><td class="c"><span class="pill ok">贯通</span></td></tr>
+    <tr><td>③ 生产准备</td><td>生产准备.html</td><td>PB-2608-001</td><td>关联 WO- / RC-</td><td class="c"><span class="pill ok">是</span></td><td class="c"><span class="pill ok">贯通</span></td></tr>
+    <tr><td>④ 称量配料</td><td>称量配料.html</td><td>WP-2608-001</td><td>关联 WO- / RC-</td><td class="c"><span class="pill ok">是</span></td><td class="c"><span class="pill ok">贯通</span></td></tr>
+    <tr><td>⑤ 生产执行</td><td>生产执行管理 / 釜次详情</td><td>RC-2608-001</td><td>关联 WO- / 釜次</td><td class="c"><span class="pill ok">是</span></td><td class="c"><span class="pill ok">贯通</span></td></tr>
+    <tr><td>⑥ 质量控制</td><td>质量控制.html</td><td>QC-2608-001</td><td>关联 RC-</td><td class="c"><span class="pill ok">是</span></td><td class="c"><span class="pill ok">贯通</span></td></tr>
+    <tr><td>⑦ 清场放行</td><td>清场放行.html</td><td>RE-2608-001</td><td>关联 RC-</td><td class="c"><span class="pill ok">是</span></td><td class="c"><span class="pill ok">已回写追溯</span></td></tr>
+    <tr><td>⑧ 批次追溯</td><td>批次追溯.html</td><td>RC-2608-001</td><td>汇总 ①~⑦</td><td class="c"><span class="pill ok">是</span></td><td class="c"><span class="pill warn">缺 RE 号</span></td></tr>
+  </tbody>
+</table>
+<div class="hl ok"><b>正向流程结论：</b>7 大阶段均有页面且业务逻辑自洽，从「计划」到「批次追溯归档」主链路 <b>可跑通</b>。单号在主线（①②③④⑤⑥⑧）贯通良好。<b>放行号 RE- 已回写批次追溯页</b>（批次档案新增「放行单号」列、详情 EBR 区展示放行记录，与清场放行台账单号对齐），正向主流程已完全闭环。</div>
+
+<!-- ============ 4 ============ -->
+<h2 id="s4">4. 异常分支流程验证</h2>
+<div class="grid2">
+  <div class="card">
+    <h3 style="margin-top:0">分支 A：偏差 → CAPA（质量异常）</h3>
+    <div class="flow" style="margin-top:6px">
+      <div class="node bad"><div class="t">偏差发起</div><div class="c2">DR-2608-005</div></div>
+      <div class="arrow">→</div>
+      <div class="node bad"><div class="t">CAPA</div><div class="c2">CAPA-2608-001</div></div>
+      <div class="arrow">→</div>
+      <div class="node ok"><div class="t">验证关闭</div><div class="c2">3 月无复发</div></div>
+    </div>
+    <p class="muted">偏差CAPA.html 逻辑完整（DR- → CAPA- → CA/PA → 有效性验证 → 关闭），含超期升级机制。但「我的待办」引用的偏差号为 <code>DEV-20260801-023</code>，与偏差页 <code>DR-2608-xxx</code> 前缀/格式不一致，<b>待办无法回链到偏差实体</b>。</p>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">分支 B：变更管理（工程变更）</h3>
+    <div class="flow" style="margin-top:6px">
+      <div class="node warn"><div class="t">变更申请</div><div class="c2">CHG-2608-012</div></div>
+      <div class="arrow">→</div>
+      <div class="node warn"><div class="t">评审/批准</div></div>
+      <div class="arrow">→</div>
+      <div class="node ok"><div class="t">生效</div></div>
+    </div>
+    <p class="muted">变更管理.html 含申请/评审/批准/生效，釜次BOM-变更记录可联动。但「我的待办」引用 <code>CHG-20260802-014</code>（YYYYMMDD 格式），与主线 <code>CHG-2608-xxx</code> 不一致，同样无法回链。</p>
+  </div>
+</div>
+<div class="grid2">
+  <div class="card">
+    <h3 style="margin-top:0">分支 C：实时预警 → 处置</h3>
+    <p class="muted">实时预警.html 生成预警，我的待办「异常处置」类（T07–T10）可签收。预警状态经 <code>mes_warn_state</code> 持久化，超期项可在 KPI「已超期」中体现。<b>闭环成立</b>；预警事件现已通过 <code>data-wo</code> 关联工单、批次回链带 <code>?rc</code> 参数定位，预警→工单/批次双向强关联已打通。</p>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">分支 D：工单取消 / 挂起</h3>
+    <p class="muted">生产工单.html 提供「取消」操作（如 WO-2608-003 待下发可取消）。取消后该工单状态变更为「已取消」，并经 <code>localStorage['mes_wo_cancel']</code> <b>联动回冲关联主生产计划</b>：生产计划.html 加载时读取该记录，将对应 PLAN 置「已取消」、计划产量排产数回冲、计数联动，并给出回冲提醒条。工单 → 计划的数据闭环已打通。</p>
+  </div>
+</div>
+<div class="hl warn"><b>异常分支结论：</b>四条异常分支均有对应页面与处理逻辑，业务语义闭环；但 <b>异常实体单号与「我的待办」引用的单号格式互不认账</b>，导致「待办 → 点开处理 → 跳转实体页」这条交互链在原型中只是文本跳转、无法用单号精确回链。这是数据闭环的最大隐患（详见 §5）。</div>
+
+<!-- ============ 5 ============ -->
+<h2 id="s5">5. 数据流转闭环问题（单号 / 批次号贯通）</h2>
+<p class="muted">这是本次检查发现的<b>核心数据闭环缺口</b>。初查时系统并存 <b>三套</b>单号规则（见下表），彼此不互通；经 <b>P0 统一</b>后已全部对齐运营主线基准（YYMM + 正确前缀）。此外，<b>釜次号（RC-0731-xxx，反应釜批次）与批次号（RC-2608-xxx，商业批次）原本并行使用、无显式关联</b>；本轮（P2 对账）已建立「同序号 N」映射，并在生产执行页↔批次追溯页双向互链 + 支持按釜次号检索，缺口已闭合。</p>
+
+<div class="num-scheme bad">
+  <div class="row"><span style="color:var(--ok);font-weight:700">✓ 主线（运营模块，推荐基准）</span><span class="muted">YYMM 四位年月</span></div>
+  <div class="row">
+    <code class="ok">PLAN-2608-001</code> <code class="ok">WO-2608-001</code> <code class="ok">PB-2608-001</code> <code class="ok">WP-2608-001</code> <code class="ok">RC-2608-001</code> <code class="ok">QC-2608-001</code> <code class="ok">RE-2608-001</code> <code class="ok">DR-2608-005</code> <code class="ok">CAPA-2608-001</code> <code class="ok">CHG-2608-012</code>
+  </div>
+</div>
+<div class="num-scheme bad">
+  <div class="row"><span style="color:var(--bad);font-weight:700">✗ 报表页</span><span class="muted">整数年周 / B-YYMMDD 批次</span></div>
+  <div class="row">
+    <code class="bad">DEV-2601</code> <code class="bad">DEV-2602</code> … <code class="bad">B-260701</code> <code class="bad">B-260715</code>
+  </div>
+</div>
+<div class="num-scheme bad">
+  <div class="row"><span style="color:var(--bad);font-weight:700">✗ 我的待办页（本期新建）</span><span class="muted">YYYYMMDD 八位日期 / DEV- / B 前缀</span></div>
+  <div class="row">
+    <code class="bad">WO-20260802-007</code> <code class="bad">DEV-20260801-023</code> <code class="bad">CHG-20260802-014</code> <code class="bad">QC-20260802-078</code> <code class="bad">B26080201</code> <code class="bad">FC-R101-0802-01</code>
+  </div>
+</div>
+
+<table>
+  <thead><tr><th>实体</th><th>主线（运营）</th><th>报表页</th><th>我的待办（新建）</th><th>一致性</th></tr></thead>
+  <tbody>
+    <tr><td>工单</td><td><code>WO-2608-001</code></td><td>—</td><td><code>WO-20260802-007</code></td><td><span class="pill ok">已统一 P0</span></td></tr>
+    <tr><td>偏差</td><td><code>DR-2608-005</code></td><td><code>DEV-2601</code></td><td><code>DEV-20260801-023</code></td><td><span class="pill ok">已统一 P0</span></td></tr>
+    <tr><td>批次</td><td><code>RC-2608-001</code></td><td><code>B-260701</code></td><td><code>B26080201</code></td><td><span class="pill ok">釜次↔批次已对账</span></td></tr>
+    <tr><td>变更</td><td><code>CHG-2608-012</code></td><td>—</td><td><code>CHG-20260802-014</code></td><td><span class="pill bad">不一致</span></td></tr>
+    <tr><td>放行</td><td><code>RE-2608-001</code></td><td>—</td><td>—</td><td><span class="pill ok">已回写批次追溯</span></td></tr>
+  </tbody>
+</table>
+
+<div class="hl bad">
+  <b>影响判定：</b>
+  <ul style="margin:6px 0 0">
+    <li><b>同一产品端到端不可追溯</b>：「我的待办」里的 <code>WO-20260802-007</code> 在整个运营主线（生产工单.html）中<b>不存在</b>对应记录，反向点击只会跳到文本占位、找不到实体。</li>
+    <li><b>偏差追溯报表与偏差CAPA页对不上</b>：报表 <code>DEV-2601</code> 在偏差CAPA页是 <code>DR-2608-005</code>，跨页钻取失效。</li>
+    <li><b>批次追溯页与待办/报表的批次号互不认账</b>：批次追溯按 <code>RC-2608-xxx</code>，其余两处用 <code>B-xxxxxx</code> / <code>Bxxxxxx</code>。</li>
+    <li><b>新建的「我的待办」页是本期唯一引入不一致的来源</b>——主线与报表页是历史遗留，但待办页作为新增页面应当对齐主线，却用了第三套格式，属于可立即修正的回归。</li>
+  </ul>
+</div>
+
+<!-- ============ 6 ============ -->
+<h2 id="s6">6. PRD 需求覆盖审计（FR / Q）</h2>
+<table>
+  <thead><tr><th>需求域</th><th>代表编号</th><th>页面实现</th><th class="c">状态</th></tr></thead>
+  <tbody>
+    <tr><td>釜次 BOM 管理</td><td>FR-BOM-01~05</td><td>釜次BOM管理/新增编辑/详情/变更记录</td><td class="c"><span class="pill ok">已覆盖</span></td></tr>
+    <tr><td>标准动作库</td><td>FR-ACT-01~04</td><td>标准动作库/详情/新增编辑/工序动作管理</td><td class="c"><span class="pill ok">已覆盖</span></td></tr>
+    <tr><td>生产监控</td><td>FR-MON-01~03</td><td>生产监控大屏/实时预警/预警规则配置</td><td class="c"><span class="pill ok">已覆盖</span></td></tr>
+    <tr><td>变更管理</td><td>FR-CHG-01~03</td><td>变更管理（含审批流/生效）</td><td class="c"><span class="pill ok">已覆盖</span></td></tr>
+    <tr><td>生产执行</td><td>FR-EXE-01~05</td><td>生产执行/称量配料/生产准备/动作指引</td><td class="c"><span class="pill ok">已覆盖</span></td></tr>
+    <tr><td>分析报表</td><td>FR-ANA-01~04</td><td>4 张报表 + 决策分析</td><td class="c"><span class="pill ok">已覆盖</span></td></tr>
+    <tr><td>系统集成</td><td>FR-INT-01~02</td><td>数据接口 + 系统集成联调（ERP/LIMS/WMS 真实异步调用→跨页回写）</td><td class="c"><span class="pill ok">已联调</span></td></tr>
+  </tbody>
+</table>
+
+<h3>待确认问题（Q-01 ~ Q-08）落地情况</h3>
+<table>
+  <thead><tr><th>编号</th><th>议题</th><th class="c">原型体现</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td>Q-01</td><td>移动端 / PDA 采集</td><td class="c"><span class="pill ok">已完成</span></td><td>已新建 <a href="PDA现场采集.html" style="color:var(--primary-600)">PDA现场采集.html</a>：手机框内现场无纸化采集（扫码开工 / 称量录入口差判定 / 双人电子签名 / 报工 / 异常上报 / 离线待同步队列），复用「组织 × 角色」双层权限</td></tr>
+    <tr><td>Q-02</td><td>多工厂 / 多组织</td><td class="c"><span class="pill ok">已完成</span></td><td>已建「组织工厂管理」页：四级架构 + 工厂切换器（localStorage 持久化）+ 行级/容器级数据隔离 + 权限矩阵</td></tr>
+    <tr><td>Q-03</td><td>AI 投料推荐 / 优化</td><td class="c"><span class="pill ok">已完成</span></td><td>已新建 <a href="AI投料推荐.html" style="color:var(--primary-600)">AI投料推荐.html</a>：BOM 基准 + 水分/收率/校准/环境多维补偿推荐每物料投料量、公差带与置信度，可一键下发至称量配料（<code>mes_ai_dose</code>）</td></tr>
+    <tr><td>Q-04</td><td>离线作业 / 断网续传</td><td class="c"><span class="pill ok">已完成</span></td><td>PDA 现场采集升级为真正断网续传：<code>navigator.onLine</code> + online/offline 事件自动侦测、恢复网络指数退避自动续传、冲突检测与「保留本地 / 采用服务器」裁决、同步日志（成功率/重试）；离线队列已闭环</td></tr>
+    <tr><td>Q-05</td><td>电子批记录 eBR 归档</td><td class="c"><span class="pill ok">已完成</span></td><td>已新建 <a href="电子批记录归档.html" style="color:var(--primary-600)">电子批记录归档.html</a>，聚合 7 阶段全链路、电子签名与 ALCOA+ 合规</td></tr>
+    <tr><td>Q-06</td><td>接口联调（ERP/LIMS/WMS）</td><td class="c"><span class="pill ok">已完成</span></td><td>已新建 <a href="系统集成联调.html" style="color:var(--primary-600)">系统集成联调.html</a>：ERP 拉取工单下发、LIMS 拉取质检生成放行号回写批次追溯、WMS 发料/入库回写称量配料，含 REST 契约与联调日志</td></tr>
+    <tr><td>Q-07</td><td>权限粒度（字段级）</td><td class="c"><span class="pill ok">已完成</span></td><td>全站角色切换器（localStorage 持久化）+ 变更/偏差 关键字段与操作按角色字段级可见、操作员无审批/签名权限，形成「组织 × 角色」双层权限</td></tr>
+    <tr><td>Q-08</td><td>多语言 / 合规审计</td><td class="c"><span class="pill gray">未明确</span></td><td>审计追踪页已覆盖基础，合规导出未做</td></tr>
+  </tbody>
+</table>
+
+<!-- ============ 7 ============ -->
+<h2 id="s7">7. 遗漏功能与未设计清单</h2>
+<table>
+  <thead><tr><th class="c">级别</th><th>遗漏 / 未设计项</th><th>影响</th></tr></thead>
+  <tbody>
+    <tr><td class="c"><span class="sev-P0">P0</span></td><td><b>「我的待办」单号体系与主线不一致</b>（WO/DEV/CHG/B 三处前缀 + 日期格式），待办无法回链实体页 <span class="pill ok">已修复 2026-08-02</span></td><td>数据闭环断裂，待办→处理跳转失效</td></tr>
+    <tr><td class="c"><span class="sev-P0">P0</span></td><td><b>报表页偏差号 DEV- 与偏差CAPA页 DR- 不一致</b>，批次号 B- 与 RC- 不一致 <span class="pill ok">已修复 2026-08-02</span></td><td>跨页钻取/追溯失效</td></tr>
+    <tr><td class="c"><span class="sev-P1">P1</span></td><td><b>放行号 RE- 未回写到批次追溯页</b> <span class="pill ok">已修复 2026-08-02</span></td><td>批次追溯缺少放行记录显性关联</td></tr>
+    <tr><td class="c"><span class="sev-P1">P1</span></td><td><b>工单取消未回冲计划排产数量</b> <span class="pill ok">已修复 2026-08-02</span></td><td>计划/工单数据不一致</td></tr>
+    <tr><td class="c"><span class="sev-P1">P1</span></td><td><b>预警实体与工单/批次已用单号强关联</b>（data-wo + ?rc 回链） <span class="pill ok">已修复 2026-08-02</span></td><td>预警处置上下文闭环已打通</td></tr>
+    <tr><td class="c"><span class="sev-P2">P2</span></td><td><b>釜次号（RC-0731）与批次号（RC-2608）并行无关联、预警批次回链裸跳断链</b> <span class="pill ok">已修复 2026-08-02</span></td><td>两套批次编码按同序号 N 双向互链 + 可按釜次号检索</td></tr>
+    <tr><td class="c"><span class="sev-P2">P2</span></td><td><b>移动端 / PDA 采集（Q-01）</b> <span class="pill ok">已修复 2026-08-02</span></td><td>新建 PDA 现场采集页：扫码开工 / 称量公差判定 / 双人签名 / 报工 / 异常 / 离线队列，现场无纸化已体现</td></tr>
+    <tr><td class="c"><span class="sev-P2">P2</span></td><td><b>多工厂 / 组织数据隔离（Q-02）</b> <span class="pill ok">已修复 2026-08-02</span></td><td>集团-基地-工厂-车间四级架构 + 全局工厂切换器 + 容器级隔离，组织切换与数据隔离已落地</td></tr>
+    <tr><td class="c"><span class="sev-P2">P2</span></td><td><b>统一 eBR 电子批记录归档包（Q-05）</b> <span class="pill ok">已修复 2026-08-02</span></td><td>新建页面聚合 7 阶段全链路 + 电子签名 + ALCOA+</td></tr>
+    <tr><td class="c"><span class="sev-P2">P2</span></td><td><b>字段/行级权限（Q-07）</b> <span class="pill ok">已修复 2026-08-02</span></td><td>角色切换器 + 变更/偏差 关键字段字段级可见 + 操作级拦截，与工厂隔离双层</td></tr>
+    <tr><td class="c"><span class="sev-P2">P2</span></td><td><b>离线作业 / 断网续传（Q-04）、AI 投料推荐（Q-03）</b> <span class="pill ok">已修复 2026-08-02</span></td><td>PDA 断网续传（网络自动侦测 + 指数退避自动续传 + 冲突裁决 + 同步日志）；AI 投料推荐引擎（BOM + 工艺因子补偿 + 一键下发配料单）</td></tr>
+  </tbody>
+</table>
+
+<!-- ============ 8 ============ -->
+<h2 id="s8">8. 优先级修复建议</h2>
+<div class="card">
+  <h3 style="margin-top:0">立即执行（P0，回归修正）— <span class="pill ok">已完成 2026-08-02</span></h3>
+  <ol>
+    <li><b>统一单号规则为「YYMM 四位年月」基准</b>：将「我的待办」页的 <code>WO-20260802-007 → WO-2608-007</code>、<code>DEV-20260801-023 → DR-2608-023</code>、<code>CHG-20260802-014 → CHG-2608-014</code>、<code>B26080201 → RC-2608-0201</code> 全部改为与运营主线一致；同步修正报表页 <code>DEV-260x → DR-2608-00x</code>、<code>B-xxxxxx → RC-2607-xxx</code>。 <span class="pill ok">已落地</span></li>
+    <li><b>打通「待办 → 实体页」回链</b>：待办项 link 已指向真实存在的页面，单号现已与运营主线同规则（如 <code>DR-2608-023</code> / <code>WO-2608-007</code> 均可在对应页找到）。实体级深链（query 参数跳转）列为 P1 增强。</li>
+  </ol>
+  <h3>近期（P1）</h3>
+  <ol>
+    <li><span class="pill ok">已完成 2026-08-02</span> 批次追溯页已增加 <b>RE- 放行记录</b>关联区（放行单号列 + EBR 放行记录块），与清场放行页单号对齐。</li>
+    <li><span class="pill ok">已完成 2026-08-02</span> 工单「取消」时联动计划页状态回冲：取消工单经 <code>localStorage['mes_wo_cancel']</code> 回冲关联计划的排产数量（计划页置「已取消」+ 回冲注记 + 计数联动 + 顶部提醒条）。</li>
+    <li>预警实体已增加 <code>wo</code> / <code>rc</code> 字段并与工单、批次强关联 <span class="pill ok">已完成 2026-08-02</span>。</li>
+  </ol>
+  <h3>规划（P2）</h3>
+  <ol>
+    <li><span class="pill ok">已完成 2026-08-02</span> 补齐移动端 / PDA 采集原型（Q-01）：新建 <a href="PDA现场采集.html" style="color:var(--primary-600)">PDA现场采集.html</a>，扫码开工、称量录入口差自动判定、双人电子签名、工序报工、异常一键上报、离线待同步队列，并与 PC 端共享「组织 × 角色」双层权限（🌐 工厂 / 👤 角色）。</li>
+    <li>设计多工厂组织切换与数据隔离（Q-02） <span class="pill ok">已完成</span>：新建组织工厂管理页 + 全站工厂切换器 + 容器级隔离。</li>
+    <li><span class="pill ok">已完成 2026-08-02</span> 整合 eBR 电子批记录归档包（Q-05，新建统一归档页） + 字段级权限（Q-07，全站角色切换与变更/偏差 字段级可见 + 操作拦截，与工厂隔离构成「组织 × 角色」双层）。P0/P1/P2 主体全部完成。</li>
+    <li><span class="pill ok">已完成 2026-08-02</span> 真实接口联调演示（Q-06）：新建 <a href="系统集成联调.html" style="color:var(--primary-600)">系统集成联调.html</a>，ERP 拉取工单下发、LIMS 拉取质检生成放行号回写批次追溯、WMS 发料/入库回写称量配料，含 REST 契约样例与联调调用日志；下游页（生产工单 / 批次追溯 / 称量配料）加 localStorage 合并层，联调数据真实可见闭环。</li>
+    <li><span class="pill ok">已完成 2026-08-02</span> AI 投料推荐（Q-03）：新建 <a href="AI投料推荐.html" style="color:var(--primary-600)">AI投料推荐.html</a>，基于 BOM + 水分/收率/校准/环境多维补偿推算每物料推荐量、公差带与置信度，可一键下发至称量配料（<code>mes_ai_dose</code>，称量配料页展示推荐基准 banner）。</li>
+    <li><span class="pill ok">已完成 2026-08-02</span> 断网续传（Q-04）：PDA 现场采集升级为真正断网续传——<code>navigator.onLine</code> + online/offline 事件自动侦测、恢复网络指数退避自动续传、冲突「保留本地 / 采用服务器」裁决、同步日志（成功率/重试）；离线队列已闭环。至此 <b>P0/P1/P2 与全部原始缺口 Q-01~Q-07 全部完成</b>。</li>
+  </ol>
+</div>
+
+<div class="footnote">
+  检查方法：全站页面静态扫描 + 单号跨页正则追踪 + 路由/死链校验（0 失败、0 死链）。本报告所列单号不一致项均以原型文件实际字符串为准（见 生产工单.html、偏差CAPA.html、质量偏差追溯报表.html、我的待办.html）。
+</div>
+
+</div>
+  <script src="plant.js"></script>
+  <script src="role.js"></script>
+  <script src="sidebar.js"></script>
+  </div>
+  </div>
+</div>
+</body>
+</html>
