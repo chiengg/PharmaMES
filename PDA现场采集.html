@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MES 精细化工 - PDA 现场采集</title>
+<style>
+  :root{
+    --primary-400:#378ADD; --primary-600:#185FA5; --primary-800:#0C447C; --primary-900:#042C53;
+    --ok:#1FA971; --warn:#E8A33D; --bad:#E5484D; --info:#378ADD;
+    --bg:#EEF1F5; --card:#FFFFFF; --line:#E6EAF0; --text:#1F2937; --muted:#8A94A6;
+    --ink-2:#4B5563;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+    background:#cdd4dd; color:var(--text);
+    display:flex; align-items:center; justify-content:center;
+    min-height:100vh; padding:24px;
+  }
+  /* ===== 桌面端手机外框 ===== */
+  .pda-stage{ width:100%; display:flex; justify-content:center; }
+  .phone{
+    width:402px; max-width:100%;
+    background:#0b0f17; border-radius:46px; padding:12px;
+    box-shadow:0 30px 80px rgba(10,20,40,.45), inset 0 0 0 2px #2a2f3a;
+    position:relative;
+  }
+  .phone::before{ /* 听筒/刘海 */
+    content:""; position:absolute; top:20px; left:50%; transform:translateX(-50%);
+    width:120px; height:26px; background:#0b0f17; border-radius:0 0 16px 16px; z-index:50;
+  }
+  .screen{
+    width:100%; height:844px; max-height:84vh; background:var(--bg);
+    border-radius:36px; overflow:hidden; position:relative;
+    display:flex; flex-direction:column;
+  }
+  /* ===== 状态栏 ===== */
+  .statusbar{
+    height:44px; flex:none; background:var(--primary-800); color:#fff;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 22px; font-size:13px; font-weight:600; letter-spacing:.3px;
+  }
+  .statusbar .sb-right{ display:flex; align-items:center; gap:6px; }
+  .statusbar .net-dot{ width:7px; height:7px; border-radius:50%; background:#34d399; }
+  .statusbar.offline .net-dot{ background:#f87171; }
+  /* ===== 应用头 ===== */
+  .appbar{
+    flex:none; background:var(--primary-600); color:#fff;
+    padding:10px 16px 10px;
+  }
+  .appbar .app-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .appbar .app-title{ font-size:17px; font-weight:700; display:flex; align-items:center; gap:8px; }
+  .appbar .app-title .badge-pda{
+    font-size:10px; background:rgba(255,255,255,.18); padding:2px 7px; border-radius:20px; font-weight:600;
+  }
+  .appbar .env-bar{
+    margin-top:10px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  }
+  .env-pill{
+    display:inline-flex; align-items:center; gap:5px;
+    background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.22);
+    border-radius:20px; padding:4px 10px; font-size:12px; line-height:1; color:#fff;
+  }
+  .env-pill .dot{ width:6px; height:6px; border-radius:50%; background:#34d399; }
+  .sync-badge{
+    margin-left:auto; display:inline-flex; align-items:center; gap:5px;
+    background:#fff; color:var(--primary-600); border-radius:20px; padding:4px 10px;
+    font-size:12px; font-weight:700;
+  }
+  .sync-badge.has{ background:#FDE68A; color:#92400E; }
+  /* ===== 滚动内容 ===== */
+  .scroll{ flex:1; overflow-y:auto; padding:14px 14px 90px; -webkit-overflow-scrolling:touch; }
+  .scroll::-webkit-scrollbar{ width:0; }
+  .card{
+    background:var(--card); border-radius:16px; padding:14px;
+    box-shadow:0 2px 10px rgba(20,40,80,.06); margin-bottom:12px;
+  }
+  .card .c-title{ font-size:13px; color:var(--muted); font-weight:600; margin:0 0 10px; display:flex; align-items:center; gap:6px; }
+  /* 工单概览 */
+  .wo-head{ display:flex; align-items:center; justify-content:space-between; }
+  .wo-no{ font-size:16px; font-weight:800; color:var(--primary-800); letter-spacing:.3px; }
+  .wo-state{ font-size:11px; background:#E7F0FA; color:var(--primary-600); padding:3px 9px; border-radius:20px; font-weight:700; }
+  .wo-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px 12px; margin-top:10px; }
+  .wo-grid .k{ font-size:11px; color:var(--muted); }
+  .wo-grid .v{ font-size:13px; font-weight:600; color:var(--ink-2); }
+  /* 工序步骤条 */
+  .stepper{ display:flex; align-items:center; margin-top:12px; }
+  .step{ flex:1; display:flex; flex-direction:column; align-items:center; position:relative; }
+  .step .dot{
+    width:26px; height:26px; border-radius:50%; background:#E6EAF0; color:var(--muted);
+    display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; z-index:2;
+  }
+  .step.done .dot{ background:var(--ok); color:#fff; }
+  .step.cur .dot{ background:var(--primary-600); color:#fff; box-shadow:0 0 0 4px rgba(24,95,165,.18); }
+  .step .lab{ font-size:10px; color:var(--muted); margin-top:5px; text-align:center; }
+  .step.cur .lab{ color:var(--primary-600); font-weight:700; }
+  .stepper .line{ flex:1; height:3px; background:#E6EAF0; margin:0 -2px; position:relative; top:-14px; }
+  .stepper .line.done{ background:var(--ok); }
+  /* 称量录入 */
+  .weigh-row{ display:flex; align-items:center; gap:8px; padding:9px 0; border-bottom:1px solid var(--line); }
+  .weigh-row:last-child{ border-bottom:none; }
+  .weigh-row .m-name{ flex:1; font-size:13px; font-weight:600; }
+  .weigh-row .m-name small{ display:block; color:var(--muted); font-weight:400; font-size:10px; }
+  .weigh-row .m-theory{ font-size:11px; color:var(--muted); width:74px; text-align:right; }
+  .weigh-row input{
+    width:72px; border:1.5px solid var(--line); border-radius:9px; padding:7px 8px;
+    font-size:14px; font-weight:700; text-align:right; color:var(--primary-800); background:#FBFCFE;
+  }
+  .weigh-row input:focus{ outline:none; border-color:var(--primary-400); }
+  .weigh-row .m-unit{ font-size:11px; color:var(--muted); width:18px; }
+  .m-judge{ width:46px; text-align:center; font-size:11px; font-weight:800; }
+  .m-judge.ok{ color:var(--ok); } .m-judge.bad{ color:var(--bad); } .m-judge.idle{ color:var(--muted); }
+  /* 复核签名 */
+  .sign-row{ display:flex; gap:10px; }
+  .sign-box{ flex:1; border:1.5px dashed var(--line); border-radius:12px; padding:10px; text-align:center; cursor:pointer; transition:.15s; }
+  .sign-box.signed{ border-style:solid; border-color:var(--ok); background:#F0FBF5; }
+  .sign-box .s-ico{ font-size:20px; }
+  .sign-box .s-role{ font-size:11px; color:var(--muted); }
+  .sign-box .s-name{ font-size:13px; font-weight:700; color:var(--ink-2); margin-top:2px; }
+  .sign-box .s-time{ font-size:10px; color:var(--ok); margin-top:2px; }
+  /* 按钮 */
+  .btn{
+    width:100%; border:none; border-radius:13px; padding:14px; font-size:15px; font-weight:700;
+    cursor:pointer; transition:.15s; display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .btn-primary{ background:var(--primary-600); color:#fff; }
+  .btn-primary:active{ transform:scale(.98); background:var(--primary-800); }
+  .btn-primary:disabled{ background:#BCD1E8; color:#fff; cursor:not-allowed; }
+  .btn-ghost{ background:#EEF1F5; color:var(--primary-600); }
+  .btn-ghost:active{ transform:scale(.98); }
+  .btn-danger{ background:#FCE8E8; color:var(--bad); }
+  .btn-row{ display:flex; gap:10px; }
+  .btn-row .btn{ flex:1; }
+  /* 离线队列 */
+  .queue-item{ display:flex; align-items:center; gap:10px; padding:10px; border-radius:11px; background:#FAFBFC; margin-bottom:8px; border:1px solid var(--line); }
+  .queue-item .q-ico{ width:32px; height:32px; border-radius:9px; background:#EEF1F5; display:flex; align-items:center; justify-content:center; font-size:16px; flex:none; }
+  .queue-item .q-main{ flex:1; }
+  .queue-item .q-t{ font-size:13px; font-weight:600; }
+  .queue-item .q-s{ font-size:11px; color:var(--muted); }
+  .queue-item .q-state{ font-size:11px; font-weight:700; color:var(--warn); }
+  .queue-item .q-state.synced{ color:var(--ok); }
+  .empty{ text-align:center; color:var(--muted); font-size:12px; padding:18px 0; }
+  /* 管理可见字段（demo 字段级权限） */
+  .admin-only{ background:#FBF7FF; border:1px dashed #D9C7F5; border-radius:12px; padding:10px; font-size:12px; color:#6B4EA0; }
+  .admin-only b{ color:#5B21B6; }
+  /* 工厂隔离 demo 面板 */
+  .plant-scope-demo{ background:#F1F7FF; border:1px solid #CFE3FB; border-radius:12px; padding:10px; font-size:12px; color:var(--primary-800); }
+  .plant-scope-demo b{ color:var(--primary-600); }
+  /* 底部 tab */
+  .tabbar{
+    position:absolute; left:0; right:0; bottom:0; height:64px; background:#fff;
+    border-top:1px solid var(--line); display:flex; padding:6px 4px;
+    box-shadow:0 -4px 16px rgba(20,40,80,.06);
+  }
+  .tab{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; cursor:pointer; color:var(--muted); font-size:10px; }
+  .tab.active{ color:var(--primary-600); }
+  .tab .t-ico{ font-size:20px; }
+  .tab .t-badge{ position:absolute; }
+  /* 任务列表 */
+  .task-item{ display:flex; align-items:center; gap:10px; padding:12px; border-radius:13px; background:#fff; box-shadow:0 2px 10px rgba(20,40,80,.06); margin-bottom:10px; }
+  .task-item .tk-no{ font-size:13px; font-weight:800; color:var(--primary-800); }
+  .task-item .tk-sub{ font-size:11px; color:var(--muted); margin-top:2px; }
+  .task-item .tk-state{ font-size:11px; font-weight:700; padding:4px 9px; border-radius:20px; }
+  .tk-state.do{ background:#E7F0FA; color:var(--primary-600); }
+  .tk-state.wait{ background:#F1F3F6; color:var(--muted); }
+  .tk-state.done{ background:#E7F6EE; color:var(--ok); }
+  /* ===== 底部动作表 / Toast ===== */
+  .sheet-mask{ position:absolute; inset:0; background:rgba(10,20,40,.45); display:none; z-index:80; }
+  .sheet-mask.show{ display:block; }
+  .sheet{
+    position:absolute; left:0; right:0; bottom:0; background:#fff; border-radius:22px 22px 0 0;
+    padding:18px 16px 28px; z-index:90; transform:translateY(100%); transition:transform .26s ease;
+  }
+  .sheet.show{ transform:translateY(0); }
+  .sheet .sh-title{ font-size:16px; font-weight:800; text-align:center; margin-bottom:14px; }
+  .chip{ display:inline-block; padding:9px 14px; border-radius:22px; background:#EEF1F5; color:var(--ink-2); font-size:13px; font-weight:600; margin:0 8px 10px 0; cursor:pointer; border:1.5px solid transparent; }
+  .chip.on{ background:#E7F0FA; color:var(--primary-600); border-color:var(--primary-400); }
+  .sheet textarea{ width:100%; border:1.5px solid var(--line); border-radius:12px; padding:10px; font-size:13px; resize:none; min-height:64px; font-family:inherit; }
+  .toast{
+    position:absolute; left:50%; top:50%; transform:translate(-50%,-50%) scale(.9);
+    background:rgba(15,23,42,.92); color:#fff; padding:14px 20px; border-radius:14px;
+    font-size:14px; font-weight:600; z-index:120; opacity:0; transition:.2s; pointer-events:none; text-align:center;
+  }
+  .toast.show{ opacity:1; transform:translate(-50%,-50%) scale(1); }
+  .toast .t-ico{ font-size:26px; display:block; margin-bottom:6px; }
+  .view{ display:none; }
+  .view.active{ display:block; }
+  .note-line{ font-size:11px; color:var(--muted); line-height:1.6; }
+  .pill-info{ display:inline-block; font-size:11px; background:#E7F0FA; color:var(--primary-600); border-radius:20px; padding:3px 9px; font-weight:700; }
+  @media (max-width:440px){
+    body{ padding:0; background:var(--bg); }
+    .phone{ width:100%; border-radius:0; padding:0; box-shadow:none; }
+    .phone::before{ display:none; }
+    .screen{ height:100vh; max-height:none; border-radius:0; }
+  }
+  /* ===== 断网续传增强 (Q-04) ===== */
+  .net-banner{ display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; font-size:12.5px; margin-bottom:12px; }
+  .net-banner.on{ background:#E1F5EE; color:#1D9E75; border:1px solid #C7EADD; }
+  .net-banner.off{ background:#FCEBEB; color:#E24B4A; border:1px solid #F5C9C9; }
+  .net-banner .nb-pulse{ width:8px; height:8px; border-radius:50%; background:currentColor; animation:pulse 1.4s infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.3;} }
+  .sync-log{ margin-top:12px; border-top:1px dashed var(--line); padding-top:10px; }
+  .sync-log .sl-title{ font-size:12px; color:var(--text-sec); margin-bottom:6px; display:flex; justify-content:space-between; }
+  .log-row{ display:flex; gap:8px; font-size:11.5px; padding:4px 0; color:var(--text-sub); border-bottom:1px solid #F2F2F2; }
+  .log-row .lr-time{ font-family:ui-monospace,monospace; color:var(--text-sec); flex:none; }
+  .log-row .lr-ok{ color:var(--ok); font-weight:600; }
+  .log-row .lr-warn{ color:var(--warn); font-weight:600; }
+  .log-row .lr-retry{ color:var(--info); font-weight:600; }
+  .conflict-item{ background:#FAEEDA; border:1px solid #F2E0C2; border-radius:11px; padding:11px 13px; margin-bottom:10px; }
+  .conflict-item .ci-head{ font-size:13px; font-weight:600; color:#B9791B; display:flex; align-items:center; gap:6px; margin-bottom:8px; }
+  .conflict-item .ci-row{ font-size:12px; color:var(--text-sub); line-height:1.7; }
+  .conflict-item .ci-actions{ display:flex; gap:8px; margin-top:10px; }
+  .conflict-item .ci-actions button{ flex:1; padding:7px; border-radius:8px; font-size:12.5px; border:none; cursor:pointer; font-family:inherit; }
+  .ci-local{ background:var(--primary-600); color:#fff; }
+  .ci-server{ background:#B9791B; color:#fff; }
+  .demo-btn{ background:#FDE68A; color:#92400E; border:1px solid #F2D98A; }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="appSidebar"></aside>
+  <div class="main" style="overflow:auto">
+    <div class="tabbar" id="tabBar"></div>
+    <div class="pda-stage">
+  <div class="phone">
+    <div class="screen">
+      <!-- 状态栏 -->
+      <div class="statusbar" id="statusbar">
+        <span id="clock">09:41</span>
+        <span class="sb-right">
+          <span id="netLabel">在线</span>
+          <span class="net-dot"></span>
+          <span>🔋 86%</span>
+        </span>
+      </div>
+
+      <!-- 应用头 -->
+      <div class="appbar">
+        <div class="app-row">
+          <div class="app-title">📱 现场采集 <span class="badge-pda">PDA</span></div>
+        </div>
+        <div class="env-bar">
+          <span class="env-pill"><span class="dot"></span><span id="plantSwitch"></span></span>
+          <span class="env-pill">👤 <span id="roleSwitch"></span></span>
+          <span class="sync-badge" id="syncBadge" onclick="PDA.simDrop()">🔄 待同步 0</span>
+        </div>
+      </div>
+
+      <!-- 滚动内容 -->
+      <div class="scroll">
+
+        <!-- 视图：采集 -->
+        <div class="view active" id="view-collect">
+
+          <!-- 工单概览 -->
+          <div class="card">
+            <div class="wo-head">
+              <div class="wo-no">WO-2608-014</div>
+              <div class="wo-state">执行中</div>
+            </div>
+            <div class="wo-grid">
+              <div><div class="k">产品</div><div class="v">阿托伐他汀钙</div></div>
+              <div><div class="k">工序</div><div class="v">投料 · 称量</div></div>
+              <div><div class="k">釜次</div><div class="v">RC-2608-0301</div></div>
+              <div><div class="k">批次</div><div class="v">RC-2608-0501</div></div>
+              <div><div class="k">工位</div><div class="v" id="stationVal">— 待扫码 —</div></div>
+              <div><div class="k">开工</div><div class="v" id="startVal">—</div></div>
+            </div>
+            <!-- 步骤条 -->
+            <div class="stepper" id="stepper">
+              <div class="step" data-step="0"><div class="dot">1</div><div class="lab">扫码开工</div></div>
+              <div class="line"></div>
+              <div class="step" data-step="1"><div class="dot">2</div><div class="lab">称量录入</div></div>
+              <div class="line"></div>
+              <div class="step" data-step="2"><div class="dot">3</div><div class="lab">双人复核</div></div>
+              <div class="line"></div>
+              <div class="step" data-step="3"><div class="dot">4</div><div class="lab">报工确认</div></div>
+            </div>
+          </div>
+
+          <!-- 步骤1 扫码开工 -->
+          <div class="card" id="card-scan">
+            <p class="c-title">① 扫码开工 / 工位绑定</p>
+            <button class="btn btn-ghost" onclick="PDA.scan()">📷 扫描工单 / 工位码开工</button>
+          </div>
+
+          <!-- 步骤2 称量录入 -->
+          <div class="card" id="card-weigh">
+            <p class="c-title">② 称量录入（理论量 ±0.05kg 公差自动判定）</p>
+            <div id="weighList"></div>
+            <p class="note-line" style="margin-top:8px">超出公差范围将自动标记超差并阻断报工，需复核或发起偏差。</p>
+          </div>
+
+          <!-- 步骤3 双人复核签名 -->
+          <div class="card" id="card-sign">
+            <p class="c-title">③ 双人复核电子签名</p>
+            <div class="sign-row">
+              <div class="sign-box" id="signOp" onclick="PDA.sign('op')">
+                <div class="s-ico">✍️</div>
+                <div class="s-role">操作人</div>
+                <div class="s-name">点击签名</div>
+                <div class="s-time"></div>
+              </div>
+              <div class="sign-box" id="signChk" onclick="PDA.sign('chk')">
+                <div class="s-ico">✍️</div>
+                <div class="s-role">复核人</div>
+                <div class="s-name">点击签名</div>
+                <div class="s-time"></div>
+              </div>
+            </div>
+            <!-- 字段级权限 demo：仅工厂管理者/集团可见 -->
+            <div class="admin-only" data-role-min="2" style="margin-top:10px">
+              🔒 <b>工序工艺参数（管理可见）</b>：搅拌速率 45rpm · 温度上限 32℃ · 投料顺序 A→B→C（仅工厂管理者及以上角色可见）
+            </div>
+          </div>
+
+          <!-- 步骤4 报工 -->
+          <div class="card" id="card-report">
+            <p class="c-title">④ 工序报工确认</p>
+            <button class="btn btn-primary" id="btnReport" onclick="PDA.report()" disabled>✅ 确认报工</button>
+            <div class="btn-row" style="margin-top:10px">
+              <button class="btn btn-danger" onclick="PDA.openSheet()">⚠ 上报异常</button>
+            </div>
+          </div>
+
+          <!-- 工厂隔离 demo 面板 -->
+          <div class="plant-scope-demo" data-plant-scope="P1">
+            🏭 <b>本厂专属指令（上海一厂）</b>：二车间今日环保限值 COD≤60mg/L；切换至其他工厂时此面板自动隔离隐藏。
+          </div>
+        </div>
+
+        <!-- 视图：任务 -->
+        <div class="view" id="view-task">
+          <div class="card"><p class="c-title">今日工序任务（上海一厂 · 二车间）</p></div>
+          <div class="task-item">
+            <div style="flex:1"><div class="tk-no">WO-2608-014 · 投料称量</div><div class="tk-sub">RC-2608-0301 · 当前执行</div></div>
+            <span class="tk-state do">进行中</span>
+          </div>
+          <div class="task-item">
+            <div style="flex:1"><div class="tk-no">WO-2608-011 · 反应结晶</div><div class="tk-sub">RC-2608-0298 · 待开工</div></div>
+            <span class="tk-state wait">待执行</span>
+          </div>
+          <div class="task-item">
+            <div style="flex:1"><div class="tk-no">WO-2608-009 · 离心干燥</div><div class="tk-sub">RC-2608-0291 · 已完成</div></div>
+            <span class="tk-state done">已完成</span>
+          </div>
+        </div>
+
+        <!-- 视图：离线队列（断网续传 Q-04） -->
+        <div class="view" id="view-queue">
+          <div id="netBanner" class="net-banner on"><span class="nb-pulse"></span><span id="netBannerTxt">在线 · 采集实时回传 MES</span></div>
+          <div class="card">
+            <p class="c-title">离线待同步队列 <span class="pill-info" id="queueCount">0 条</span></p>
+            <div id="queueList"></div>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+              <button class="btn btn-primary" id="btnSync" onclick="PDA.sync()">🔄 立即同步至 MES</button>
+              <button class="btn demo-btn" onclick="PDA.simDrop()">📴 模拟断网</button>
+            </div>
+            <p class="note-line" id="netNote" style="margin-top:8px">离线时采集数据本地缓存，恢复网络后自动续传（指数退避重试），冲突数据可手动裁决。</p>
+          </div>
+          <div class="card" id="conflictCard" style="display:none">
+            <p class="c-title">⚠ 同步冲突待裁决 <span class="pill-info" id="conflictCount">0</span></p>
+            <div id="conflictList"></div>
+          </div>
+          <div class="card">
+            <div class="sync-log">
+              <div class="sl-title"><span>同步日志</span><span id="syncStat">成功率 —</span></div>
+              <div id="syncLog"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 视图：我的 -->
+        <div class="view" id="view-me">
+          <div class="card">
+            <p class="c-title">当前环境</p>
+            <div style="font-size:13px;line-height:2">
+              工厂：<b id="mePlant">—</b><br>
+              角色：<b id="meRole">—</b><br>
+              网络：<b id="meNet">在线</b>
+            </div>
+            <p class="note-line" style="margin-top:8px">本页为移动端 / PDA 现场无纸化采集原型（Q-01）。已与 PC 端共享「组织 × 角色」双层权限：顶部 🌐 切换工厂、👤 切换角色，关键字段与操作受权限控制。</p>
+          </div>
+          <div class="card">
+            <p class="c-title">说明</p>
+            <p class="note-line">称量录入带公差自动判定；双人电子签名满足 ALCOA+ 合规；异常一键上报并进入待同步队列；断网续传（Q-04）以离线队列形式体现。</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 底部 tab -->
+      <div class="tabbar">
+        <div class="tab active" data-tab="collect" onclick="PDA.tab('collect')"><span class="t-ico">📲</span>采集</div>
+        <div class="tab" data-tab="task" onclick="PDA.tab('task')"><span class="t-ico">📋</span>任务</div>
+        <div class="tab" data-tab="queue" onclick="PDA.tab('queue')"><span class="t-ico">🔄</span>离线<span id="tabQBadge"></span></div>
+        <div class="tab" data-tab="me" onclick="PDA.tab('me')"><span class="t-ico">👤</span>我的</div>
+      </div>
+
+      <!-- 异常上报底表 -->
+      <div class="sheet-mask" id="sheetMask" onclick="PDA.closeSheet()"></div>
+      <div class="sheet" id="sheet">
+        <div class="sh-title">⚠ 上报异常</div>
+        <div id="abnChips">
+          <span class="chip" data-v="偏差">偏差 Deviation</span>
+          <span class="chip" data-v="设备异常">设备异常</span>
+          <span class="chip" data-v="质量异常">质量异常</span>
+          <span class="chip" data-v="安全环保">安全环保</span>
+        </div>
+        <textarea id="abnNote" placeholder="补充描述（将自动关联当前工单 WO-2608-014 / 釜次 RC-2608-0301）"></textarea>
+        <button class="btn btn-primary" style="margin-top:12px" onclick="PDA.submitAbn()">提交并加入待同步队列</button>
+      </div>
+
+      <!-- Toast -->
+      <div class="toast" id="toast"></div>
+    </div>
+  </div>
+</div>
+
+<script src="role.js"></script>
+<script src="plant.js"></script>
+<script>
+/* ===================== PDA 现场采集 逻辑 ===================== */
+var PDA = (function(){
+  var online = (typeof navigator !== 'undefined') ? navigator.onLine : true;
+  var step = 0;                 // 当前步骤 0..3
+  var signed = { op:false, chk:false };
+  var queue = [];               // 离线待同步队列
+  var conflicts = [];           // 同步冲突（服务端已存在）
+  var syncLog = [];             // 同步日志
+  var syncStat = { ok:0, fail:0 };
+  var retryTimer = null;
+  var abnType = '';
+  var weighs = [
+    { name:'物料 A · 主原料', code:'MAT-A001', theory:12.50, unit:'kg', val:'' },
+    { name:'物料 B · 溶剂',   code:'MAT-B014', theory:30.00, unit:'kg', val:'' },
+    { name:'物料 C · 催化剂', code:'MAT-C007', theory:0.80,  unit:'kg', val:'' }
+  ];
+  var TOL = 0.05;
+
+  function $(id){ return document.getElementById(id); }
+
+  function toast(msg, ico){
+    var t = $('toast');
+    t.innerHTML = (ico?('<span class="t-ico">'+ico+'</span>'):'') + msg;
+    t.classList.add('show');
+    clearTimeout(t._t);
+    t._t = setTimeout(function(){ t.classList.remove('show'); }, 1600);
+  }
+
+  /* 时钟 */
+  function tick(){
+    var d = new Date();
+    var h = ('0'+d.getHours()).slice(-2), m = ('0'+d.getMinutes()).slice(-2);
+    $('clock').textContent = h+':'+m;
+  }
+  setInterval(tick, 1000); tick();
+
+  /* 步骤条渲染 */
+  function renderStep(){
+    var steps = document.querySelectorAll('#stepper .step');
+    var lines = document.querySelectorAll('#stepper .line');
+    for (var i=0;i<steps.length;i++){
+      steps[i].classList.remove('done','cur');
+      if (i < step) steps[i].classList.add('done');
+      else if (i === step) steps[i].classList.add('cur');
+    }
+    for (var j=0;j<lines.length;j++) lines[j].classList.toggle('done', j < step);
+    // 称重/签名/报工可用性
+    $('card-weigh').style.opacity = step>0 ? 1 : .5;
+    $('card-sign').style.opacity  = step>1 ? 1 : .5;
+    refreshReportBtn();
+  }
+
+  /* 称量列表渲染 + 公差判定 */
+  function renderWeigh(){
+    var html = '';
+    for (var i=0;i<weighs.length;i++){
+      (function(it){
+        var diff = it.val==='' ? null : (parseFloat(it.val) - it.theory);
+        var cls = 'idle', txt = '—';
+        if (diff !== null){
+          if (Math.abs(diff) <= TOL){ cls='ok'; txt='合格'; }
+          else { cls='bad'; txt=(diff>0?'+':'')+diff.toFixed(2); }
+        }
+        html += '<div class="weigh-row">'+
+          '<div class="m-name">'+it.name+'<small>'+it.code+' · 理论 '+it.theory.toFixed(2)+it.unit+'</small></div>'+
+          '<div class="m-theory">理论<br>'+it.theory.toFixed(2)+'</div>'+
+          '<input id="w'+i+'" value="'+it.val+'" inputmode="decimal" placeholder="0.00" oninput="PDA.onWeigh('+i+',this.value)">'+
+          '<div class="m-unit">'+it.unit+'</div>'+
+          '<div class="m-judge '+cls+'">'+txt+'</div>'+
+        '</div>';
+      })(weighs[i]);
+    }
+    $('weighList').innerHTML = html;
+  }
+
+  function onWeigh(i, v){
+    weighs[i].val = v;
+    renderWeigh();
+  }
+
+  /* 扫码开工 */
+  function scan(){
+    if (step > 0){ toast('已开工', 'ℹ️'); return; }
+    var stations = ['GT-02 称量间','GT-03 投料口','GT-05 反应区'];
+    var st = stations[Math.floor(Math.random()*stations.length)];
+    var d = new Date();
+    $('stationVal').textContent = st;
+    $('startVal').textContent = ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+    step = 1;
+    renderStep();
+    toast('开工成功 · 工位绑定', '✅');
+  }
+
+  /* 签名 */
+  function sign(who){
+    if (step < (who==='op'?1:2)){ toast('请先完成前序步骤', '⚠️'); return; }
+    var box = who==='op' ? $('signOp') : $('signChk');
+    if (signed[who]){ toast('已签名', 'ℹ️'); return; }
+    signed[who] = true;
+    box.classList.add('signed');
+    box.querySelector('.s-name').textContent = who==='op' ? '张操作 (工号 2087)' : '李复核 (工号 1156)';
+    var d = new Date();
+    box.querySelector('.s-time').textContent = '已签名 ' + ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+    if (who==='chk'){ step = Math.max(step,3); renderStep(); }
+    else { step = Math.max(step,2); renderStep(); }
+    toast(who==='op'?'操作人已签名':'复核人已签名', '✍️');
+  }
+
+  function allWeighOk(){
+    for (var i=0;i<weighs.length;i++){
+      if (weighs[i].val==='') return false;
+      if (Math.abs(parseFloat(weighs[i].val)-weighs[i].theory) > TOL) return false;
+    }
+    return true;
+  }
+
+  function refreshReportBtn(){
+    var btn = $('btnReport');
+    var ok = step>=3 && signed.op && signed.chk && allWeighOk();
+    btn.disabled = !ok;
+    if (!ok){
+      if (!allWeighOk()) btn.textContent = '✅ 确认报工（称量待完成/超差）';
+      else if (!signed.op || !signed.chk) btn.textContent = '✅ 确认报工（待双人签名）';
+      else btn.textContent = '✅ 确认报工';
+    } else btn.textContent = '✅ 确认报工';
+  }
+
+  /* 报工 */
+  function report(){
+    if ($('btnReport').disabled){ toast('请完成全部采集步骤', '⚠️'); return; }
+    var d = new Date();
+    var t = ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+    queue.push({ type:'工序报工', title:'投料称量 完成', time:t, synced:!online });
+    toast('报工已记录' + (online?'并同步':'（离线缓存）'), '✅');
+    // 重置下一工序
+    step = 0; signed = {op:false,chk:false};
+    $('stationVal').textContent='— 待扫码 —'; $('startVal').textContent='—';
+    $('signOp').classList.remove('signed'); $('signChk').classList.remove('signed');
+    $('signOp').querySelector('.s-name').textContent='点击签名'; $('signOp').querySelector('.s-time').textContent='';
+    $('signChk').querySelector('.s-name').textContent='点击签名'; $('signChk').querySelector('.s-time').textContent='';
+    for (var i=0;i<weighs.length;i++) weighs[i].val='';
+    renderWeigh(); renderStep(); renderQueue();
+  }
+
+  /* 异常底表 */
+  function openSheet(){ $('sheetMask').classList.add('show'); setTimeout(function(){$('sheet').classList.add('show');},10); }
+  function closeSheet(){ $('sheet').classList.remove('show'); $('sheetMask').classList.remove('show'); }
+  function bindChips(){
+    var chips = document.querySelectorAll('#abnChips .chip');
+    chips.forEach(function(c){
+      c.addEventListener('click', function(){
+        chips.forEach(function(x){x.classList.remove('on');});
+        c.classList.add('on'); abnType = c.getAttribute('data-v');
+      });
+    });
+  }
+  function submitAbn(){
+    if (!abnType){ toast('请选择异常类型', '⚠️'); return; }
+    var d = new Date();
+    var t = ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+    queue.push({ type:'异常·'+abnType, title:'WO-2608-014 / RC-2608-0301', time:t, synced:!online });
+    $('abnNote').value=''; abnType='';
+    document.querySelectorAll('#abnChips .chip').forEach(function(x){x.classList.remove('on');});
+    closeSheet(); renderQueue();
+    toast('异常已上报' + (online?'并同步':'（离线缓存）'), '📨');
+  }
+
+  /* ============ 断网续传引擎 (Q-04) ============ */
+  function nowHMS(){
+    var d = new Date();
+    return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)+':'+('0'+d.getSeconds()).slice(-2);
+  }
+  function pushLog(msg, type){
+    syncLog.unshift({ time: nowHMS(), msg: msg, type: type||'' });
+    if (syncLog.length > 30) syncLog.pop();
+    renderLog();
+  }
+  function renderLog(){
+    var el = $('syncLog'); if (!el) return;
+    if (syncLog.length===0){ el.innerHTML = '<div class="log-row"><span class="lr-time">—</span><span>暂无同步记录</span></div>'; }
+    else el.innerHTML = syncLog.map(function(l){
+      var cls = l.type==='ok'?'lr-ok':(l.type==='warn'?'lr-warn':(l.type==='retry'?'lr-retry':''));
+      return '<div class="log-row"><span class="lr-time">'+l.time+'</span><span class="'+cls+'">'+l.msg+'</span></div>';
+    }).join('');
+    var total = syncStat.ok + syncStat.fail;
+    $('syncStat').textContent = total ? ('成功率 ' + Math.round(syncStat.ok/total*100) + '%') : '成功率 —';
+  }
+  function applyNetUI(){
+    $('statusbar').classList.toggle('offline', !online);
+    $('netLabel').textContent = online ? '在线' : '离线';
+    var b = $('netBanner');
+    b.className = 'net-banner ' + (online?'on':'off');
+    $('netBannerTxt').textContent = online ? '在线 · 采集实时回传 MES' : '离线 · 数据本地缓存，等待续传';
+    if ($('meNet')) $('meNet').textContent = online ? '在线' : '离线';
+  }
+
+  /* 渲染离线队列 + 冲突 + 日志 */
+  function renderQueue(){
+    var list = $('queueList');
+    var pend = queue.filter(function(q){return !q.synced;});
+    $('queueCount').textContent = pend.length + ' 条';
+    $('syncBadge').textContent = '🔄 待同步 ' + pend.length;
+    $('syncBadge').classList.toggle('has', pend.length>0 || conflicts.length>0);
+    $('tabQBadge').textContent = (pend.length+conflicts.length)?(' '+(pend.length+conflicts.length)):'';
+    $('btnSync').disabled = pend.length===0 || !online;
+    $('btnSync').textContent = !online ? '🔄 离线中·无法同步' : '🔄 立即同步至 MES';
+    $('netNote').textContent = online
+      ? '在线：采集数据实时回传 MES。'
+      : '离线中：采集数据本地缓存，恢复网络后自动续传（指数退避重试），冲突数据可手动裁决。';
+    if (queue.length===0 && pend.length===0){ list.innerHTML = '<div class="empty">暂无待同步记录</div>'; }
+    else {
+      var html='';
+      queue.slice().reverse().forEach(function(q){
+        html += '<div class="queue-item">'+
+          '<div class="q-ico">📦</div>'+
+          '<div class="q-main"><div class="q-t">'+q.type+'</div><div class="q-s">'+q.title+' · '+q.time+'</div></div>'+
+          '<div class="q-state '+(q.synced?'synced':'')+'">'+(q.synced?'已同步':'待同步')+'</div>'+
+        '</div>';
+      });
+      list.innerHTML = html;
+    }
+    renderConflicts();
+    renderLog();
+  }
+  function renderConflicts(){
+    var card = $('conflictCard'), list = $('conflictList');
+    if (!card) return;
+    if (conflicts.length===0){ card.style.display='none'; return; }
+    card.style.display='';
+    $('conflictCount').textContent = conflicts.length;
+    list.innerHTML = conflicts.map(function(c){
+      return '<div class="conflict-item">'+
+        '<div class="ci-head">⚠ '+c.type+' 冲突</div>'+
+        '<div class="ci-row">本地：'+c.local+'</div>'+
+        '<div class="ci-row">服务器：'+c.server+'</div>'+
+        '<div class="ci-actions">'+
+          '<button class="ci-local" onclick="PDA.resolveConflict('+c.id+',\'local\')">保留本地</button>'+
+          '<button class="ci-server" onclick="PDA.resolveConflict('+c.id+',\'server\')">采用服务器</button>'+
+        '</div></div>';
+    }).join('');
+  }
+
+  /* 同步（含指数退避重试 + 冲突检测） */
+  function sync(){
+    if (!online){ toast('当前离线，无法同步', '⚠️'); return; }
+    var pend = queue.filter(function(q){return !q.synced;});
+    if (pend.length===0 && conflicts.length===0){ toast('队列已空', 'ℹ️'); return; }
+    pushLog('发起同步 · 待传 '+pend.length+' 条', 'retry');
+    transmit(pend, 0);
+  }
+  function transmit(pend, attempt){
+    var delay = Math.min(1000 * Math.pow(2, attempt), 4000); // 指数退避 1s→2s→4s
+    if (attempt>0) pushLog('重试第 '+attempt+' 次（退避 '+delay+'ms）', 'retry');
+    setTimeout(function(){
+      // 模拟：每条 90% 成功；首条在 attempt 0 时模拟一次「服务端已存在」冲突
+      var okAll = true;
+      pend.forEach(function(q){
+        var r = Math.random();
+        if (r < 0.06 && !q._tried){            // 冲突：服务端已有该记录
+          q._tried = true;
+          conflicts.push({ id: Date.now()+Math.floor(Math.random()*999), type:q.type,
+            local:'本地 '+q.title+' @ '+q.time, server:'服务器 该工单已由终端 T-07 报工 @ '+nowHMS() });
+          syncStat.fail++; okAll = false;
+          pushLog('冲突：'+q.type+' 服务端已存在，转入待裁决', 'warn');
+        } else if (r < 0.12 && attempt<2){        // 瞬时失败 → 重试
+          okAll = false; syncStat.fail++;
+          pushLog('失败：'+q.type+' 网络抖动，将重试', 'warn');
+        } else {
+          q.synced = true; syncStat.ok++;
+        }
+      });
+      if (okAll){
+        pushLog('同步完成 · 成功 '+syncStat.ok+' 条', 'ok');
+        toast('已同步至 MES', '☁️');
+        renderQueue(); refreshMe();
+      } else if (attempt < 2){
+        transmit(pend, attempt+1);   // 指数退避重试
+      } else {
+        var left = pend.filter(function(q){return !q.synced;});
+        pushLog('部分同步：剩余 '+left.length+' 条待重试/裁决', 'warn');
+        toast('部分完成，可再次同步', '⚠️');
+        renderQueue(); refreshMe();
+      }
+    }, delay);
+  }
+
+  /* 冲突裁决 */
+  function resolveConflict(id, pick){
+    conflicts = conflicts.filter(function(c){
+      if (c.id === id){
+        if (pick === 'local'){ pushLog('已裁决：保留本地版本（'+c.type+'）', 'ok'); }
+        else { pushLog('已裁决：采用服务器版本（'+c.type+'）', 'ok'); syncStat.ok++; }
+        return false;
+      }
+      return true;
+    });
+    renderQueue();
+  }
+
+  /* 模拟断网 → 自动恢复（演示断网续传） */
+  function simDrop(){
+    if (!online){ toast('已处于离线', 'ℹ️'); return; }
+    online = false; applyNetUI(); renderQueue(); refreshMe();
+    pushLog('网络中断 · 进入离线缓存模式', 'warn');
+    toast('已模拟断网，采集将本地缓存', '📴');
+    // 8 秒后自动恢复网络，触发自动续传
+    setTimeout(function(){
+      if (!online) autoRecover();
+    }, 8000);
+  }
+  function autoRecover(){
+    online = true; applyNetUI();
+    pushLog('网络恢复 · 触发自动续传', 'ok');
+    toast('网络已恢复，自动续传', '📶');
+    renderQueue(); refreshMe();
+    var pend = queue.filter(function(q){return !q.synced;});
+    if (pend.length) sync();
+  }
+  /* 真实网络事件监听 */
+  function bindNet(){
+    window.addEventListener('offline', function(){ if (online){ online=false; applyNetUI(); renderQueue(); refreshMe(); pushLog('检测到网络断开', 'warn'); } });
+    window.addEventListener('online', function(){ if (!online) autoRecover(); });
+  }
+
+  /* Tab 切换 */
+  function tab(name){
+    document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+    document.querySelector('.tab[data-tab="'+name+'"]').classList.add('active');
+    document.querySelectorAll('.view').forEach(function(v){ v.classList.remove('active'); });
+    $('view-'+name).classList.add('active');
+    if (name==='queue') renderQueue();
+    if (name==='me') refreshMe();
+  }
+
+  function refreshMe(){
+    var ps = $('plantSwitch'), rs = $('roleSwitch');
+    var p = ps ? ps.textContent.replace(/\s+/g,'').replace(/^选择/,'').slice(0,12) : (localStorage.getItem('mes_plant')||'P1');
+    var r = rs ? rs.textContent.replace(/\s+/g,'').replace(/^选择/,'') : (localStorage.getItem('mes_role')||'plant_mgr');
+    $('mePlant').textContent = p || '未设置';
+    $('meRole').textContent = r || '未设置';
+    $('meNet').textContent = online ? '在线' : '离线';
+  }
+
+  function init(){
+    renderWeigh(); renderStep(); renderQueue(); bindChips(); refreshMe();
+    applyNetUI(); bindNet();
+    // 与 role.js / plant.js 联动：监听其变化重渲染「我的」
+    document.addEventListener('click', function(){ setTimeout(refreshMe, 0); });
+  }
+
+  return { scan:scan, onWeigh:onWeigh, sign:sign, report:report, openSheet:openSheet,
+           closeSheet:closeSheet, submitAbn:submitAbn, sync:sync, simDrop:simDrop,
+           resolveConflict:resolveConflict, tab:tab, init:init, refreshMe:refreshMe };
+})();
+window.addEventListener('DOMContentLoaded', PDA.init);
+</script>
+  <script src="sidebar.js"></script>
+  </div>
+</div>
+</body>
+</html>
